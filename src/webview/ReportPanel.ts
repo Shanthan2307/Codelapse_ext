@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Session } from '../models';
 import { computeSessionAnalytics, SessionAnalytics } from '../analytics/engine';
 import { SessionManager } from '../tracker/SessionManager';
+import { ReportExporter } from '../export/ReportExporter';
 
 export class ReportPanel {
   public static currentPanel: ReportPanel | undefined;
@@ -209,6 +210,16 @@ export class ReportPanel {
           if (session) {
             this.setSession(session);
           }
+        }
+        break;
+      }
+
+      case 'EXPORT_HTML': {
+        const sessionToExport = this._targetSession || this._sessionManager.getCurrentSession();
+        if (sessionToExport) {
+          await ReportExporter.exportStandaloneHtml(this._extensionUri, sessionToExport);
+        } else {
+          vscode.window.showWarningMessage('CodeLapse: No session data available to export.');
         }
         break;
       }

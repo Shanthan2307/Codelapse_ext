@@ -30,6 +30,10 @@
         "title": "CodeLapse: Show Session Report & Analytics"
       },
       {
+        "command": "codelapse.exportHtmlReport",
+        "title": "CodeLapse: Export Standalone HTML Report"
+      },
+      {
         "command": "codelapse.openReplay",
         "title": "CodeLapse: Open Session Replay & Analytics"
       }

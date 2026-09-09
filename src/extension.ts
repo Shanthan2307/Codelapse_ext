@@ -3,6 +3,7 @@ import { SessionManager } from './tracker/SessionManager';
 import { DocumentTracker } from './tracker/DocumentTracker';
 import { EventMonitor } from './events/EventMonitor';
 import { ReportPanel } from './webview/ReportPanel';
+import { ReportExporter } from './export/ReportExporter';
 
 let sessionManager: SessionManager;
 let documentTracker: DocumentTracker;
@@ -72,6 +73,23 @@ export function activate(context: vscode.ExtensionContext) {
     ReportPanel.createOrShow(context.extensionUri, sessionManager);
   });
 
+  const exportHtmlCmd = vscode.commands.registerCommand('codelapse.exportHtmlReport', async () => {
+    const activeSession = sessionManager.getCurrentSession();
+    if (activeSession) {
+      await ReportExporter.exportStandaloneHtml(context.extensionUri, activeSession);
+    } else {
+      const saved = await sessionManager.listSavedSessions();
+      if (saved.length > 0) {
+        const latest = await sessionManager.loadSession(saved[0]);
+        if (latest) {
+          await ReportExporter.exportStandaloneHtml(context.extensionUri, latest);
+          return;
+        }
+      }
+      vscode.window.showWarningMessage('CodeLapse: No session data available to export.');
+    }
+  });
+
   const openReplayCmd = vscode.commands.registerCommand('codelapse.openReplay', () => {
     ReportPanel.createOrShow(context.extensionUri, sessionManager);
   });
@@ -80,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
     startCmd,
     stopCmd,
     showReportCmd,
+    exportHtmlCmd,
     openReplayCmd,
     sessionManager,
     documentTracker,

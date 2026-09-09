@@ -7,6 +7,7 @@ import {
 import { MetricsRow } from './components/MetricsRow';
 import { ActivityChart } from './components/ActivityChart';
 import { TimelapsePlayer } from './components/TimelapsePlayer';
+import { AISummaryCard } from './components/AISummaryCard';
 import './styles.css';
 
 // VS Code API declaration
@@ -20,13 +21,24 @@ let vscodeApi: any = null;
 try {
   vscodeApi = acquireVsCodeApi();
 } catch {
-  // Running outside VS Code webview (e.g. standard browser preview)
+  // Running outside VS Code webview (e.g. standalone browser or preview)
   vscodeApi = {
-    postMessage: (msg: any) => console.log('Mock VS Code PostMessage:', msg),
+    postMessage: (msg: any) => console.log('Standalone / Mock VS Code PostMessage:', msg),
     getState: () => null,
     setState: () => {}
   };
 }
+
+// Check for standalone embedded data injected by ReportExporter
+const getInitialStandaloneData = (): { session: Session; isStandalone: boolean } | null => {
+  if (typeof window !== 'undefined' && (window as any).__CODELAPSE_STANDALONE_DATA__) {
+    return {
+      session: (window as any).__CODELAPSE_STANDALONE_DATA__.session,
+      isStandalone: true
+    };
+  }
+  return null;
+};
 
 // Sample fallback session for demonstration & offline preview
 const createMockSession = (): Session => {
@@ -88,8 +100,10 @@ const createMockSession = (): Session => {
 
   const events: SessionEvent[] = [
     { type: 'start', timestamp: 0, detail: 'Session started' },
+    { type: 'event' as any, timestamp: 35000, detail: '⚛️ [React/Vite] HMR updated: src/index.ts (18ms)' },
     { type: 'run-pass', timestamp: 45000, detail: 'Test run passed' },
     { type: 'run-fail', timestamp: 95000, detail: 'Test run failed' },
+    { type: 'event' as any, timestamp: 110000, detail: '📦 [Node/NPM] Installed 14 packages' },
     { type: 'run-pass', timestamp: 130000, detail: 'Test run passed' },
     { type: 'end', timestamp: 140000, detail: 'Session ended' }
   ];
@@ -106,16 +120,20 @@ const createMockSession = (): Session => {
 };
 
 export const App: React.FC = () => {
-  const [session, setSession] = useState<Session>(createMockSession);
+  const standaloneInfo = getInitialStandaloneData();
+  const [session, setSession] = useState<Session>(() => standaloneInfo ? standaloneInfo.session : createMockSession());
   const [analytics, setAnalytics] = useState<SessionAnalytics>(() =>
-    computeSessionAnalytics(createMockSession())
+    computeSessionAnalytics(standaloneInfo ? standaloneInfo.session : createMockSession())
   );
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [savedSessions, setSavedSessions] = useState<any[]>([]);
+  const isStandalone = !!standaloneInfo?.isStandalone;
 
   // IPC listener
   useEffect(() => {
+    if (isStandalone) return;
+
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
       if (!message || !message.type) return;
@@ -155,7 +173,7 @@ export const App: React.FC = () => {
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [isStandalone]);
 
   const handleRefresh = () => {
     vscodeApi.postMessage({ type: 'REQUEST_DATA' });
@@ -163,6 +181,10 @@ export const App: React.FC = () => {
 
   const handleLoadSavedSession = (uri: string) => {
     vscodeApi.postMessage({ type: 'LOAD_SESSION_BY_URI', payload: { uri } });
+  };
+
+  const handleExportHtml = () => {
+    vscodeApi.postMessage({ type: 'EXPORT_HTML' });
   };
 
   return (
@@ -180,12 +202,12 @@ export const App: React.FC = () => {
             }`}
           >
             <span className="pulse-dot" />
-            {isRecording ? 'Recording' : isPaused ? 'Paused' : 'Saved Session'}
+            {isRecording ? 'Recording' : isPaused ? 'Paused' : isStandalone ? 'Standalone Replay' : 'Saved Session'}
           </span>
         </div>
 
         <div className="header-actions">
-          {savedSessions.length > 0 && (
+          {!isStandalone && savedSessions.length > 0 && (
             <select
               className="btn btn-secondary"
               value={session.id}
@@ -203,9 +225,16 @@ export const App: React.FC = () => {
             </select>
           )}
 
-          <button className="btn btn-secondary" onClick={handleRefresh}>
-            🔄 Refresh
-          </button>
+          {!isStandalone && (
+            <>
+              <button className="btn btn-secondary" onClick={handleRefresh} title="Reload active session data">
+                🔄 Refresh
+              </button>
+              <button className="btn" onClick={handleExportHtml} title="Export as standalone self-contained HTML file">
+                📥 Export HTML Report
+              </button>
+            </>
+          )}
         </div>
       </header>
 
@@ -223,8 +252,12 @@ export const App: React.FC = () => {
       <TimelapsePlayer
         snapshots={session.snapshots}
         runs={session.runs}
+        events={session.events}
         totalDurationMs={analytics.durationMs}
       />
+
+      {/* 5. AI Session Intelligence & Summarizer */}
+      <AISummaryCard session={session} />
     </div>
   );
 };

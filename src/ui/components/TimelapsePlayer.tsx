@@ -5,17 +5,19 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
-import { Snapshot, RunEvent } from '../../models';
+import { Snapshot, RunEvent, SessionEvent } from '../../models';
 
 interface TimelapsePlayerProps {
   snapshots: Snapshot[];
   runs: RunEvent[];
+  events?: SessionEvent[];
   totalDurationMs?: number;
 }
 
 export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   snapshots,
   runs,
+  events = [],
   totalDurationMs
 }) => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
@@ -23,6 +25,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(2); // 1x, 2x, 5x, 10x
   const [activeFile, setActiveFile] = useState<string>('');
   const [selectedRun, setSelectedRun] = useState<RunEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<SessionEvent | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const codeContainerRef = useRef<HTMLDivElement | null>(null);
@@ -64,13 +67,10 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
       return;
     }
 
-    // Determine delay between consecutive snapshots
     const nextSnap = snapshots[currentIndex + 1];
     const currSnap = snapshots[currentIndex];
     const realDelta = nextSnap && currSnap ? Math.max(0, nextSnap.timestamp - currSnap.timestamp) : 500;
-
-    // Scale delay by playback speed, clamped between 50ms and 800ms
-    const delay = Math.max(50, Math.min(800, Math.round(realDelta / playbackSpeed)));
+    const delay = Math.max(40, Math.min(600, Math.round(realDelta / playbackSpeed)));
 
     timerRef.current = setTimeout(() => {
       setCurrentIndex((prev) => {
@@ -112,15 +112,12 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     setCurrentIndex(Number(e.target.value));
   };
 
-  // Jump to the closest snapshot matching a run event's timestamp
-  const handleSeekToRun = (run: RunEvent) => {
+  const seekToTimestamp = (timestamp: number) => {
     setIsPlaying(false);
-    setSelectedRun(run);
-
     let closestIdx = 0;
     let minDiff = Infinity;
     for (let i = 0; i < snapshots.length; i++) {
-      const diff = Math.abs(snapshots[i].timestamp - run.timestamp);
+      const diff = Math.abs(snapshots[i].timestamp - timestamp);
       if (diff < minDiff) {
         minDiff = diff;
         closestIdx = i;
@@ -129,7 +126,18 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     setCurrentIndex(closestIdx);
   };
 
-  // Helper to determine language for Prism syntax highlighting
+  const handleSeekToRun = (run: RunEvent) => {
+    setSelectedEvent(null);
+    setSelectedRun(run);
+    seekToTimestamp(run.timestamp);
+  };
+
+  const handleSeekToEvent = (event: SessionEvent) => {
+    setSelectedRun(null);
+    setSelectedEvent(event);
+    seekToTimestamp(event.timestamp);
+  };
+
   const getLanguageGrammar = (filePath: string): { grammar: Prism.Grammar; lang: string } => {
     const ext = filePath.split('.').pop()?.toLowerCase() || '';
     switch (ext) {
@@ -150,7 +158,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     }
   };
 
-  // Render code lines with line numbers, syntax highlighting, and exact cursor/selection
   const renderHighlightedCode = () => {
     if (!currentSnapshot) {
       return <div className="empty-player-state">No snapshot data recorded for this session.</div>;
@@ -160,28 +167,21 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     const lines = content.split(/\r?\n/);
     const { grammar, lang } = getLanguageGrammar(currentSnapshot.filePath);
 
-    // Compute cursor offset line/column bounds
     const cursorStart = currentSnapshot.cursorStart ?? 0;
     const cursorEnd = currentSnapshot.cursorEnd ?? cursorStart;
-
     let charAccumulator = 0;
 
     return lines.map((lineText, lineIdx) => {
       const lineStartOffset = charAccumulator;
       const lineEndOffset = lineStartOffset + lineText.length;
-      charAccumulator = lineEndOffset + 1; // +1 for newline
+      charAccumulator = lineEndOffset + 1;
 
-      const hasCursor =
-        cursorStart >= lineStartOffset && cursorStart <= lineEndOffset;
+      const hasCursor = cursorStart >= lineStartOffset && cursorStart <= lineEndOffset;
       const hasRangeSelection =
-        cursorStart < cursorEnd &&
-        lineEndOffset >= cursorStart &&
-        lineStartOffset <= cursorEnd;
+        cursorStart < cursorEnd && lineEndOffset >= cursorStart && lineStartOffset <= cursorEnd;
 
-      // Tokenize with Prism
       const highlightedHtml = Prism.highlight(lineText || ' ', grammar, lang);
 
-      // If cursor is within this line, insert styled visual cursor
       let lineNode: React.ReactNode = (
         <span dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
       );
@@ -191,14 +191,11 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         const beforeText = lineText.substring(0, colOffset);
         const afterText = lineText.substring(colOffset);
 
-        const beforeHtml = Prism.highlight(beforeText, grammar, lang);
-        const afterHtml = Prism.highlight(afterText, grammar, lang);
-
         lineNode = (
           <span>
-            <span dangerouslySetInnerHTML={{ __html: beforeHtml }} />
+            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(beforeText, grammar, lang) }} />
             <span className="editor-cursor" />
-            <span dangerouslySetInnerHTML={{ __html: afterHtml }} />
+            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(afterText, grammar, lang) }} />
           </span>
         );
       } else if (hasRangeSelection) {
@@ -233,6 +230,11 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     totalDurationMs ||
     (snapshots.length > 0 ? snapshots[snapshots.length - 1].timestamp : 1);
 
+  // Framework milestones to overlay on timeline
+  const frameworkEvents = events.filter(e =>
+    e.detail?.includes('React') || e.detail?.includes('Next.js') || e.detail?.includes('Node') || e.detail?.includes('Django')
+  );
+
   return (
     <div className="section-card timelapse-card">
       <div className="section-header">
@@ -241,7 +243,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             <span>🎬</span> Interactive Code Timelapse Player
           </h2>
           <span className="section-subtitle">
-            Scrub or replay typing history with exact cursor navigation and execution checkpoints.
+            Scrub or replay typing history with exact cursor navigation and framework execution milestones.
           </span>
         </div>
 
@@ -269,7 +271,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
               className={`file-tab ${activeFile === file ? 'active' : ''}`}
               onClick={() => {
                 setActiveFile(file);
-                // Seek to latest snapshot for this file if available
                 const fileSnapIdx = snapshots.findIndex((s) => s.filePath === file);
                 if (fileSnapIdx !== -1) {
                   setCurrentIndex(fileSnapIdx);
@@ -297,7 +298,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
       {/* Timeline Controls & Scrubber */}
       <div className="timelapse-controls">
-        {/* Play/Pause/Step Buttons */}
         <div className="playback-button-group">
           <button
             className="btn btn-secondary btn-icon"
@@ -335,7 +335,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             className="timelapse-slider"
           />
 
-          {/* RunEvent Markers overlaid along the slider */}
+          {/* RunEvent Markers */}
           {runs.map((run, idx) => {
             const positionPct = Math.min(
               100,
@@ -343,7 +343,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             );
             return (
               <button
-                key={idx}
+                key={`run-${idx}`}
                 className={`timeline-run-badge ${run.success ? 'pass' : 'fail'}`}
                 style={{ left: `${positionPct}%` }}
                 onClick={() => handleSeekToRun(run)}
@@ -352,6 +352,26 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
                 }\n${run.command || ''}`}
               >
                 {run.success ? '✓' : '✕'}
+              </button>
+            );
+          })}
+
+          {/* Framework Milestone Markers */}
+          {frameworkEvents.map((evt, idx) => {
+            const positionPct = Math.min(
+              100,
+              Math.max(0, (evt.timestamp / Math.max(1, totalSessionTime)) * 100)
+            );
+            const icon = evt.detail?.includes('React') ? '⚛️' : evt.detail?.includes('Django') ? '🐍' : '📦';
+            return (
+              <button
+                key={`evt-${idx}`}
+                className="timeline-framework-badge"
+                style={{ left: `${positionPct}%` }}
+                onClick={() => handleSeekToEvent(evt)}
+                title={`Milestone at ${formatTime(evt.timestamp)}: ${evt.detail || ''}`}
+              >
+                {icon}
               </button>
             );
           })}
@@ -386,6 +406,24 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             </button>
           </div>
           <pre className="run-output-box">{selectedRun.output}</pre>
+        </div>
+      )}
+
+      {/* Selected Framework Milestone Banner */}
+      {selectedEvent && (
+        <div className="run-details-banner">
+          <div className="run-details-header">
+            <span className="run-status-tag positive">
+              📌 Framework Milestone ({formatTime(selectedEvent.timestamp)})
+            </span>
+            <span className="run-command-text">{selectedEvent.detail}</span>
+            <button
+              className="btn-close-banner"
+              onClick={() => setSelectedEvent(null)}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
     </div>
