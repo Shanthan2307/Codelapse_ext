@@ -1,0 +1,347 @@
+import * as vscode from 'vscode';
+import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
+
+export type SessionState = 'idle' | 'recording' | 'paused';
+
+export class SessionManager {
+  private currentSession: Session | null = null;
+  private state: SessionState = 'idle';
+  private storageUri: vscode.Uri;
+  private currentSessionUri: vscode.Uri | null = null;
+  private flushTimer: NodeJS.Timeout | null = null;
+  private flushIntervalMs: number = 5000;
+  private isDirty: boolean = false;
+
+  private readonly _onSessionStateChanged = new vscode.EventEmitter<{
+    state: SessionState;
+    session: Session | null;
+  }>();
+  public readonly onSessionStateChanged = this._onSessionStateChanged.event;
+
+  private readonly _onSessionUpdated = new vscode.EventEmitter<Session>();
+  public readonly onSessionUpdated = this._onSessionUpdated.event;
+
+  constructor(
+    private readonly context: vscode.ExtensionContext,
+    flushIntervalMs: number = 5000
+  ) {
+    this.storageUri = context.globalStorageUri;
+    this.flushIntervalMs = flushIntervalMs;
+  }
+
+  /**
+   * Ensures that the local storage directory exists.
+   */
+  public async ensureStorageDirectory(): Promise<void> {
+    try {
+      await vscode.workspace.fs.createDirectory(this.storageUri);
+    } catch (err) {
+      console.error('Failed to create CodeLapse global storage directory:', err);
+    }
+  }
+
+  /**
+   * Starts a new recording session.
+   */
+  public async start(workspaceName?: string): Promise<Session> {
+    if (this.state === 'recording') {
+      console.warn('Session is already recording.');
+      return this.currentSession!;
+    }
+
+    await this.ensureStorageDirectory();
+
+    const now = Date.now();
+    const wsName =
+      workspaceName ||
+      vscode.workspace.name ||
+      (vscode.workspace.workspaceFolders?.[0]?.name ?? 'Untitled Workspace');
+
+    const sessionId = `session_${now}_${Math.random().toString(36).substring(2, 9)}`;
+
+    const initialEvent: SessionEvent = {
+      type: 'start',
+      timestamp: 0,
+      detail: `Session started in workspace: ${wsName}`
+    };
+
+    this.currentSession = {
+      id: sessionId,
+      workspaceName: wsName,
+      startTime: now,
+      snapshots: [],
+      runs: [],
+      events: [initialEvent]
+    };
+
+    const fileName = `codelapse-${now}.json`;
+    this.currentSessionUri = vscode.Uri.joinPath(this.storageUri, fileName);
+    this.state = 'recording';
+    this.isDirty = true;
+
+    this.startPeriodicFlush();
+    await this.flush();
+
+    this._onSessionStateChanged.fire({
+      state: this.state,
+      session: this.currentSession
+    });
+
+    return this.currentSession;
+  }
+
+  /**
+   * Pauses the active recording session.
+   */
+  public async pause(): Promise<void> {
+    if (this.state !== 'recording' || !this.currentSession) {
+      return;
+    }
+
+    this.state = 'paused';
+    const elapsed = Date.now() - this.currentSession.startTime;
+    this.addSessionEvent({
+      type: 'idle',
+      timestamp: elapsed,
+      detail: 'Session tracking paused'
+    });
+
+    await this.flush();
+
+    this._onSessionStateChanged.fire({
+      state: this.state,
+      session: this.currentSession
+    });
+  }
+
+  /**
+   * Resumes the paused recording session.
+   */
+  public async resume(): Promise<void> {
+    if (this.state !== 'paused' || !this.currentSession) {
+      return;
+    }
+
+    this.state = 'recording';
+    const elapsed = Date.now() - this.currentSession.startTime;
+    this.addSessionEvent({
+      type: 'idle',
+      timestamp: elapsed,
+      detail: 'Session tracking resumed'
+    });
+
+    this._onSessionStateChanged.fire({
+      state: this.state,
+      session: this.currentSession
+    });
+  }
+
+  /**
+   * Ends the current recording session and writes final data to disk.
+   */
+  public async end(): Promise<Session | null> {
+    if (this.state === 'idle' || !this.currentSession) {
+      return null;
+    }
+
+    this.stopPeriodicFlush();
+
+    const now = Date.now();
+    const elapsed = now - this.currentSession.startTime;
+
+    this.currentSession.endTime = now;
+    this.addSessionEvent({
+      type: 'end',
+      timestamp: elapsed,
+      detail: `Session ended. Total duration: ${Math.round(elapsed / 1000)}s`
+    });
+
+    const finishedSession = this.currentSession;
+    this.state = 'idle';
+    this.isDirty = true;
+
+    await this.flush();
+
+    this._onSessionStateChanged.fire({
+      state: this.state,
+      session: finishedSession
+    });
+
+    this.currentSession = null;
+    this.currentSessionUri = null;
+
+    return finishedSession;
+  }
+
+  /**
+   * Adds a file snapshot to the active session.
+   */
+  public addSnapshot(snapshot: Snapshot): void {
+    if (this.state !== 'recording' || !this.currentSession) {
+      return;
+    }
+
+    this.currentSession.snapshots.push(snapshot);
+    this.isDirty = true;
+    this._onSessionUpdated.fire(this.currentSession);
+  }
+
+  /**
+   * Adds a terminal/debugger execution run event to the session.
+   */
+  public addRunEvent(run: RunEvent): void {
+    if (!this.currentSession || this.state === 'idle') {
+      return;
+    }
+
+    this.currentSession.runs.push(run);
+
+    // Auto-record milestone session event
+    this.addSessionEvent({
+      type: run.success ? 'run-pass' : 'run-fail',
+      timestamp: run.timestamp,
+      detail: run.command ? `Command: ${run.command}` : (run.success ? 'Run passed' : 'Run failed')
+    });
+
+    this.isDirty = true;
+    this._onSessionUpdated.fire(this.currentSession);
+  }
+
+  /**
+   * Adds a milestone or lifecycle event to the session.
+   */
+  public addSessionEvent(event: SessionEvent): void {
+    if (!this.currentSession || this.state === 'idle') {
+      return;
+    }
+
+    this.currentSession.events.push(event);
+    this.isDirty = true;
+    this._onSessionUpdated.fire(this.currentSession);
+  }
+
+  /**
+   * Flushes the current session in-memory state to disk.
+   */
+  public async flush(): Promise<void> {
+    if (!this.currentSession || !this.currentSessionUri || !this.isDirty) {
+      return;
+    }
+
+    try {
+      const jsonContent = JSON.stringify(this.currentSession, null, 2);
+      const data = new TextEncoder().encode(jsonContent);
+      await vscode.workspace.fs.writeFile(this.currentSessionUri, data);
+      this.isDirty = false;
+    } catch (err) {
+      console.error(`Failed to flush CodeLapse session to ${this.currentSessionUri.fsPath}:`, err);
+    }
+  }
+
+  /**
+   * Lists all stored session files in globalStorageUri.
+   */
+  public async listSavedSessions(): Promise<vscode.Uri[]> {
+    await this.ensureStorageDirectory();
+    try {
+      const entries = await vscode.workspace.fs.readDirectory(this.storageUri);
+      return entries
+        .filter(([name, type]) => type === vscode.FileType.File && name.startsWith('codelapse-') && name.endsWith('.json'))
+        .map(([name]) => vscode.Uri.joinPath(this.storageUri, name))
+        .sort((a, b) => b.fsPath.localeCompare(a.fsPath)); // Latest first
+    } catch (err) {
+      console.error('Failed to list saved CodeLapse sessions:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Loads and parses a session JSON file from disk.
+   */
+  public async loadSession(fileUri: vscode.Uri): Promise<Session | null> {
+    try {
+      const data = await vscode.workspace.fs.readFile(fileUri);
+      const jsonText = new TextDecoder().decode(data);
+      return JSON.parse(jsonText) as Session;
+    } catch (err) {
+      console.error(`Failed to load session from ${fileUri.fsPath}:`, err);
+      return null;
+    }
+  }
+
+  /**
+   * Gets the current session object.
+   */
+  public getCurrentSession(): Session | null {
+    return this.currentSession;
+  }
+
+  /**
+   * Gets the current session state.
+   */
+  public getState(): SessionState {
+    return this.state;
+  }
+
+  /**
+   * Returns whether recording is currently active.
+   */
+  public isRecording(): boolean {
+    return this.state === 'recording';
+  }
+
+  /**
+   * Returns whether recording is currently paused.
+   */
+  public isPaused(): boolean {
+    return this.state === 'paused';
+  }
+
+  /**
+   * Returns milliseconds elapsed since the active session started.
+   */
+  public getElapsedTimeMs(): number {
+    if (!this.currentSession) {
+      return 0;
+    }
+    return Date.now() - this.currentSession.startTime;
+  }
+
+  /**
+   * Starts background timer for periodic serialization.
+   */
+  private startPeriodicFlush(): void {
+    this.stopPeriodicFlush();
+    this.flushTimer = setInterval(() => {
+      if (this.isDirty) {
+        this.flush().catch((err) =>
+          console.error('Periodic flush error:', err)
+        );
+      }
+    }, this.flushIntervalMs);
+  }
+
+  /**
+   * Stops background flush timer.
+   */
+  private stopPeriodicFlush(): void {
+    if (this.flushTimer) {
+      clearInterval(this.flushTimer);
+      this.flushTimer = null;
+    }
+  }
+
+  /**
+   * Disposes timers and flushes unwritten session changes.
+   */
+  public async dispose(): Promise<void> {
+    this.stopPeriodicFlush();
+    if (this.state === 'recording' || this.state === 'paused') {
+      await this.end();
+    } else {
+      await this.flush();
+    }
+    this._onSessionStateChanged.dispose();
+    this._onSessionUpdated.dispose();
+  }
+}
