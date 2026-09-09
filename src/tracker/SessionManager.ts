@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
+import { DeltaSnapshot, DeltaEngine } from './DeltaEngine';
+import { LogStreamer, LogRecord } from '../storage/LogStreamer';
 
 export type SessionState = 'idle' | 'recording' | 'paused';
 
@@ -8,6 +10,7 @@ export class SessionManager {
   private state: SessionState = 'idle';
   private storageUri: vscode.Uri;
   private currentSessionUri: vscode.Uri | null = null;
+  private currentLogStreamer: LogStreamer = new LogStreamer();
   private flushTimer: NodeJS.Timeout | null = null;
   private flushIntervalMs: number = 5000;
   private isDirty: boolean = false;
@@ -75,7 +78,23 @@ export class SessionManager {
     };
 
     const fileName = `codelapse-${now}.json`;
+    const logFileName = `codelapse-${now}.jsonl`;
     this.currentSessionUri = vscode.Uri.joinPath(this.storageUri, fileName);
+    const logUri = vscode.Uri.joinPath(this.storageUri, logFileName);
+
+    // Open append-only log stream for O(1) non-blocking writes
+    await this.currentLogStreamer.open(logUri);
+    this.currentLogStreamer.append({
+      type: 'session_start',
+      timestamp: now,
+      data: { id: sessionId, workspaceName: wsName, startTime: now }
+    });
+    this.currentLogStreamer.append({
+      type: 'event',
+      timestamp: 0,
+      data: initialEvent
+    });
+
     this.state = 'recording';
     this.isDirty = true;
 
@@ -100,11 +119,12 @@ export class SessionManager {
 
     this.state = 'paused';
     const elapsed = Date.now() - this.currentSession.startTime;
-    this.addSessionEvent({
+    const pauseEvent: SessionEvent = {
       type: 'idle',
       timestamp: elapsed,
       detail: 'Session tracking paused'
-    });
+    };
+    this.addSessionEvent(pauseEvent);
 
     await this.flush();
 
@@ -124,11 +144,12 @@ export class SessionManager {
 
     this.state = 'recording';
     const elapsed = Date.now() - this.currentSession.startTime;
-    this.addSessionEvent({
+    const resumeEvent: SessionEvent = {
       type: 'idle',
       timestamp: elapsed,
       detail: 'Session tracking resumed'
-    });
+    };
+    this.addSessionEvent(resumeEvent);
 
     this._onSessionStateChanged.fire({
       state: this.state,
@@ -150,11 +171,19 @@ export class SessionManager {
     const elapsed = now - this.currentSession.startTime;
 
     this.currentSession.endTime = now;
-    this.addSessionEvent({
+    const endEvent: SessionEvent = {
       type: 'end',
       timestamp: elapsed,
       detail: `Session ended. Total duration: ${Math.round(elapsed / 1000)}s`
+    };
+    this.addSessionEvent(endEvent);
+
+    this.currentLogStreamer.append({
+      type: 'session_end',
+      timestamp: elapsed,
+      data: { endTime: now }
     });
+    await this.currentLogStreamer.close();
 
     const finishedSession = this.currentSession;
     this.state = 'idle';
@@ -174,7 +203,37 @@ export class SessionManager {
   }
 
   /**
-   * Adds a file snapshot to the active session.
+   * Adds a high-performance delta/keyframe snapshot to the active session and log stream.
+   */
+  public addDeltaSnapshot(delta: DeltaSnapshot): void {
+    if (this.state !== 'recording' || !this.currentSession) {
+      return;
+    }
+
+    this.currentLogStreamer.append({
+      type: delta.isKeyframe ? 'keyframe' : 'delta',
+      timestamp: delta.timestamp,
+      data: delta
+    });
+
+    // Materialize to snapshot for in-memory active session view
+    const content = delta.isKeyframe && delta.content !== undefined
+      ? delta.content
+      : DeltaEngine.reconstructContent([delta], 0);
+
+    const snapshot: Snapshot = {
+      timestamp: delta.timestamp,
+      filePath: delta.filePath,
+      content: content || (delta.content ?? ''),
+      cursorStart: delta.cursorStart,
+      cursorEnd: delta.cursorEnd
+    };
+
+    this.addSnapshot(snapshot);
+  }
+
+  /**
+   * Adds a materialized file snapshot to the active session.
    */
   public addSnapshot(snapshot: Snapshot): void {
     if (this.state !== 'recording' || !this.currentSession) {
@@ -195,6 +254,11 @@ export class SessionManager {
     }
 
     this.currentSession.runs.push(run);
+    this.currentLogStreamer.append({
+      type: 'run',
+      timestamp: run.timestamp,
+      data: run
+    });
 
     // Auto-record milestone session event
     this.addSessionEvent({
@@ -216,6 +280,12 @@ export class SessionManager {
     }
 
     this.currentSession.events.push(event);
+    this.currentLogStreamer.append({
+      type: 'event',
+      timestamp: event.timestamp,
+      data: event
+    });
+
     this.isDirty = true;
     this._onSessionUpdated.fire(this.currentSession);
   }
@@ -245,10 +315,20 @@ export class SessionManager {
     await this.ensureStorageDirectory();
     try {
       const entries = await vscode.workspace.fs.readDirectory(this.storageUri);
-      return entries
-        .filter(([name, type]) => type === vscode.FileType.File && name.startsWith('codelapse-') && name.endsWith('.json'))
-        .map(([name]) => vscode.Uri.joinPath(this.storageUri, name))
-        .sort((a, b) => b.fsPath.localeCompare(a.fsPath)); // Latest first
+      const uriMap = new Map<string, vscode.Uri>();
+
+      for (const [name, type] of entries) {
+        if (type === vscode.FileType.File && name.startsWith('codelapse-') && (name.endsWith('.json') || name.endsWith('.jsonl'))) {
+          const base = name.replace(/\.jsonl?$/, '');
+          const uri = vscode.Uri.joinPath(this.storageUri, name);
+          // Prefer .jsonl if both exist, or .json
+          if (!uriMap.has(base) || name.endsWith('.jsonl')) {
+            uriMap.set(base, uri);
+          }
+        }
+      }
+
+      return Array.from(uriMap.values()).sort((a, b) => b.fsPath.localeCompare(a.fsPath));
     } catch (err) {
       console.error('Failed to list saved CodeLapse sessions:', err);
       return [];
@@ -256,10 +336,14 @@ export class SessionManager {
   }
 
   /**
-   * Loads and parses a session JSON file from disk.
+   * Loads and parses a session file (either JSON or JSONL) from disk.
    */
   public async loadSession(fileUri: vscode.Uri): Promise<Session | null> {
     try {
+      if (fileUri.fsPath.endsWith('.jsonl')) {
+        return await LogStreamer.readSessionFromLog(fileUri);
+      }
+
       const data = await vscode.workspace.fs.readFile(fileUri);
       const jsonText = new TextDecoder().decode(data);
       return JSON.parse(jsonText) as Session;
@@ -332,7 +416,7 @@ export class SessionManager {
   }
 
   /**
-   * Disposes timers and flushes unwritten session changes.
+   * Disposes timers, log streamers, and flushes unwritten session changes.
    */
   public async dispose(): Promise<void> {
     this.stopPeriodicFlush();
@@ -341,6 +425,7 @@ export class SessionManager {
     } else {
       await this.flush();
     }
+    await this.currentLogStreamer.close();
     this._onSessionStateChanged.dispose();
     this._onSessionUpdated.dispose();
   }

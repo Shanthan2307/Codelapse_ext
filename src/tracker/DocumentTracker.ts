@@ -1,13 +1,16 @@
 import * as vscode from 'vscode';
-import { Snapshot } from '../models';
 import { SessionManager } from './SessionManager';
+import { DeltaSnapshot, TextChange } from './DeltaEngine';
 
 export class DocumentTracker implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
+  private pendingChanges: Map<string, TextChange[]> = new Map();
   private pendingSelections: Map<string, vscode.Selection> = new Map();
   private lastFileLengths: Map<string, number> = new Map();
+  private fileEditCounts: Map<string, number> = new Map();
   private readonly debounceDelayMs: number;
+  private readonly KEYFRAME_INTERVAL = 50;
 
   constructor(
     private readonly sessionManager: SessionManager,
@@ -67,13 +70,26 @@ export class DocumentTracker implements vscode.Disposable {
   }
 
   /**
-   * Handles text document modification events.
+   * Handles text document modification events with delta aggregation.
    */
   private handleDocumentChange(event: vscode.TextDocumentChangeEvent): void {
     const document = event.document;
     if (!this.shouldTrackDocument(document)) {
       return;
     }
+
+    const filePath = vscode.workspace.asRelativePath(document.uri, false);
+
+    // Collect atomic content changes
+    const changes: TextChange[] = event.contentChanges.map((c) => ({
+      rangeOffset: c.rangeOffset,
+      rangeLength: c.rangeLength,
+      text: c.text
+    }));
+
+    const existingChanges = this.pendingChanges.get(filePath) || [];
+    existingChanges.push(...changes);
+    this.pendingChanges.set(filePath, existingChanges);
 
     // Find cursor in active editor if it matches
     const activeEditor = vscode.window.activeTextEditor;
@@ -127,20 +143,18 @@ export class DocumentTracker implements vscode.Disposable {
   }
 
   /**
-   * Captures the full file snapshot and pushes it to the SessionManager.
+   * Captures a Keyframe (I-Frame) or Delta (P-Frame) snapshot and pushes it to SessionManager.
    */
   private captureSnapshot(document: vscode.TextDocument, filePath: string): void {
     if (!this.sessionManager.isRecording()) {
       return;
     }
 
-    // If document was closed or is invalid
     if (document.isClosed) {
       return;
     }
 
-    const content = document.getText();
-    const currentLength = content.length;
+    const currentLength = document.getText().length;
     const previousLength = this.lastFileLengths.get(filePath);
 
     // Check for large deletion (e.g. reduction of more than 50 characters)
@@ -175,19 +189,29 @@ export class DocumentTracker implements vscode.Disposable {
       }
     }
 
-    const snapshot: Snapshot = {
+    // Determine Keyframe vs Delta
+    const editCount = (this.fileEditCounts.get(filePath) || 0) + 1;
+    this.fileEditCounts.set(filePath, editCount);
+
+    const isKeyframe = editCount === 1 || editCount % this.KEYFRAME_INTERVAL === 0;
+    const accumulatedChanges = this.pendingChanges.get(filePath) || [];
+    this.pendingChanges.delete(filePath);
+
+    const deltaSnapshot: DeltaSnapshot = {
       timestamp: this.sessionManager.getElapsedTimeMs(),
       filePath,
-      content,
+      isKeyframe,
+      content: isKeyframe ? document.getText() : undefined,
+      changes: isKeyframe ? undefined : accumulatedChanges,
       cursorStart,
       cursorEnd
     };
 
-    this.sessionManager.addSnapshot(snapshot);
+    this.sessionManager.addDeltaSnapshot(deltaSnapshot);
   }
 
   /**
-   * Captures initial snapshots for all currently visible text editors.
+   * Captures initial keyframes for all currently visible text editors.
    */
   public captureInitialOpenDocuments(): void {
     if (!this.sessionManager.isRecording()) {
@@ -227,8 +251,10 @@ export class DocumentTracker implements vscode.Disposable {
       clearTimeout(timer);
     }
     this.debounceTimers.clear();
+    this.pendingChanges.clear();
     this.pendingSelections.clear();
     this.lastFileLengths.clear();
+    this.fileEditCounts.clear();
 
     for (const disposable of this.disposables) {
       disposable.dispose();

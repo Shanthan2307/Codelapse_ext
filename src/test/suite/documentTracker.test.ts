@@ -27,13 +27,15 @@ class MockSessionManager {
 
 // Simulates the debounced snapshot capture logic of DocumentTracker
 class DocumentTrackerSimulator {
+  private sessionManager: MockSessionManager;
+  private debounceDelayMs: number;
   private debounceTimers: Map<string, NodeJS.Timeout> = new Map();
   private lastFileLengths: Map<string, number> = new Map();
 
-  constructor(
-    private sessionManager: MockSessionManager,
-    private debounceDelayMs: number = 500
-  ) {}
+  constructor(sessionManager: MockSessionManager, debounceDelayMs: number = 500) {
+    this.sessionManager = sessionManager;
+    this.debounceDelayMs = debounceDelayMs;
+  }
 
   public scheduleEdit(filePath: string, content: string, cursorStart: number = 0, cursorEnd: number = 0): void {
     if (!this.sessionManager.isRecording()) {
