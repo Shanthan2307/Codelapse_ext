@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { RunEvent, SessionEvent } from '../models';
 import { SessionManager } from '../tracker/SessionManager';
+import { FrameworkDetector } from '../frameworks/FrameworkDetector';
 
 export class EventMonitor implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -12,18 +13,25 @@ export class EventMonitor implements vscode.Disposable {
   private lastActivityTime: number = Date.now();
   private isCurrentlyIdle: boolean = false;
   private readonly idleThresholdMs: number;
+  public readonly frameworkDetector: FrameworkDetector;
 
   constructor(
     private readonly sessionManager: SessionManager,
     idleThresholdMs: number = 5 * 60 * 1000 // 5 minutes default
   ) {
     this.idleThresholdMs = idleThresholdMs;
+    this.frameworkDetector = new FrameworkDetector(sessionManager);
     this.setupListeners();
     this.resetIdleTimer();
+
+    // Initialize framework detection asynchronously
+    this.frameworkDetector.initialize().then((frameworks) => {
+      console.log('CodeLapse Frameworks Detected:', frameworks);
+    });
   }
 
   /**
-   * Subscribes to task, debugging, terminal, and user activity events.
+   * Subscribes to task, debugging, terminal, framework, and user activity events.
    */
   private setupListeners(): void {
     // 1. Task start and end processes
@@ -79,20 +87,21 @@ export class EventMonitor implements vscode.Disposable {
         timestamp: this.sessionManager.getElapsedTimeMs(),
         command: `Debug [${startInfo?.type || session.type}]: ${startInfo?.name || session.name}`,
         output: recentOutput || `Debug session "${session.name}" ended.`,
-        success: true, // Default to true unless specific debug failure is intercepted
+        success: true,
         durationMs
       };
 
       this.sessionManager.addRunEvent(runEvent);
     });
 
-    // 3. Terminal Output Monitoring (where supported by VS Code API)
+    // 3. Terminal Output Monitoring & Framework Dispatching
     if (typeof (vscode.window as any).onDidWriteTerminalData === 'function') {
       try {
         const terminalDataDisposable = (vscode.window as any).onDidWriteTerminalData(
           (e: { terminal: vscode.Terminal; data: string }) => {
             this.recordActivity();
             this.appendTerminalOutput(e.terminal.name, e.data);
+            this.frameworkDetector.dispatchTerminalOutput(e.terminal.name, e.data);
           }
         );
         this.disposables.push(terminalDataDisposable);
@@ -101,7 +110,13 @@ export class EventMonitor implements vscode.Disposable {
       }
     }
 
-    // 4. Activity detection via editor typing/selection
+    // 4. Document Save Hook for Framework Ast / Signature Detection
+    const docSaveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
+      this.recordActivity();
+      this.frameworkDetector.dispatchDocumentSaved(doc);
+    });
+
+    // 5. Activity detection via editor typing/selection
     const docChangeDisposable = vscode.workspace.onDidChangeTextDocument(() => {
       this.recordActivity();
     });
@@ -115,8 +130,10 @@ export class EventMonitor implements vscode.Disposable {
       taskEndDisposable,
       debugStartDisposable,
       debugEndDisposable,
+      docSaveDisposable,
       docChangeDisposable,
-      selectionChangeDisposable
+      selectionChangeDisposable,
+      this.frameworkDetector
     );
   }
 
