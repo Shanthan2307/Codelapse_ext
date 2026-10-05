@@ -189,13 +189,26 @@ export class DocumentTracker implements vscode.Disposable {
       }
     }
 
-    // Determine Keyframe vs Delta
-    const editCount = (this.fileEditCounts.get(filePath) || 0) + 1;
-    this.fileEditCounts.set(filePath, editCount);
-
-    const isKeyframe = editCount === 1 || editCount % this.KEYFRAME_INTERVAL === 0;
     const accumulatedChanges = this.pendingChanges.get(filePath) || [];
     this.pendingChanges.delete(filePath);
+
+    // Determine Keyframe vs Delta.
+    // Only real text edits advance the keyframe counter: a bare cursor movement
+    // carries no changes, so counting it would drift the I-Frame cadence away
+    // from every 50 *edits* and inflate the session's edit statistics.
+    const hasEdits = accumulatedChanges.length > 0;
+    const isFirstCapture = !this.fileEditCounts.has(filePath);
+
+    let editCount = this.fileEditCounts.get(filePath) || 0;
+    if (hasEdits) {
+      editCount += 1;
+    }
+    this.fileEditCounts.set(filePath, editCount);
+
+    // The first capture of a file must be a keyframe: it establishes the baseline
+    // every subsequent delta for that file is folded onto.
+    const isKeyframe =
+      isFirstCapture || (hasEdits && editCount % this.KEYFRAME_INTERVAL === 0);
 
     const deltaSnapshot: DeltaSnapshot = {
       timestamp: this.sessionManager.getElapsedTimeMs(),

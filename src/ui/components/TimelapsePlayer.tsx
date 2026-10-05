@@ -231,8 +231,15 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     (snapshots.length > 0 ? snapshots[snapshots.length - 1].timestamp : 1);
 
   // Framework milestones to overlay on timeline
-  const frameworkEvents = events.filter(e =>
-    e.detail?.includes('React') || e.detail?.includes('Next.js') || e.detail?.includes('Node') || e.detail?.includes('Django')
+  // Prefer the explicit event type; fall back to detail sniffing so sessions
+  // recorded before 'framework' existed in the schema still show markers.
+  const frameworkEvents = events.filter(
+    (e) =>
+      e.type === 'framework' ||
+      e.detail?.includes('React') ||
+      e.detail?.includes('Next.js') ||
+      e.detail?.includes('Node') ||
+      e.detail?.includes('Django')
   );
 
   return (

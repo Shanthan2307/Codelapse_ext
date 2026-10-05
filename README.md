@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.85+-007acc.svg)](https://code.visualstudio.com/)
-[![Tests](https://img.shields.io/badge/Tests-16%20Passing%20(100%25)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-17%20Passing%20(100%25)-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
 ---
@@ -161,6 +161,7 @@ CodeLapse includes a comprehensive Mocha test suite covering core analytics, del
   DeltaEngine Keyframe & Delta Patching Tests
     ✔ applies simple atomic insertions and deletions correctly
     ✔ reconstructs file text accurately from a Keyframe + Delta sequence
+    ✔ folds a live delta stream onto per-file baselines, not onto empty text
     ✔ materializes multi-file DeltaSnapshots into chronological full Snapshots
 
   DocumentTracker Debounce & Milestone Tests
@@ -173,7 +174,7 @@ CodeLapse includes a comprehensive Mocha test suite covering core analytics, del
     ✔ NodeWatcher intercepts Nodemon restarts, package additions, and server ports
     ✔ DjangoWatcher intercepts migrations, system checks, and StatReloader reloads
 
-  16 passing (221ms)
+  17 passing (249ms)
 ```
 
 ---

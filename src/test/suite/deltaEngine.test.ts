@@ -77,6 +77,81 @@ describe('DeltaEngine Keyframe & Delta Patching Tests', () => {
     assert.strictEqual(text2, 'const a = 1;\nconst b = 2;\nconsole.log(a + b);');
   });
 
+  it('folds a live delta stream onto per-file baselines, not onto empty text', () => {
+    // Mirrors SessionManager.addDeltaSnapshot: frames arrive one at a time and
+    // each must be folded onto the running content of its own file.
+    const stream: DeltaSnapshot[] = [
+      {
+        timestamp: 0,
+        filePath: 'a.ts',
+        isKeyframe: true,
+        content: 'const a = 1;',
+        cursorStart: 12,
+        cursorEnd: 12
+      },
+      {
+        timestamp: 100,
+        filePath: 'b.ts',
+        isKeyframe: true,
+        content: 'const b = 2;',
+        cursorStart: 12,
+        cursorEnd: 12
+      },
+      {
+        timestamp: 200,
+        filePath: 'a.ts',
+        isKeyframe: false,
+        changes: [{ rangeOffset: 12, rangeLength: 0, text: '\nconst c = 3;' }],
+        cursorStart: 25,
+        cursorEnd: 25
+      },
+      {
+        // Cursor-only frame: no changes, content must survive untouched.
+        timestamp: 300,
+        filePath: 'a.ts',
+        isKeyframe: false,
+        changes: [],
+        cursorStart: 4,
+        cursorEnd: 9
+      },
+      {
+        timestamp: 400,
+        filePath: 'b.ts',
+        isKeyframe: false,
+        changes: [{ rangeOffset: 12, rangeLength: 0, text: '\nexport { b };' }],
+        cursorStart: 26,
+        cursorEnd: 26
+      }
+    ];
+
+    const live = new Map<string, string>();
+    const materialized: Array<{ filePath: string; content: string }> = [];
+
+    for (const frame of stream) {
+      const baseline = live.get(frame.filePath) ?? '';
+      const content = DeltaEngine.foldDelta(baseline, frame);
+      live.set(frame.filePath, content);
+      materialized.push({ filePath: frame.filePath, content });
+    }
+
+    // The delta frame must yield the WHOLE file, not just the inserted text.
+    assert.strictEqual(materialized[2].content, 'const a = 1;\nconst c = 3;');
+    assert.notStrictEqual(materialized[2].content, '\nconst c = 3;');
+
+    // A cursor-only frame leaves content identical.
+    assert.strictEqual(materialized[3].content, 'const a = 1;\nconst c = 3;');
+
+    // Interleaved files keep independent baselines.
+    assert.strictEqual(materialized[4].content, 'const b = 2;\nexport { b };');
+
+    // The streaming fold must agree with the batch reconstruction path.
+    const aFrames = stream.filter((f) => f.filePath === 'a.ts');
+    assert.strictEqual(
+      DeltaEngine.reconstructContent(aFrames, aFrames.length - 1),
+      live.get('a.ts')
+    );
+  });
+
   it('materializes multi-file DeltaSnapshots into chronological full Snapshots', () => {
     const snapshots: DeltaSnapshot[] = [
       {

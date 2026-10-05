@@ -100,10 +100,10 @@ const createMockSession = (): Session => {
 
   const events: SessionEvent[] = [
     { type: 'start', timestamp: 0, detail: 'Session started' },
-    { type: 'event' as any, timestamp: 35000, detail: '⚛️ [React/Vite] HMR updated: src/index.ts (18ms)' },
+    { type: 'framework', timestamp: 35000, detail: '⚛️ [React/Vite] HMR updated: src/index.ts (18ms)' },
     { type: 'run-pass', timestamp: 45000, detail: 'Test run passed' },
     { type: 'run-fail', timestamp: 95000, detail: 'Test run failed' },
-    { type: 'event' as any, timestamp: 110000, detail: '📦 [Node/NPM] Installed 14 packages' },
+    { type: 'framework', timestamp: 110000, detail: '📦 [Node/NPM] Installed 14 packages' },
     { type: 'run-pass', timestamp: 130000, detail: 'Test run passed' },
     { type: 'end', timestamp: 140000, detail: 'Session ended' }
   ];

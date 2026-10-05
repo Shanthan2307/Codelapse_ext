@@ -5,6 +5,8 @@ import { SessionManager } from '../tracker/SessionManager';
 export class ReactWatcher implements IFrameworkWatcher {
   public readonly framework: FrameworkType = 'react';
   private disposables: Array<{ dispose: () => void }> = [];
+  /** Last reported hook set per file, used to emit only on actual change. */
+  private reportedHooks: Map<string, string> = new Map();
 
   constructor(private readonly sessionManager: SessionManager) {}
 
@@ -24,7 +26,7 @@ export class ReactWatcher implements IFrameworkWatcher {
       const file = viteHmrMatch[1];
       const time = viteHmrMatch[2] ? ` (${viteHmrMatch[2]})` : '';
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         filePath: file,
         detail: `⚛️ [React/Vite] HMR updated: ${file}${time}`
@@ -38,7 +40,7 @@ export class ReactWatcher implements IFrameworkWatcher {
       const route = nextCompileMatch[1];
       const duration = nextCompileMatch[2];
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: `▲ [Next.js] Compiled route ${route} in ${duration}`
       });
@@ -49,7 +51,7 @@ export class ReactWatcher implements IFrameworkWatcher {
     const webpackMatch = cleanText.match(/compiled\s+successfully\s+in\s+([\d.]+\s*(?:ms|s))/i);
     if (webpackMatch) {
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: `⚛️ [React/Webpack] Bundle compiled in ${webpackMatch[1]}`
       });
@@ -93,17 +95,29 @@ export class ReactWatcher implements IFrameworkWatcher {
       hooksFound.add(m[1]);
     }
 
-    if (hooksFound.size > 0 && Math.random() < 0.2) { // sample to avoid noise on every save
-      this.sessionManager.addSessionEvent({
-        type: 'event' as any,
-        timestamp: this.sessionManager.getElapsedTimeMs(),
-        filePath,
-        detail: `⚛️ [React] ${filePath} uses hooks: [${Array.from(hooksFound).join(', ')}]`
-      });
+    if (hooksFound.size === 0) {
+      return;
     }
+
+    // Emit only when the file's hook set actually changes. Sampling randomly
+    // would drop real milestones and make the same session replay differently
+    // every time it is recorded.
+    const signature = Array.from(hooksFound).sort().join(',');
+    if (this.reportedHooks.get(filePath) === signature) {
+      return;
+    }
+    this.reportedHooks.set(filePath, signature);
+
+    this.sessionManager.addSessionEvent({
+      type: 'framework',
+      timestamp: this.sessionManager.getElapsedTimeMs(),
+      filePath,
+      detail: `⚛️ [React] ${filePath} uses hooks: [${signature.split(',').join(', ')}]`
+    });
   }
 
   public dispose(): void {
+    this.reportedHooks.clear();
     for (const d of this.disposables) {
       d.dispose();
     }

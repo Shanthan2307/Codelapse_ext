@@ -11,9 +11,16 @@ export class SessionManager {
   private storageUri: vscode.Uri;
   private currentSessionUri: vscode.Uri | null = null;
   private currentLogStreamer: LogStreamer = new LogStreamer();
+  /**
+   * Running full text of every tracked file, keyed by workspace-relative path.
+   * Deltas (P-Frames) only carry a diff, so the previous content of the same file
+   * is required as the baseline to materialize a usable in-memory Snapshot.
+   */
+  private liveFileContents: Map<string, string> = new Map();
   private flushTimer: NodeJS.Timeout | null = null;
   private flushIntervalMs: number = 5000;
   private isDirty: boolean = false;
+  private isDisposed: boolean = false;
 
   private readonly _onSessionStateChanged = new vscode.EventEmitter<{
     state: SessionState;
@@ -76,6 +83,8 @@ export class SessionManager {
       runs: [],
       events: [initialEvent]
     };
+
+    this.liveFileContents.clear();
 
     const fileName = `codelapse-${now}.json`;
     const logFileName = `codelapse-${now}.jsonl`;
@@ -198,6 +207,7 @@ export class SessionManager {
 
     this.currentSession = null;
     this.currentSessionUri = null;
+    this.liveFileContents.clear();
 
     return finishedSession;
   }
@@ -216,15 +226,18 @@ export class SessionManager {
       data: delta
     });
 
-    // Materialize to snapshot for in-memory active session view
-    const content = delta.isKeyframe && delta.content !== undefined
-      ? delta.content
-      : DeltaEngine.reconstructContent([delta], 0);
+    // Materialize to snapshot for the in-memory active session view.
+    // A keyframe carries the full text; a delta must be folded onto the previous
+    // content of that same file, otherwise the snapshot would contain only the
+    // freshly inserted characters instead of the whole document.
+    const baseline = this.liveFileContents.get(delta.filePath) ?? '';
+    const content = DeltaEngine.foldDelta(baseline, delta);
+    this.liveFileContents.set(delta.filePath, content);
 
     const snapshot: Snapshot = {
       timestamp: delta.timestamp,
       filePath: delta.filePath,
-      content: content || (delta.content ?? ''),
+      content,
       cursorStart: delta.cursorStart,
       cursorEnd: delta.cursorEnd
     };
@@ -419,6 +432,14 @@ export class SessionManager {
    * Disposes timers, log streamers, and flushes unwritten session changes.
    */
   public async dispose(): Promise<void> {
+    // dispose() is reachable twice: once via context.subscriptions and once via
+    // deactivate(). Guard so the second call cannot re-end an already-ended
+    // session or fire events off disposed emitters.
+    if (this.isDisposed) {
+      return;
+    }
+    this.isDisposed = true;
+
     this.stopPeriodicFlush();
     if (this.state === 'recording' || this.state === 'paused') {
       await this.end();

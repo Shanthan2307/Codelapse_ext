@@ -20,7 +20,10 @@ export class LogStreamer {
    * Initializes the append-only write stream for a given session JSONL file path.
    */
   public async open(fileUri: vscode.Uri): Promise<void> {
-    this.close();
+    // Await the previous stream's flush: close() resolves asynchronously, so
+    // firing it without awaiting could null out writeStream after the new one
+    // has already been assigned, silently dropping every subsequent record.
+    await this.close();
     this.filePath = fileUri.fsPath;
 
     // Ensure parent directory exists
