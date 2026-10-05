@@ -40,8 +40,13 @@ export class SessionSummarizer {
     }
 
     // 2. Extract Framework Milestones
-    const frameworkEvents = session.events.filter(e =>
-      e.detail?.includes('React') || e.detail?.includes('Next.js') || e.detail?.includes('Node') || e.detail?.includes('Django')
+    const frameworkEvents = session.events.filter(
+      (e) =>
+        e.type === 'framework' ||
+        e.detail?.includes('React') ||
+        e.detail?.includes('Next.js') ||
+        e.detail?.includes('Node') ||
+        e.detail?.includes('Django')
     );
 
     const highlights: string[] = [];

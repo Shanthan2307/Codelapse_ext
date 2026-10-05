@@ -49,6 +49,16 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register Commands
   const startCmd = vscode.commands.registerCommand('codelapse.startSession', async () => {
+    // Recording auto-starts on activation, so this command is usually a no-op.
+    // Report that honestly instead of claiming a fresh session was created.
+    if (sessionManager.isRecording()) {
+      const active = sessionManager.getCurrentSession();
+      vscode.window.showInformationMessage(
+        `CodeLapse: Already recording session "${active?.id ?? 'unknown'}".`
+      );
+      return;
+    }
+
     const session = await sessionManager.start();
     documentTracker.captureInitialOpenDocuments();
     vscode.window.showInformationMessage(`CodeLapse: Started recording session "${session.id}".`);
@@ -113,7 +123,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 }
 
-export function deactivate() {
+export async function deactivate(): Promise<void> {
   if (documentTracker) {
     documentTracker.flushPending();
     documentTracker.dispose();
@@ -122,6 +132,9 @@ export function deactivate() {
     eventMonitor.dispose();
   }
   if (sessionManager) {
-    sessionManager.dispose();
+    // VS Code awaits the promise returned by deactivate(), so returning this
+    // guarantees the final session flush and log-stream close complete before
+    // the extension host tears the process down.
+    await sessionManager.dispose();
   }
 }

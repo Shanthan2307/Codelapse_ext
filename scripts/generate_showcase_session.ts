@@ -49,7 +49,7 @@ export function createComprehensiveFullStackSession(): Session {
   // 3. NPM Package Install Event
   t += 10000;
   events.push({
-    type: 'event' as any,
+    type: 'framework',
     timestamp: t,
     detail: '📦 [Node/NPM] Installed 16 packages (express, cors, dotenv, zod)'
   });
@@ -219,7 +219,7 @@ export function createComprehensiveFullStackSession(): Session {
   // 19. Vite HMR Fast Refresh Event
   t += 8000;
   events.push({
-    type: 'event' as any,
+    type: 'framework',
     timestamp: t,
     filePath: 'client/src/App.tsx',
     detail: '⚛️ [React/Vite] HMR updated: client/src/App.tsx (19ms)'

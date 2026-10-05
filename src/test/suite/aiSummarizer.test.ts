@@ -43,7 +43,7 @@ describe('SessionSummarizer AI & Standup Intelligence Tests', () => {
       ],
       events: [
         { type: 'start', timestamp: 0, detail: 'Session started' },
-        { type: 'event' as any, timestamp: 40000, detail: '⚛️ [React/Vite] HMR updated: src/auth/jwt.ts' },
+        { type: 'framework', timestamp: 40000, detail: '⚛️ [React/Vite] HMR updated: src/auth/jwt.ts' },
         { type: 'end', timestamp: 70000, detail: 'Session ended' }
       ]
     };

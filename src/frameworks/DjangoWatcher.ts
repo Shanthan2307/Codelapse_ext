@@ -23,7 +23,7 @@ export class DjangoWatcher implements IFrameworkWatcher {
     if (migrationAppliedMatch) {
       const migrationName = migrationAppliedMatch[1];
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: `🐍 [Django Migration] Applied: ${migrationName}`
       });
@@ -36,7 +36,7 @@ export class DjangoWatcher implements IFrameworkWatcher {
       const app = makeMigrationsMatch[1];
       const file = makeMigrationsMatch[2];
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: `🐍 [Django makemigrations] Created ${app}/${file}`
       });
@@ -58,7 +58,7 @@ export class DjangoWatcher implements IFrameworkWatcher {
     // 4. Django StatReloader reloading server
     if (/Watching for file changes with StatReloader/i.test(cleanText) || /change in '.*' reloading/i.test(cleanText)) {
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: '🐍 [Django Reloader] Reloading server due to code changes'
       });

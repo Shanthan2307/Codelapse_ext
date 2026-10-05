@@ -21,7 +21,7 @@ export class NodeWatcher implements IFrameworkWatcher {
     // 1. Nodemon / TSX Watch / Node --watch restarts
     if (/\[nodemon\]\s+restarting due to changes\.\.\./i.test(cleanText)) {
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: '🟢 [Node/Nodemon] Server restarting due to code changes'
       });
@@ -30,7 +30,7 @@ export class NodeWatcher implements IFrameworkWatcher {
 
     if (/\[nodemon\]\s+clean exit/i.test(cleanText)) {
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: '🟢 [Node/Nodemon] Server stopped cleanly'
       });
@@ -55,7 +55,7 @@ export class NodeWatcher implements IFrameworkWatcher {
       const count = packageAddMatch[1];
       const duration = packageAddMatch[2] ? ` (${packageAddMatch[2]})` : '';
       this.sessionManager.addSessionEvent({
-        type: 'event' as any,
+        type: 'framework',
         timestamp: this.sessionManager.getElapsedTimeMs(),
         detail: `📦 [Node/NPM] Installed ${count} packages${duration}`
       });

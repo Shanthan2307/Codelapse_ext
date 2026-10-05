@@ -66,6 +66,13 @@ const webviewConfig = {
       }
     ]
   },
+  // The default 244 KiB hint targets sites downloaded over a network. This bundle
+  // is read from local disk by the VS Code webview (and inlined into exported
+  // reports), so only warn if it grows well beyond its current size.
+  performance: {
+    maxAssetSize: 512 * 1024,
+    maxEntrypointSize: 512 * 1024
+  },
   devtool: 'source-map'
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-typescript';
 import 'prismjs/components/prism-javascript';
@@ -6,6 +6,7 @@ import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
 import { Snapshot, RunEvent, SessionEvent } from '../../models';
+import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
 
 interface TimelapsePlayerProps {
   snapshots: Snapshot[];
@@ -14,226 +15,231 @@ interface TimelapsePlayerProps {
   totalDurationMs?: number;
 }
 
+/** Wall-clock time (ms) the player spends gliding across any idle gap when "Skip idle" is on. */
+const IDLE_GLIDE_MS = 600;
+/** Longest frame step honored after the tab was hidden, so playback never leaps ahead. */
+const MAX_FRAME_DELTA_MS = 100;
+
 export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   snapshots,
   runs,
   events = [],
   totalDurationMs
 }) => {
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const model = useMemo(() => new PlaybackModel(snapshots, totalDurationMs), [snapshots, totalDurationMs]);
+
+  const [playheadMs, setPlayheadMs] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(2); // 1x, 2x, 5x, 10x
-  const [activeFile, setActiveFile] = useState<string>('');
+  const [skipIdle, setSkipIdle] = useState<boolean>(true);
   const [selectedRun, setSelectedRun] = useState<RunEvent | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<SessionEvent | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const codeContainerRef = useRef<HTMLDivElement | null>(null);
+  // The animation loop reads the playhead from a ref so it never waits on a re-render.
+  const playheadRef = useRef<number>(0);
+  const codeBodyRef = useRef<HTMLDivElement | null>(null);
 
-  // Get list of all distinct files touched across snapshots
-  const allFiles = Array.from(new Set(snapshots.map((s) => s.filePath)));
+  const seek = (ms: number) => {
+    const clamped = Math.max(0, Math.min(model.durationMs, ms));
+    playheadRef.current = clamped;
+    setPlayheadMs(clamped);
+  };
 
-  // Sync active file on mount or when snapshots change
+  // Live sessions grow while the panel is open: keep the playhead in range
+  // instead of rewinding to the start on every update.
   useEffect(() => {
-    if (snapshots.length > 0) {
-      const initialFile = snapshots[0].filePath;
-      setActiveFile(initialFile);
-      setCurrentIndex(0);
-    }
-  }, [snapshots]);
+    seek(Math.min(playheadRef.current, model.durationMs));
+  }, [model]);
 
-  // Current snapshot
-  const currentSnapshot = snapshots[currentIndex] || null;
-
-  // Auto-switch tab if current snapshot is in another file
-  useEffect(() => {
-    if (currentSnapshot && currentSnapshot.filePath !== activeFile) {
-      setActiveFile(currentSnapshot.filePath);
-    }
-  }, [currentSnapshot]);
-
-  // Playback engine
+  // Playback engine: requestAnimationFrame advances a continuous playhead in
+  // sync with the display refresh, instead of hopping between snapshots.
   useEffect(() => {
     if (!isPlaying) {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
       return;
     }
 
-    if (currentIndex >= snapshots.length - 1) {
+    let frameId = 0;
+    let lastTime = performance.now();
+
+    const tick = (now: number) => {
+      const dt = Math.min(now - lastTime, MAX_FRAME_DELTA_MS);
+      lastTime = now;
+
+      const current = playheadRef.current;
+      let rate = playbackSpeed;
+      if (skipIdle) {
+        // Cross any idle stretch in a fixed short glide, whatever its length.
+        const idleSpan = model.idleSpanAt(current);
+        if (idleSpan > 0) {
+          rate = Math.max(rate, idleSpan / IDLE_GLIDE_MS);
+        }
+      }
+
+      const next = Math.min(model.durationMs, current + dt * rate);
+      playheadRef.current = next;
+      setPlayheadMs(next);
+
+      if (next >= model.durationMs) {
+        setIsPlaying(false);
+        return;
+      }
+      frameId = requestAnimationFrame(tick);
+    };
+
+    frameId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameId);
+  }, [isPlaying, playbackSpeed, skipIdle, model]);
+
+  const frame = useMemo(() => model.frameAt(playheadMs), [model, playheadMs]);
+  const lines = useMemo(() => (frame ? buildLineModels(frame) : []), [frame]);
+  const activeLine = lines.findIndex((l) => l.isActive);
+  const language = languageFor(frame?.filePath ?? '');
+
+  // Keep the caret in view: recenter only when it nears the viewport edge.
+  useLayoutEffect(() => {
+    const body = codeBodyRef.current;
+    if (!body || activeLine < 0) {
+      return;
+    }
+    const lineEl = body.querySelector<HTMLElement>(`[data-line="${activeLine + 1}"]`);
+    if (!lineEl) {
+      return;
+    }
+    const margin = lineEl.offsetHeight * 2;
+    const lineTop = lineEl.offsetTop;
+    const lineBottom = lineTop + lineEl.offsetHeight;
+    if (lineTop < body.scrollTop + margin || lineBottom > body.scrollTop + body.clientHeight - margin) {
+      body.scrollTop = lineTop - body.clientHeight / 2 + lineEl.offsetHeight / 2;
+    }
+  }, [activeLine, frame?.filePath]);
+
+  const togglePlay = () => {
+    if (isPlaying) {
       setIsPlaying(false);
       return;
     }
-
-    const nextSnap = snapshots[currentIndex + 1];
-    const currSnap = snapshots[currentIndex];
-    const realDelta = nextSnap && currSnap ? Math.max(0, nextSnap.timestamp - currSnap.timestamp) : 500;
-    const delay = Math.max(40, Math.min(600, Math.round(realDelta / playbackSpeed)));
-
-    timerRef.current = setTimeout(() => {
-      setCurrentIndex((prev) => {
-        if (prev < snapshots.length - 1) {
-          return prev + 1;
-        } else {
-          setIsPlaying(false);
-          return prev;
-        }
-      });
-    }, delay);
-
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, [isPlaying, currentIndex, snapshots, playbackSpeed]);
-
-  const togglePlay = () => {
-    if (currentIndex >= snapshots.length - 1) {
-      setCurrentIndex(0);
+    if (playheadRef.current >= model.durationMs) {
+      seek(0);
     }
-    setIsPlaying(!isPlaying);
+    setIsPlaying(true);
   };
 
-  const handleStepBack = () => {
+  const pauseAndSeek = (ms: number) => {
     setIsPlaying(false);
-    setCurrentIndex((prev) => Math.max(0, prev - 1));
+    seek(ms);
   };
 
-  const handleStepForward = () => {
-    setIsPlaying(false);
-    setCurrentIndex((prev) => Math.min(snapshots.length - 1, prev + 1));
-  };
-
-  const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setIsPlaying(false);
-    setCurrentIndex(Number(e.target.value));
-  };
-
-  const seekToTimestamp = (timestamp: number) => {
-    setIsPlaying(false);
-    let closestIdx = 0;
-    let minDiff = Infinity;
-    for (let i = 0; i < snapshots.length; i++) {
-      const diff = Math.abs(snapshots[i].timestamp - timestamp);
-      if (diff < minDiff) {
-        minDiff = diff;
-        closestIdx = i;
-      }
-    }
-    setCurrentIndex(closestIdx);
-  };
+  const handleStepBack = () => pauseAndSeek(model.previousBoundary(playheadRef.current));
+  const handleStepForward = () => pauseAndSeek(model.nextBoundary(playheadRef.current));
 
   const handleSeekToRun = (run: RunEvent) => {
     setSelectedEvent(null);
     setSelectedRun(run);
-    seekToTimestamp(run.timestamp);
+    pauseAndSeek(run.timestamp);
   };
 
   const handleSeekToEvent = (event: SessionEvent) => {
     setSelectedRun(null);
     setSelectedEvent(event);
-    seekToTimestamp(event.timestamp);
+    pauseAndSeek(event.timestamp);
   };
 
-  const getLanguageGrammar = (filePath: string): { grammar: Prism.Grammar; lang: string } => {
-    const ext = filePath.split('.').pop()?.toLowerCase() || '';
-    switch (ext) {
-      case 'ts':
-      case 'tsx':
-        return { grammar: Prism.languages.typescript || Prism.languages.javascript, lang: 'typescript' };
-      case 'js':
-      case 'jsx':
-        return { grammar: Prism.languages.javascript, lang: 'javascript' };
-      case 'json':
-        return { grammar: Prism.languages.json || Prism.languages.javascript, lang: 'json' };
-      case 'css':
-        return { grammar: Prism.languages.css, lang: 'css' };
-      case 'py':
-        return { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' };
-      default:
-        return { grammar: Prism.languages.javascript, lang: 'javascript' };
-    }
-  };
+  // Keyboard shortcuts. The listener is registered once and reads the latest
+  // handlers through a ref, so it never captures stale state.
+  const shortcutsRef = useRef({ togglePlay, handleStepBack, handleStepForward, pauseAndSeek, model });
+  shortcutsRef.current = { togglePlay, handleStepBack, handleStepForward, pauseAndSeek, model };
 
-  const renderHighlightedCode = () => {
-    if (!currentSnapshot) {
-      return <div className="empty-player-state">No snapshot data recorded for this session.</div>;
-    }
-
-    const content = currentSnapshot.content || '';
-    const lines = content.split(/\r?\n/);
-    const { grammar, lang } = getLanguageGrammar(currentSnapshot.filePath);
-
-    const cursorStart = currentSnapshot.cursorStart ?? 0;
-    const cursorEnd = currentSnapshot.cursorEnd ?? cursorStart;
-    let charAccumulator = 0;
-
-    return lines.map((lineText, lineIdx) => {
-      const lineStartOffset = charAccumulator;
-      const lineEndOffset = lineStartOffset + lineText.length;
-      charAccumulator = lineEndOffset + 1;
-
-      const hasCursor = cursorStart >= lineStartOffset && cursorStart <= lineEndOffset;
-      const hasRangeSelection =
-        cursorStart < cursorEnd && lineEndOffset >= cursorStart && lineStartOffset <= cursorEnd;
-
-      const highlightedHtml = Prism.highlight(lineText || ' ', grammar, lang);
-
-      let lineNode: React.ReactNode = (
-        <span dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
-      );
-
-      if (hasCursor && cursorStart === cursorEnd) {
-        const colOffset = Math.max(0, cursorStart - lineStartOffset);
-        const beforeText = lineText.substring(0, colOffset);
-        const afterText = lineText.substring(colOffset);
-
-        lineNode = (
-          <span>
-            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(beforeText, grammar, lang) }} />
-            <span className="editor-cursor" />
-            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(afterText, grammar, lang) }} />
-          </span>
-        );
-      } else if (hasRangeSelection) {
-        const selStartCol = Math.max(0, cursorStart - lineStartOffset);
-        const selEndCol = Math.min(lineText.length, cursorEnd - lineStartOffset);
-
-        const beforeText = lineText.substring(0, selStartCol);
-        const selectedText = lineText.substring(selStartCol, selEndCol);
-        const afterText = lineText.substring(selEndCol);
-
-        lineNode = (
-          <span>
-            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(beforeText, grammar, lang) }} />
-            <span className="editor-selection">
-              <span dangerouslySetInnerHTML={{ __html: Prism.highlight(selectedText, grammar, lang) }} />
-            </span>
-            <span dangerouslySetInnerHTML={{ __html: Prism.highlight(afterText, grammar, lang) }} />
-          </span>
-        );
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) {
+        return;
+      }
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (target?.isContentEditable || tag === 'TEXTAREA' || tag === 'SELECT') {
+        return;
+      }
+      if (tag === 'INPUT' && (target as HTMLInputElement).type !== 'range') {
+        return;
       }
 
+      const s = shortcutsRef.current;
+      switch (e.key) {
+        case ' ':
+          // A focused button already toggles itself on Space.
+          if (tag === 'BUTTON') {
+            return;
+          }
+          s.togglePlay();
+          break;
+        case 'ArrowLeft':
+          s.handleStepBack();
+          break;
+        case 'ArrowRight':
+          s.handleStepForward();
+          break;
+        case 'Home':
+          s.pauseAndSeek(0);
+          break;
+        case 'End':
+          s.pauseAndSeek(s.model.durationMs);
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const allFiles = useMemo(() => Array.from(new Set(model.snapshots.map((s) => s.filePath))), [model]);
+
+  // Prefer the explicit event type; fall back to detail sniffing so sessions
+  // recorded before 'framework' existed in the schema still show markers.
+  const frameworkEvents = useMemo(
+    () =>
+      events.filter(
+        (e) =>
+          e.type === 'framework' ||
+          e.detail?.includes('React') ||
+          e.detail?.includes('Next.js') ||
+          e.detail?.includes('Node') ||
+          e.detail?.includes('Django')
+      ),
+    [events]
+  );
+
+  const totalSessionTime = Math.max(1, model.durationMs);
+  const snapshotCount = model.snapshots.length;
+  const showStartHint =
+    frame !== null && frame.snapshotIndex === -1 && !frame.isTyping && frame.content === '';
+
+  const renderEditorBody = () => {
+    if (!frame) {
+      return <div className="empty-player-state">No snapshot data recorded for this session.</div>;
+    }
+    if (showStartHint) {
       return (
-        <div key={lineIdx} className={`code-line ${hasCursor ? 'active-line' : ''}`}>
-          <span className="line-number">{lineIdx + 1}</span>
-          <span className="line-content">{lineNode}</span>
+        <div className="empty-player-state">
+          Press ▶ Play (or Space) to watch this session being written.
         </div>
       );
-    });
+    }
+    return lines.map((line, idx) => (
+      <CodeLine
+        key={idx}
+        lineNumber={idx + 1}
+        text={line.text}
+        language={language}
+        caretCol={line.caretCol}
+        selStart={line.selStart}
+        selEnd={line.selEnd}
+        isActive={line.isActive}
+      />
+    ));
   };
-
-  const totalSessionTime =
-    totalDurationMs ||
-    (snapshots.length > 0 ? snapshots[snapshots.length - 1].timestamp : 1);
-
-  // Framework milestones to overlay on timeline
-  const frameworkEvents = events.filter(e =>
-    e.detail?.includes('React') || e.detail?.includes('Next.js') || e.detail?.includes('Node') || e.detail?.includes('Django')
-  );
 
   return (
     <div className="section-card timelapse-card">
@@ -243,7 +249,8 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             <span>🎬</span> Interactive Code Timelapse Player
           </h2>
           <span className="section-subtitle">
-            Scrub or replay typing history with exact cursor navigation and framework execution milestones.
+            Watch the code being typed, scrub anywhere in time, or jump to runs and milestones.
+            Shortcuts: Space play/pause, ← → step, Home/End.
           </span>
         </div>
 
@@ -259,6 +266,14 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
               {spd}x
             </button>
           ))}
+          <button
+            className={`btn-speed ${skipIdle ? 'active' : ''}`}
+            onClick={() => setSkipIdle(!skipIdle)}
+            aria-pressed={skipIdle}
+            title="Glide quickly through gaps where nothing was typed"
+          >
+            Skip idle
+          </button>
         </div>
       </div>
 
@@ -268,12 +283,11 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           {allFiles.map((file) => (
             <button
               key={file}
-              className={`file-tab ${activeFile === file ? 'active' : ''}`}
+              className={`file-tab ${frame?.filePath === file ? 'active' : ''}`}
               onClick={() => {
-                setActiveFile(file);
-                const fileSnapIdx = snapshots.findIndex((s) => s.filePath === file);
-                if (fileSnapIdx !== -1) {
-                  setCurrentIndex(fileSnapIdx);
+                const firstTime = model.firstTimeOf(file);
+                if (firstTime !== null) {
+                  pauseAndSeek(firstTime);
                 }
               }}
             >
@@ -285,15 +299,18 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
       )}
 
       {/* Code Editor Container */}
-      <div className="code-viewer-container" ref={codeContainerRef}>
+      <div className="code-viewer-container">
         <div className="code-editor-header">
-          <span className="editor-file-path">{currentSnapshot?.filePath || 'No File'}</span>
+          <span className="editor-file-path">{frame?.filePath || 'No File'}</span>
           <span className="editor-snapshot-meta">
-            Snapshot {currentIndex + 1} of {Math.max(1, snapshots.length)} &bull;{' '}
-            {formatTime(currentSnapshot?.timestamp || 0)}
+            {frame?.isTyping && <span className="typing-indicator">● typing</span>}
+            Snapshot {Math.max(0, (frame?.snapshotIndex ?? -1) + 1)} of {snapshotCount} &bull;{' '}
+            {formatTime(playheadMs)}
           </span>
         </div>
-        <div className="code-editor-body">{renderHighlightedCode()}</div>
+        <div className={`code-editor-body ${frame?.isTyping ? 'is-typing' : ''}`} ref={codeBodyRef}>
+          {renderEditorBody()}
+        </div>
       </div>
 
       {/* Timeline Controls & Scrubber */}
@@ -302,45 +319,44 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           <button
             className="btn btn-secondary btn-icon"
             onClick={handleStepBack}
-            disabled={currentIndex === 0}
-            title="Step backward (Previous snapshot)"
+            disabled={playheadMs <= 0}
+            title="Previous snapshot (←)"
           >
             ⏮️
           </button>
           <button
             className="btn btn-icon btn-play"
             onClick={togglePlay}
-            title={isPlaying ? 'Pause' : 'Play Timelapse'}
+            title={isPlaying ? 'Pause (Space)' : 'Play Timelapse (Space)'}
           >
             {isPlaying ? '⏸️ Pause' : '▶️ Play'}
           </button>
           <button
             className="btn btn-secondary btn-icon"
             onClick={handleStepForward}
-            disabled={currentIndex >= snapshots.length - 1}
-            title="Step forward (Next snapshot)"
+            disabled={playheadMs >= model.durationMs}
+            title="Next snapshot (→)"
           >
             ⏭️
           </button>
         </div>
 
-        {/* Timeline Slider Track */}
+        {/* Timeline Slider Track: time-based, so the thumb lines up with the markers */}
         <div className="slider-track-container">
           <input
             type="range"
             min={0}
-            max={Math.max(0, snapshots.length - 1)}
-            value={currentIndex}
-            onChange={handleSliderChange}
+            max={totalSessionTime}
+            step="any"
+            value={playheadMs}
+            onChange={(e) => pauseAndSeek(Number(e.target.value))}
             className="timelapse-slider"
+            aria-label="Session timeline"
           />
 
           {/* RunEvent Markers */}
           {runs.map((run, idx) => {
-            const positionPct = Math.min(
-              100,
-              Math.max(0, (run.timestamp / Math.max(1, totalSessionTime)) * 100)
-            );
+            const positionPct = Math.min(100, Math.max(0, (run.timestamp / totalSessionTime) * 100));
             return (
               <button
                 key={`run-${idx}`}
@@ -358,10 +374,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
           {/* Framework Milestone Markers */}
           {frameworkEvents.map((evt, idx) => {
-            const positionPct = Math.min(
-              100,
-              Math.max(0, (evt.timestamp / Math.max(1, totalSessionTime)) * 100)
-            );
+            const positionPct = Math.min(100, Math.max(0, (evt.timestamp / totalSessionTime) * 100));
             const icon = evt.detail?.includes('React') ? '⚛️' : evt.detail?.includes('Django') ? '🐍' : '📦';
             return (
               <button
@@ -379,8 +392,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
         {/* Time Progress Display */}
         <div className="time-display">
-          <span>{formatTime(currentSnapshot?.timestamp || 0)}</span> /{' '}
-          <span>{formatTime(totalSessionTime)}</span>
+          <span>{formatTime(playheadMs)}</span> / <span>{formatTime(model.durationMs)}</span>
         </div>
       </div>
 
@@ -429,6 +441,156 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     </div>
   );
 };
+
+// ---------------- Code rendering ---------------- //
+
+interface LanguageInfo {
+  grammar: Prism.Grammar;
+  lang: string;
+}
+
+// Module-level constants so each language object keeps a stable identity,
+// which lets React.memo skip lines whose props did not change.
+const LANGUAGES: Record<string, LanguageInfo> = {
+  typescript: { grammar: Prism.languages.typescript || Prism.languages.javascript, lang: 'typescript' },
+  javascript: { grammar: Prism.languages.javascript, lang: 'javascript' },
+  json: { grammar: Prism.languages.json || Prism.languages.javascript, lang: 'json' },
+  css: { grammar: Prism.languages.css, lang: 'css' },
+  python: { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' }
+};
+
+function languageFor(filePath: string): LanguageInfo {
+  const ext = filePath.split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+      return LANGUAGES.typescript;
+    case 'json':
+      return LANGUAGES.json;
+    case 'css':
+      return LANGUAGES.css;
+    case 'py':
+      return LANGUAGES.python;
+    default:
+      return LANGUAGES.javascript;
+  }
+}
+
+/**
+ * Prism highlighting is the most expensive work per frame. While code is being
+ * typed only one line changes, so caching by (language, text) turns every
+ * other line into a Map lookup.
+ */
+const HIGHLIGHT_CACHE_LIMIT = 5000;
+const highlightCache = new Map<string, string>();
+
+function highlight(text: string, language: LanguageInfo): string {
+  const key = `${language.lang}\u0000${text}`;
+  let html = highlightCache.get(key);
+  if (html === undefined) {
+    if (highlightCache.size >= HIGHLIGHT_CACHE_LIMIT) {
+      highlightCache.clear();
+    }
+    html = Prism.highlight(text, language.grammar, language.lang);
+    highlightCache.set(key, html);
+  }
+  return html;
+}
+
+interface LineModel {
+  text: string;
+  /** Column of a collapsed caret on this line, or -1. */
+  caretCol: number;
+  /** Selected column range on this line, or -1/-1. */
+  selStart: number;
+  selEnd: number;
+  /** Line that contains the cursor start (gets the active-line highlight). */
+  isActive: boolean;
+}
+
+/** Splits a frame into lines and works out where its caret or selection falls. */
+function buildLineModels(frame: PlaybackFrame): LineModel[] {
+  const start = Math.min(frame.cursorStart, frame.cursorEnd);
+  const end = Math.max(frame.cursorStart, frame.cursorEnd);
+  let offset = 0;
+  let activeAssigned = false;
+
+  return frame.content.split('\n').map((raw) => {
+    // Offsets count the raw line (including any \r) plus its \n.
+    const text = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+    const lineStart = offset;
+    const lineEnd = lineStart + text.length;
+    offset += raw.length + 1;
+
+    const isActive = !activeAssigned && start >= lineStart && start <= lineEnd;
+    if (isActive) {
+      activeAssigned = true;
+    }
+
+    const caretCol = isActive && start === end ? start - lineStart : -1;
+    const hasSelection = start < end && lineEnd >= start && lineStart <= end;
+
+    return {
+      text,
+      caretCol,
+      selStart: hasSelection ? Math.max(0, start - lineStart) : -1,
+      selEnd: hasSelection ? Math.min(text.length, end - lineStart) : -1,
+      isActive
+    };
+  });
+}
+
+interface CodeLineProps {
+  lineNumber: number;
+  text: string;
+  language: LanguageInfo;
+  caretCol: number;
+  selStart: number;
+  selEnd: number;
+  isActive: boolean;
+}
+
+/** One editor line. Memoized: only lines whose text or caret changed re-render. */
+const CodeLine = React.memo(function CodeLine({
+  lineNumber,
+  text,
+  language,
+  caretCol,
+  selStart,
+  selEnd,
+  isActive
+}: CodeLineProps) {
+  let content: React.ReactNode;
+
+  if (caretCol >= 0) {
+    content = (
+      <>
+        <span dangerouslySetInnerHTML={{ __html: highlight(text.slice(0, caretCol), language) }} />
+        <span className="editor-cursor" />
+        <span dangerouslySetInnerHTML={{ __html: highlight(text.slice(caretCol), language) }} />
+      </>
+    );
+  } else if (selStart >= 0) {
+    content = (
+      <>
+        <span dangerouslySetInnerHTML={{ __html: highlight(text.slice(0, selStart), language) }} />
+        <span className="editor-selection">
+          <span dangerouslySetInnerHTML={{ __html: highlight(text.slice(selStart, selEnd), language) }} />
+        </span>
+        <span dangerouslySetInnerHTML={{ __html: highlight(text.slice(selEnd), language) }} />
+      </>
+    );
+  } else {
+    content = <span dangerouslySetInnerHTML={{ __html: highlight(text || ' ', language) }} />;
+  }
+
+  return (
+    <div className={`code-line ${isActive ? 'active-line' : ''}`} data-line={lineNumber}>
+      <span className="line-number">{lineNumber}</span>
+      <span className="line-content">{content}</span>
+    </div>
+  );
+});
 
 function formatTime(ms: number): string {
   const totalSec = Math.floor(ms / 1000);

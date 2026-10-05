@@ -59,6 +59,28 @@ export class DeltaEngine {
   }
 
   /**
+   * Folds a single snapshot onto the running content of the file it belongs to.
+   *
+   * This is the incremental (streaming) counterpart to reconstructContent: callers
+   * that already hold the previous full text of a file need only apply the newest
+   * frame. A keyframe replaces the baseline outright; a delta is patched onto it.
+   *
+   * Passing a delta with an empty baseline is only correct at the very start of a
+   * file's history — otherwise the result would contain just the newly inserted
+   * characters rather than the whole document.
+   */
+  public static foldDelta(baseline: string, snapshot: DeltaSnapshot): string {
+    if (snapshot.isKeyframe && snapshot.content !== undefined) {
+      return snapshot.content;
+    }
+    if (snapshot.changes && snapshot.changes.length > 0) {
+      return this.applyChanges(baseline, snapshot.changes);
+    }
+    // Cursor-only frame: content is unchanged.
+    return baseline;
+  }
+
+  /**
    * Reconstructs full file content from a sequence of DeltaSnapshots for a specific file.
    * Finds the latest Keyframe at or before targetIndex, then applies subsequent Deltas.
    * Time Complexity: O(k) where k <= KEYFRAME_INTERVAL (e.g. <= 50 deltas) instead of O(N * L).

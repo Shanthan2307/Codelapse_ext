@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.85+-007acc.svg)](https://code.visualstudio.com/)
-[![Tests](https://img.shields.io/badge/Tests-16%20Passing%20(100%25)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-26%20Passing%20(100%25)-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
 ---
@@ -31,7 +31,10 @@ We have pre-generated a complete, self-contained standalone demo report showcasi
 ## 🚀 Key Features
 
 ### 1. 🎥 60 FPS Interactive Timelapse Player
-- **Scrubbable Timeline**: Smooth, video-style timeline slider with frame-by-frame stepping (`⏮️` / `⏭️`) and variable speeds (`1x`, `2x`, `5x`, `10x`).
+- **Smooth Typing Playback**: Instead of jumping between snapshots, the player diffs each snapshot against the previous version of the file (line-level LCS, trimmed to the exact changed characters) and animates the edit character by character, driven by `requestAnimationFrame`.
+- **Skip Idle**: Gaps where nothing was typed are glided across in a fraction of a second, so playback time is spent on actual coding.
+- **Scrubbable Timeline**: Time-based slider (the thumb lines up with run and milestone markers), snapshot stepping (`⏮️` / `⏭️`) and variable speeds (`1x`, `2x`, `5x`, `10x`).
+- **Keyboard Shortcuts**: `Space` play/pause, `←` / `→` previous/next snapshot, `Home` / `End` jump to start/end.
 - **Exact Cursor & Selection Tracking**: Reconstructs typing cursor positions (`|`) and highlighted selection ranges in real-time.
 - **Syntax Highlighting**: Embedded PrismJS syntax engine supporting TypeScript, JavaScript, Python, CSS, JSON, HTML, etc.
 - **Multi-File Workspace Awareness**: Automatically transitions between files as edits jump across the project.
@@ -161,6 +164,7 @@ CodeLapse includes a comprehensive Mocha test suite covering core analytics, del
   DeltaEngine Keyframe & Delta Patching Tests
     ✔ applies simple atomic insertions and deletions correctly
     ✔ reconstructs file text accurately from a Keyframe + Delta sequence
+    ✔ folds a live delta stream onto per-file baselines, not onto empty text
     ✔ materializes multi-file DeltaSnapshots into chronological full Snapshots
 
   DocumentTracker Debounce & Milestone Tests
@@ -173,7 +177,18 @@ CodeLapse includes a comprehensive Mocha test suite covering core analytics, del
     ✔ NodeWatcher intercepts Nodemon restarts, package additions, and server ports
     ✔ DjangoWatcher intercepts migrations, system checks, and StatReloader reloads
 
-  16 passing (221ms)
+  PlaybackModel Smooth Typing Interpolation Tests
+    ✔ reproduces the target text exactly once all edits are applied
+    ✔ survives randomized edit sequences (fuzz)
+    ✔ only retypes the changed parts when two distant lines are edited
+    ✔ never glues following code onto a line that is still being typed
+    ✔ places the caret at the end of the text typed so far
+    ✔ shows exact snapshots at their timestamps and typing in between
+    ✔ keeps typing windows inside the gap before each snapshot
+    ✔ reports idle spans so the player can skip them
+    ✔ steps between snapshot boundaries
+
+  26 passing (227ms)
 ```
 
 ---
@@ -204,6 +219,8 @@ codelapse_ext/
 │   │   ├── DocumentTracker.ts         # VS Code Text & Selection Event Ingestion
 │   │   └── SessionManager.ts          # Local Persistence & Session Lifecycle Manager
 │   ├── ui/
+│   │   ├── playback/
+│   │   │   └── PlaybackModel.ts       # Diff-Based Typing Interpolation & Playback Timeline
 │   │   ├── App.tsx                    # Main React Dashboard Shell
 │   │   ├── styles.css                 # Theme-Native VS Code Design System
 │   │   └── components/

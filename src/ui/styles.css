@@ -518,6 +518,7 @@ body {
   overflow-y: auto;
   padding: 8px 0;
   tab-size: 2;
+  position: relative;
 }
 
 .code-line {
@@ -562,6 +563,24 @@ body {
   50% { opacity: 0; }
 }
 
+/* Like a real editor, the caret stays solid while text is being typed */
+.code-editor-body.is-typing .editor-cursor {
+  animation: none;
+}
+
+.typing-indicator {
+  color: var(--success-color);
+  margin-right: 8px;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .editor-cursor,
+  .typing-indicator {
+    animation: none;
+  }
+}
+
 .editor-selection {
   background-color: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.7));
   border-radius: 2px;
@@ -604,6 +623,7 @@ body {
 
 .slider-track-container {
   flex: 1;
+  min-width: 120px;
   position: relative;
   display: flex;
   align-items: center;
@@ -666,6 +686,24 @@ body {
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Narrow panels: give the scrubber its own full-width row instead of letting
+   the buttons and time display squeeze it to nothing. */
+@media (max-width: 560px) {
+  .timelapse-controls {
+    flex-wrap: wrap;
+  }
+
+  .time-display {
+    margin-left: auto;
+  }
+
+  .slider-track-container {
+    order: 3;
+    flex-basis: 100%;
+    min-height: 28px;
+  }
 }
 
 /* Run Details Banner */

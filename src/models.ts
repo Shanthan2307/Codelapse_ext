@@ -35,7 +35,7 @@ export interface RunEvent {
  * Key moments and milestones during a coding session.
  */
 export interface SessionEvent {
-  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'idle' | 'large-delete';
+  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'idle' | 'large-delete' | 'framework';
   /** Milliseconds elapsed since session start */
   timestamp: number;
   /** Associated file path if the event pertains to a specific file */
