@@ -239,7 +239,8 @@ export class SessionManager {
       filePath: delta.filePath,
       content,
       cursorStart: delta.cursorStart,
-      cursorEnd: delta.cursorEnd
+      cursorEnd: delta.cursorEnd,
+      ...(delta.trigger ? { trigger: delta.trigger } : {})
     };
 
     this.addSnapshot(snapshot);

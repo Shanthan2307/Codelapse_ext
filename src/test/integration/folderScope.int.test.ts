@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { Session } from '../../models';
 import { LogStreamer } from '../../storage/LogStreamer';
+import { buildFileFlow } from '../../ui/flow/FileFlowModel';
 
 /**
  * End-to-end checks of folder-scoped recording inside a real VS Code.
@@ -134,6 +135,32 @@ describe('Folder-scoped recording (real VS Code)', () => {
     const files = new Set(session!.snapshots.map((s) => s.filePath));
     assert.deepStrictEqual([...files], ['b.js']);
     assert.strictEqual(lastContentOf(session!, 'b.js'), docB.getText());
+  });
+
+  it('records moves between files, including files that were only read', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    await typeInto(fileA, '\n// visit 1');
+    // Open App.jsx and only read it for a few seconds.
+    await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(path.join(workspace, 'projectA', 'src', 'App.jsx'))));
+    await sleep(3500);
+    await typeInto(fileA, '\n// visit 3');
+    const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
+
+    const focusPaths = session!.events.filter((e) => e.type === 'focus').map((e) => e.filePath);
+    assert.deepStrictEqual(focusPaths.slice(-3), ['src/a.js', 'src/App.jsx', 'src/a.js']);
+    // The arrival snapshot holds App.jsx exactly as it was, marked as a focus capture.
+    const arrival = session!.snapshots.find((s) => s.filePath === 'src/App.jsx');
+    assert.strictEqual(arrival?.trigger, 'focus');
+
+    // Rebuilt from disk, the navigation graph shows a.js → App.jsx (read only) → a.js.
+    const { session: fromDisk } = await newestSessionFromDisk();
+    const flow = buildFileFlow(fromDisk.snapshots, fromDisk.events, (fromDisk.endTime ?? 0) - fromDisk.startTime);
+    assert.deepStrictEqual(flow.visits.map((v) => [v.filePath, v.edited]).slice(-3), [
+      ['src/a.js', true],
+      ['src/App.jsx', false],
+      ['src/a.js', true]
+    ]);
+    assert.ok(flow.visits[flow.visits.length - 1].changedLines.length > 0, 'typing on the return visit is highlighted');
   });
 
   it('never writes absolute paths (or the username in them) into recordings', async () => {

@@ -13,6 +13,8 @@ export interface Snapshot {
   cursorStart: number;
   /** End offset of the user's cursor / selection in the file */
   cursorEnd: number;
+  /** 'focus' when captured because the user switched to this file (its content on arrival). */
+  trigger?: 'focus';
 }
 
 /**
@@ -35,7 +37,7 @@ export interface RunEvent {
  * Key moments and milestones during a coding session.
  */
 export interface SessionEvent {
-  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'idle' | 'large-delete' | 'framework';
+  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'idle' | 'large-delete' | 'framework' | 'focus';
   /** Milliseconds elapsed since session start */
   timestamp: number;
   /** Associated file path if the event pertains to a specific file */

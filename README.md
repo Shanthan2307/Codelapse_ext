@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61dafb.svg)](https://reactjs.org/)
 [![VS Code](https://img.shields.io/badge/VS%20Code-1.85+-007acc.svg)](https://code.visualstudio.com/)
-[![Tests](https://img.shields.io/badge/Tests-34%20Passing%20(100%25)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-41%20Passing%20(100%25)-brightgreen.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
 ---
@@ -45,12 +45,18 @@ We have pre-generated a complete, self-contained standalone demo report showcasi
 - **Syntax Highlighting**: Embedded PrismJS syntax engine supporting TypeScript, JavaScript, Python, CSS, JSON, HTML, etc.
 - **Multi-File Workspace Awareness**: Automatically transitions between files as edits jump across the project.
 
-### 3. 📊 24-Bucket Activity & Mini-Diff Heatmaps
+### 3. 🧭 File Navigation Graph
+- **How the work moved between files**: files grouped by top-level folder, with an arrow for every move from one file to another. Thicker arrows were taken more often; arrows in both directions show back-and-forth (e.g. test ↔ implementation).
+- **Replays in sync**: the current file is outlined, arrows appear as the replay reaches each move, and a dot travels along the move in progress.
+- **Click an arrow** to list every time that move happened; pick one to jump there with the lines typed during that visit highlighted in green, or **Replay this visit**.
+- **Read-only visits count**: switching to a file is recorded (with its content on arrival), so opening a file just to read it shows up as its own visit. Glances under 3 seconds are ignored.
+
+### 4. 📊 24-Bucket Activity & Mini-Diff Heatmaps
 - Slices the session duration into **24 proportional temporal buckets**.
 - **Interactive Mini-Diff Hover**: Hover over any bucket to see the exact time slice, character volume, and a mini-diff preview of lines added (`+`) and removed (`-`).
 - **Line Edit Heatmaps**: Algorithmic line diffing that highlights code churn and the most heavily modified lines.
 
-### 4. 🧠 Framework-Specific Intelligence
+### 5. 🧠 Framework-Specific Intelligence
 - **⚛️ React / Next.js / Vite**:
   - Intercepts Vite HMR updates (`[vite] hmr update <file>`) and Next.js Fast Refresh compilation timings.
   - Detects React Hook additions (`useState`, `useEffect`, custom hooks) and catches runtime render errors.
@@ -63,12 +69,12 @@ We have pre-generated a complete, self-contained standalone demo report showcasi
 
 > **Current limitation:** the terminal-output watchers above (HMR, nodemon, server ports, npm installs, migrations) rely on VS Code's *proposed* `terminalDataWriteEvent` API, which installed extensions are not allowed to use. Until they are moved to the stable shell-execution API, these milestones only appear in generated demo data. Test/build runs **are** recorded when launched as VS Code Tasks (**Terminal → Run Task…**) or debug sessions, and React hook usage is detected on save.
 
-### 5. 🤖 AI Session Intelligence & Summarizer
+### 6. 🤖 AI Session Intelligence & Summarizer
 - **Conventional Commit Generator**: Auto-generates structured messages (e.g. `feat(auth): ...` or `fix(jwt): ...`) based on net line counts and test results.
 - **Markdown PR Description**: Produces ready-to-copy GitHub Pull Request summaries with modified file tables, test pass rates, and session highlights.
 - **Daily Standup Report**: One-click summary formatted for Slack / Microsoft Teams.
 
-### 6. 📥 Standalone Single-File HTML Exporter
+### 7. 📥 Standalone Single-File HTML Exporter
 - Export your session to a standalone `.html` file that embeds the entire React dashboard, PrismJS highlighter, styles, and replay dataset.
 - Shareable with professors, teammates, and recruiters without requiring VS Code installed.
 
@@ -214,7 +220,18 @@ CodeLapse includes a comprehensive Mocha test suite covering core analytics, del
     ✔ never lets recorded code close the surrounding <script> tag
     ✔ escapes HTML special characters in titles
 
-  34 passing (252ms)
+  FileFlowModel Navigation Graph Tests
+    ✔ turns edits into visits, and visits into moves and edges (with back-and-forth)
+    ✔ ignores flicking through a tab, but keeps a real read-only visit
+    ✔ highlights exactly the lines typed during a visit
+    ✔ does not count existing content as typing when the file was first seen on arrival
+    ✔ treats a brand-new file typed from scratch as all typed
+    ✔ does not highlight the line above when Enter starts a new line
+
+  FileFlowModel alignment with the replay
+    ✔ starts each visit when its typing starts appearing on screen
+
+  41 passing (230ms)
 ```
 
 End-to-end tests (`npm run test:integration`) launch a real VS Code with a throwaway profile and a two-project workspace, make real edits, and verify what lands on disk:
@@ -225,10 +242,11 @@ End-to-end tests (`npm run test:integration`) launch a real VS Code with a throw
     ✔ records only files inside the chosen folder, with folder-relative paths
     ✔ starts every new session with a keyframe so it replays from disk
     ✔ switching folders saves the old session and records only the new folder
+    ✔ records moves between files, including files that were only read
     ✔ never writes absolute paths (or the username in them) into recordings
     ✔ saves chosen sessions as raw logs plus a working HTML report
 
-  6 passing (10s)
+  7 passing (15s)
 ```
 
 ---
@@ -261,6 +279,8 @@ codelapse_ext/
 │   │   ├── folderScope.ts             # Pure Path Containment & Relative-Path Helpers
 │   │   └── SessionManager.ts          # Local Persistence & Session Lifecycle Manager
 │   ├── ui/
+│   │   ├── flow/
+│   │   │   └── FileFlowModel.ts       # Visits, Moves & Edges for the File Navigation Graph
 │   │   ├── playback/
 │   │   │   └── PlaybackModel.ts       # Diff-Based Typing Interpolation & Playback Timeline
 │   │   ├── App.tsx                    # Main React Dashboard Shell

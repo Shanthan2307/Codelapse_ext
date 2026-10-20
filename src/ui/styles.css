@@ -908,3 +908,122 @@ body {
 }
 
 
+
+/* ---------------- File navigation graph ---------------- */
+.code-line.typed-highlight {
+  background-color: var(--diff-add-bg);
+  box-shadow: inset 3px 0 0 var(--success-color);
+}
+
+.flow-canvas {
+  overflow-x: auto;
+}
+
+.flow-canvas svg {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  height: auto;
+}
+
+.flow-group-box {
+  fill: none;
+  stroke: var(--border-color);
+  stroke-dasharray: 4 4;
+}
+
+.flow-group-label {
+  fill: var(--text-muted);
+  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.flow-node {
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.flow-node rect {
+  stroke: var(--border-color);
+  stroke-width: 1;
+  transition: stroke 0.2s, stroke-width 0.2s;
+}
+
+.flow-node.g0 rect { fill: rgba(14, 99, 156, 0.22); }
+.flow-node.g1 rect { fill: rgba(78, 201, 176, 0.16); }
+.flow-node.g2 rect { fill: rgba(204, 167, 0, 0.16); }
+
+.flow-node text {
+  fill: var(--text-primary);
+  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.flow-node.unseen { opacity: 0.35; }
+.flow-node:hover rect { stroke: var(--text-muted); }
+.flow-node.selected rect { stroke: var(--warning-color); stroke-width: 2; }
+.flow-node.current rect { stroke: var(--accent-hover); stroke-width: 2.5; }
+
+.flow-edge {
+  fill: none;
+  stroke: var(--text-muted);
+  opacity: 0.22;
+  transition: opacity 0.3s, stroke 0.2s;
+}
+.flow-edge.done { opacity: 0.85; }
+.flow-edge.selected { stroke: var(--warning-color); opacity: 1; }
+
+.flow-arrowhead.muted { fill: var(--text-muted); opacity: 0.22; }
+.flow-arrowhead.done { fill: var(--text-muted); opacity: 0.85; }
+.flow-arrowhead.selected { fill: var(--warning-color); }
+
+.flow-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.flow-dot { fill: var(--warning-color); }
+
+.flow-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 10px 0 4px;
+}
+
+.flow-chip {
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+.flow-chip:hover { color: var(--text-primary); }
+.flow-chip.read-only { border-style: dashed; }
+.flow-chip.current { border-color: var(--accent-hover); color: var(--text-primary); background: var(--bg-card-hover); }
+.flow-chip-time { opacity: 0.7; margin-left: 4px; }
+
+.flow-panel {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.flow-hint { color: var(--text-muted); }
+.flow-panel-title { font-weight: 600; margin-bottom: 6px; }
+.flow-panel-meta { font-weight: 400; color: var(--text-muted); }
+.flow-occurrences { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.flow-panel-body { color: var(--text-primary); margin-bottom: 8px; }
+.flow-panel code { font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace; }

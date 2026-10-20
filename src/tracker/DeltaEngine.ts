@@ -31,6 +31,8 @@ export interface DeltaSnapshot {
   cursorStart: number;
   /** Cursor selection character end offset */
   cursorEnd: number;
+  /** 'focus' when captured because the user switched to this file. */
+  trigger?: 'focus';
 }
 
 export class DeltaEngine {
@@ -158,7 +160,8 @@ export class DeltaEngine {
           filePath,
           content: currentContent,
           cursorStart: item.cursorStart,
-          cursorEnd: item.cursorEnd
+          cursorEnd: item.cursorEnd,
+          ...(item.trigger ? { trigger: item.trigger } : {})
         });
       }
     }

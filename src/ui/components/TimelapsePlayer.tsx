@@ -7,6 +7,8 @@ import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
 import { Snapshot, RunEvent, SessionEvent } from '../../models';
 import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
+import { alignToPlayback, buildFileFlow, FileVisit } from '../flow/FileFlowModel';
+import { FileFlowGraph } from './FileFlowGraph';
 
 interface TimelapsePlayerProps {
   snapshots: Snapshot[];
@@ -38,6 +40,17 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   // The animation loop reads the playhead from a ref so it never waits on a re-render.
   const playheadRef = useRef<number>(0);
   const codeBodyRef = useRef<HTMLDivElement | null>(null);
+  /** When set, playback pauses on reaching this time ("Replay this visit"). */
+  const stopAtRef = useRef<number | null>(null);
+  /** The visit being replayed, highlighted once its replay finishes. */
+  const replayingRef = useRef<FileVisit | null>(null);
+  /** Lines typed during a visit picked in the navigation graph. */
+  const [highlight, setHighlight] = useState<{ filePath: string; lines: Set<number> } | null>(null);
+
+  const flow = useMemo(
+    () => alignToPlayback(buildFileFlow(model.snapshots, events, model.durationMs), (ms) => model.windowStart(ms)),
+    [model, events]
+  );
 
   const seek = (ms: number) => {
     const clamped = Math.max(0, Math.min(model.durationMs, ms));
@@ -75,12 +88,19 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         }
       }
 
-      const next = Math.min(model.durationMs, current + dt * rate);
+      const stopAt = stopAtRef.current ?? model.durationMs;
+      const next = Math.min(stopAt, model.durationMs, current + dt * rate);
       playheadRef.current = next;
       setPlayheadMs(next);
 
-      if (next >= model.durationMs) {
+      if (next >= stopAt || next >= model.durationMs) {
+        stopAtRef.current = null;
         setIsPlaying(false);
+        const replayed = replayingRef.current;
+        replayingRef.current = null;
+        if (replayed && next >= stopAt) {
+          setHighlight({ filePath: replayed.filePath, lines: new Set(replayed.changedLines) });
+        }
         return;
       }
       frameId = requestAnimationFrame(tick);
@@ -113,11 +133,26 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     }
   }, [activeLine, frame?.filePath]);
 
+  // Bring the first highlighted line into view (runs after the caret scroll above).
+  useLayoutEffect(() => {
+    const body = codeBodyRef.current;
+    if (!body || !highlight || highlight.lines.size === 0) {
+      return;
+    }
+    const lineEl = body.querySelector<HTMLElement>(`[data-line="${Math.min(...highlight.lines)}"]`);
+    if (lineEl) {
+      body.scrollTop = lineEl.offsetTop - body.clientHeight / 3;
+    }
+  }, [highlight]);
+
   const togglePlay = () => {
     if (isPlaying) {
       setIsPlaying(false);
       return;
     }
+    stopAtRef.current = null;
+    replayingRef.current = null;
+    setHighlight(null);
     if (playheadRef.current >= model.durationMs) {
       seek(0);
     }
@@ -126,7 +161,25 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
   const pauseAndSeek = (ms: number) => {
     setIsPlaying(false);
+    stopAtRef.current = null;
+    replayingRef.current = null;
+    setHighlight(null);
     seek(ms);
+  };
+
+  // Navigation graph: show what a visit produced, or play it back.
+  const showVisit = (visit: FileVisit) => {
+    pauseAndSeek(visit.resultTime);
+    setHighlight({ filePath: visit.filePath, lines: new Set(visit.changedLines) });
+  };
+  const replayVisit = (visit: FileVisit) => {
+    setHighlight(null);
+    seek(visit.start);
+    // Stop when the visit's last change is on screen; at visit.end the player
+    // would already be showing the next file.
+    stopAtRef.current = Math.max(visit.resultTime, visit.start + 1);
+    replayingRef.current = visit;
+    setIsPlaying(true);
   };
 
   const handleStepBack = () => pauseAndSeek(model.previousBoundary(playheadRef.current));
@@ -237,11 +290,13 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         selStart={line.selStart}
         selEnd={line.selEnd}
         isActive={line.isActive}
+        isHighlighted={!!highlight && highlight.filePath === frame.filePath && highlight.lines.has(idx + 1)}
       />
     ));
   };
 
   return (
+    <>
     <div className="section-card timelapse-card">
       <div className="section-header">
         <div>
@@ -439,6 +494,11 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         </div>
       )}
     </div>
+
+    {flow.nodes.length > 0 && (
+      <FileFlowGraph flow={flow} playheadMs={playheadMs} onShowVisit={showVisit} onReplayVisit={replayVisit} />
+    )}
+    </>
   );
 };
 
@@ -541,6 +601,8 @@ function buildLineModels(frame: PlaybackFrame): LineModel[] {
 }
 
 interface CodeLineProps {
+  /** Typed during the visit picked in the navigation graph. */
+  isHighlighted: boolean;
   lineNumber: number;
   text: string;
   language: LanguageInfo;
@@ -558,7 +620,8 @@ const CodeLine = React.memo(function CodeLine({
   caretCol,
   selStart,
   selEnd,
-  isActive
+  isActive,
+  isHighlighted
 }: CodeLineProps) {
   let content: React.ReactNode;
 
@@ -585,7 +648,7 @@ const CodeLine = React.memo(function CodeLine({
   }
 
   return (
-    <div className={`code-line ${isActive ? 'active-line' : ''}`} data-line={lineNumber}>
+    <div className={`code-line ${isActive ? 'active-line' : ''} ${isHighlighted ? 'typed-highlight' : ''}`} data-line={lineNumber}>
       <span className="line-number">{lineNumber}</span>
       <span className="line-content">{content}</span>
     </div>
