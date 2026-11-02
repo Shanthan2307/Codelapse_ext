@@ -31,7 +31,6 @@ export class EventMonitor implements vscode.Disposable {
   private warnedAboutTerminals = false;
 
   private idleTimer: NodeJS.Timeout | null = null;
-  private lastActivityTime: number = Date.now();
   private isCurrentlyIdle: boolean = false;
   private readonly idleThresholdMs: number;
 
@@ -173,8 +172,6 @@ export class EventMonitor implements vscode.Disposable {
    * Resets the idle countdown when user activity is detected.
    */
   public recordActivity(): void {
-    this.lastActivityTime = Date.now();
-
     if (this.isCurrentlyIdle) {
       this.isCurrentlyIdle = false;
       if (this.sessionManager.isRecording()) {

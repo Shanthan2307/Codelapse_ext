@@ -25,7 +25,7 @@ export interface FileVisit {
 }
 
 /** One move from a file to another; `visitIndex` is the visit it moved into. */
-export interface FileMove {
+interface FileMove {
   from: string;
   to: string;
   time: number;
@@ -40,7 +40,7 @@ export interface FlowEdge {
   moves: FileMove[];
 }
 
-export interface FlowNode {
+interface FlowNode {
   filePath: string;
   /** Top-level folder ("server", "client"), or "" for files at the project root. */
   group: string;

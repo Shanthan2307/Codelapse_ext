@@ -80,7 +80,6 @@ Then open the folder in VS Code, press `F5` and, in the Extension Development Ho
 - **CodeLapse: Start Recording Session**
 - **CodeLapse: Stop Recording Session** (opens the report)
 - **CodeLapse: Show Session Report & Analytics**
-- **CodeLapse: Open Session Replay & Analytics**
 - **CodeLapse: Export Standalone HTML Report**
 - **CodeLapse: Save Session Data to Folder**
 
