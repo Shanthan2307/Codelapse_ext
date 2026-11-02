@@ -179,10 +179,6 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  const openReplayCmd = vscode.commands.registerCommand('codelapse.openReplay', () => {
-    ReportPanel.createOrShow(context.extensionUri, sessionManager);
-  });
-
   const saveDataCmd = vscode.commands.registerCommand(
     'codelapse.exportForSubmission',
     async (options?: SubmissionOptions): Promise<vscode.Uri | undefined> => {
@@ -229,7 +225,6 @@ export function activate(context: vscode.ExtensionContext) {
     stopCmd,
     showReportCmd,
     exportHtmlCmd,
-    openReplayCmd,
     saveDataCmd,
     sessionManager,
     recordingScope,

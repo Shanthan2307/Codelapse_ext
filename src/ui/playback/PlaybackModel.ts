@@ -40,11 +40,11 @@ export interface PlaybackFrame {
 }
 
 /** Backspacing is animated faster than typing: this many chars per unit. */
-export const DELETE_CHARS_PER_UNIT = 4;
+const DELETE_CHARS_PER_UNIT = 4;
 /** Session time spent per unit at 1x speed (~18 typed chars per second). */
-export const MS_PER_UNIT = 55;
+const MS_PER_UNIT = 55;
 /** Shortest typing animation, so tiny edits remain visible. */
-export const MIN_TYPING_MS = 250;
+const MIN_TYPING_MS = 250;
 /** Beyond this many DP cells the line diff falls back to a single block. */
 const MAX_LCS_CELLS = 2_000_000;
 

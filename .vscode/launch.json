@@ -23,18 +23,6 @@
         "${workspaceFolder}/dist/**/*.js"
       ],
       "preLaunchTask": "npm: watch"
-    },
-    {
-      "name": "Extension Tests",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": [
-        "--extensionDevelopmentPath=${workspaceFolder}",
-        "--extensionTestsPath=${workspaceFolder}/dist/test/suite/index"
-      ],
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ]
     }
   ]
 }

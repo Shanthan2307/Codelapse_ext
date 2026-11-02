@@ -10,7 +10,7 @@ export interface ActivityBucket {
   label: string;
 }
 
-export interface FileAnalytics {
+interface FileAnalytics {
   filePath: string;
   initialLines: number;
   finalLines: number;
@@ -90,7 +90,7 @@ export function computeEditTotals(session: Session): EditStats {
  * made before edits were classified. The content shows they changed, but not
  * whether they were typed or inserted in bulk, so they are not guessed at.
  */
-export function computeUnclassifiedChars(session: Session): number {
+function computeUnclassifiedChars(session: Session): number {
   let total = 0;
   for (const snapshots of groupSnapshotsByFile(session.snapshots).values()) {
     for (let i = 1; i < snapshots.length; i++) {

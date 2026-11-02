@@ -51,10 +51,6 @@
       {
         "command": "codelapse.exportForSubmission",
         "title": "CodeLapse: Save Session Data to Folder"
-      },
-      {
-        "command": "codelapse.openReplay",
-        "title": "CodeLapse: Open Session Replay & Analytics"
       }
     ],
     "menus": {
