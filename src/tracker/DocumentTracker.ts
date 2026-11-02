@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { SessionManager } from './SessionManager';
-import { DeltaSnapshot, TextChange } from './DeltaEngine';
+import { DeltaSnapshot, TextChange } from '@codelapse/core';
 import { RecordingScope } from './RecordingScope';
 
 export class DocumentTracker implements vscode.Disposable {

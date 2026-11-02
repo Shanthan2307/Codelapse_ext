@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityBucket, isInBucket } from '../../analytics/engine';
-import { Snapshot, RunEvent } from '../../models';
+import { ActivityBucket, isInBucket } from '@codelapse/core';
+import { Snapshot, RunEvent } from '@codelapse/core';
 import { ActivityTooltip } from './ActivityTooltip';
 
 interface ActivityChartProps {

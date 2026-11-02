@@ -1,4 +1,4 @@
-import { EditStats, Session, Snapshot } from '../models';
+import { EditStats, Session, Snapshot } from './models';
 
 export interface ActivityBucket {
   bucketIndex: number;

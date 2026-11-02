@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { Snapshot, SessionEvent } from '../../models';
+import { Snapshot, SessionEvent } from '@codelapse/core';
 import { alignToPlayback, buildFileFlow, MIN_VIEW_MS } from '../../ui/flow/FileFlowModel';
 import { PlaybackModel } from '../../ui/playback/PlaybackModel';
 

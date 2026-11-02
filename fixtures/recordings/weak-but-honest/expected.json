@@ -1,0 +1,17 @@
+{
+  "name": "weak-but-honest",
+  "scripted": true,
+  "description": "Types slowly with real mistakes: missing semicolon, misspelt variable, then deletes and rewrites the loop with a missing parenthesis. Three failed builds before it passes.",
+  "runs": [
+    "fail",
+    "fail",
+    "fail",
+    "pass",
+    "pass"
+  ],
+  "traits": {
+    "repeatedFailures": true,
+    "rewroteLoop": true,
+    "bulkInsert": false
+  }
+}

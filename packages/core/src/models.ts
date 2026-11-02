@@ -70,6 +70,8 @@ export interface Session {
   id: string;
   /** Name of the active workspace folder */
   workspaceName: string;
+  /** Identifies the recorded folder across sessions without revealing its path. */
+  folderKey?: string;
   /** Epoch timestamp (ms) when recording began */
   startTime: number;
   /** Epoch timestamp (ms) when recording concluded */

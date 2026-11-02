@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as vscode from 'vscode';
-import { RunEvent, SessionEvent } from '../models';
+import { RunEvent, SessionEvent } from '@codelapse/core';
 import { SessionManager } from '../tracker/SessionManager';
 import { RecordingScope } from '../tracker/RecordingScope';
 import { isInsideFolder } from '../tracker/folderScope';

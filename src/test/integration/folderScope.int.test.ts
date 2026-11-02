@@ -2,10 +2,11 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { computeSessionAnalytics } from '../../analytics/engine';
-import { Session } from '../../models';
+import { computeSessionAnalytics } from '@codelapse/core';
+import { Session } from '@codelapse/core';
 import { LogStreamer } from '../../storage/LogStreamer';
 import { buildFileFlow } from '../../ui/flow/FileFlowModel';
+import { decodeBundle, sha256 } from '@codelapse/core/node';
 
 /**
  * End-to-end checks of folder-scoped recording inside a real VS Code.
@@ -346,5 +347,29 @@ describe('Folder-scoped recording (real VS Code)', () => {
     new Function('window', dataScript)(fakeWindow);
     const embedded = fakeWindow.__CODELAPSE_STANDALONE_DATA__.session as Session;
     assert.strictEqual(lastContentOf(embedded, 'index.html'), docHtml.getText());
+  });
+
+  it('exports one bundle with every session of the folder, and only that folder', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectB);
+    await typeInto(fileB, '\n// session in B');
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    const docA = await typeInto(fileA, '\n// last session in A');
+    await docA.save();
+
+    const target = vscode.Uri.file(path.join(workspace, '..', 'projectA.codelapse'));
+    const written = await vscode.commands.executeCommand<vscode.Uri>('codelapse.exportBundle', { destination: target });
+    assert.ok(written, 'should return the bundle file');
+    const bundle = decodeBundle(fs.readFileSync(target.fsPath));
+
+    const logsOfA = sessionLogs().filter((log) => fs.readFileSync(log, 'utf-8').includes('"workspaceName":"projectA"'));
+    assert.strictEqual(bundle.folderName, 'projectA');
+    assert.ok(bundle.folderKey, 'sessions carry a folder key');
+    assert.strictEqual(bundle.sessions.length, logsOfA.length, 'every project A session, nothing from B');
+    assert.ok(bundle.sessions.every((s) => s.log.includes('"workspaceName":"projectA"')));
+    assert.ok(bundle.sessions[bundle.sessions.length - 1].log.includes('"type":"session_end"'), 'running session ended first');
+
+    const a = bundle.files.find((f) => f.path === 'src/a.js');
+    assert.strictEqual(a?.sha256, sha256(fs.readFileSync(fileA)), 'file hashes match the folder');
+    assert.ok(!JSON.stringify(bundle).includes(workspace), 'no absolute paths in the bundle');
   });
 });

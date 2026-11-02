@@ -1,16 +1,7 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
-import * as readline from 'readline';
-import { Session, RunEvent, SessionEvent } from '../models';
-import { DeltaSnapshot, DeltaEngine } from '../tracker/DeltaEngine';
-
-export type LogRecord = { timestamp: number } & (
-  | { type: 'session_start'; data: Pick<Session, 'id' | 'workspaceName' | 'startTime'> }
-  | { type: 'keyframe' | 'delta'; data: DeltaSnapshot }
-  | { type: 'run'; data: RunEvent }
-  | { type: 'event'; data: SessionEvent }
-  | { type: 'session_end'; data: { endTime: number } }
-);
+import { LogRecord, Session, parseSessionLog } from '@codelapse/core';
+export { LogRecord };
 
 export class LogStreamer {
   private writeStream: fs.WriteStream | null = null;
@@ -64,70 +55,12 @@ export class LogStreamer {
     });
   }
 
-  /**
-   * Parses an append-only .jsonl log file and reconstructs the full Session object.
-   */
+  /** Reads a session back from its .jsonl log file. */
   public static async readSessionFromLog(fileUri: vscode.Uri): Promise<Session | null> {
-    const fsPath = fileUri.fsPath;
-    if (!fs.existsSync(fsPath)) {
+    try {
+      return parseSessionLog(await fs.promises.readFile(fileUri.fsPath, 'utf-8'));
+    } catch {
       return null;
     }
-
-    const fileStream = fs.createReadStream(fsPath, { encoding: 'utf-8' });
-    const rl = readline.createInterface({
-      input: fileStream,
-      crlfDelay: Infinity
-    });
-
-    const session: Session = {
-      id: '',
-      workspaceName: '',
-      startTime: 0,
-      snapshots: [],
-      runs: [],
-      events: []
-    };
-
-    const deltaSnapshots: DeltaSnapshot[] = [];
-
-    for await (const line of rl) {
-      if (!line.trim()) continue;
-
-      try {
-        const record: LogRecord = JSON.parse(line);
-
-        switch (record.type) {
-          case 'session_start':
-            session.id = record.data.id;
-            session.workspaceName = record.data.workspaceName;
-            session.startTime = record.data.startTime;
-            break;
-
-          case 'keyframe':
-          case 'delta':
-            deltaSnapshots.push(record.data);
-            break;
-
-          case 'run':
-            session.runs.push(record.data);
-            break;
-
-          case 'event':
-            session.events.push(record.data);
-            break;
-
-          case 'session_end':
-            session.endTime = record.data.endTime;
-            break;
-        }
-      } catch (err) {
-        console.warn('Failed to parse log line:', line, err);
-      }
-    }
-
-    // Materialize delta stream into full snapshots for backward compatibility with analytics and UI
-    session.snapshots = DeltaEngine.materializeSnapshots(deltaSnapshots);
-
-    return session;
   }
 }

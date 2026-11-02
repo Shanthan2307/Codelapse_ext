@@ -1,0 +1,12 @@
+{
+  "name": "edited-after-recording",
+  "scripted": true,
+  "description": "Types the solution honestly, then after the bundle is exported reverse.c is changed outside VS Code, so the submission no longer matches the recording.",
+  "runs": [
+    "pass"
+  ],
+  "traits": {
+    "editedAfterRecording": true,
+    "change": "word \"codelapse\" becomes \"research\"; a comment is added"
+  }
+}

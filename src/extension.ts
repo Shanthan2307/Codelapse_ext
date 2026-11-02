@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
-import { Session } from './models';
+import { Session } from '@codelapse/core';
 import { SessionManager } from './tracker/SessionManager';
 import { DocumentTracker } from './tracker/DocumentTracker';
 import { RecordingScope } from './tracker/RecordingScope';
@@ -8,6 +8,7 @@ import { EventMonitor } from './events/EventMonitor';
 import { ReportPanel } from './webview/ReportPanel';
 import { ReportExporter } from './export/ReportExporter';
 import { SubmissionExporter, SubmissionOptions } from './export/SubmissionExporter';
+import { BundleExporter, BundleOptions } from './export/BundleExporter';
 
 /** workspaceState key: the "choose a folder" prompt is shown once per workspace. */
 const PROMPTED_KEY = 'codelapse.folderPromptShown';
@@ -74,7 +75,10 @@ export function activate(context: vscode.ExtensionContext) {
       await sessionManager.end();
     }
     await recordingScope.setFolder(folder);
-    const session = await sessionManager.start(recordingScope.getFolderName() ?? undefined);
+    const session = await sessionManager.start(
+      recordingScope.getFolderName() ?? undefined,
+      recordingScope.getFolderKey() ?? undefined
+    );
     documentTracker.captureInitialOpenDocuments();
     updateStatusBar();
     return session;
@@ -179,27 +183,52 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
+  /** A running session's log is still being written, so it is ended before exporting. */
+  const endSessionBeforeExport = async (interactive: boolean, what: string): Promise<boolean> => {
+    if (sessionManager.getState() === 'idle') {
+      return true;
+    }
+    if (interactive) {
+      const choice = await vscode.window.showWarningMessage(
+        `CodeLapse needs to stop the current recording before ${what}.`,
+        { modal: true },
+        'Stop and Continue'
+      );
+      if (choice !== 'Stop and Continue') {
+        return false;
+      }
+    }
+    documentTracker.flushPending();
+    await sessionManager.end();
+    updateStatusBar();
+    return true;
+  };
+
+  const exportBundleCmd = vscode.commands.registerCommand(
+    'codelapse.exportBundle',
+    async (options?: BundleOptions): Promise<vscode.Uri | undefined> => {
+      const interactive = !options?.destination;
+      if (!(await endSessionBeforeExport(interactive, 'exporting the assignment bundle'))) {
+        return undefined;
+      }
+      const version = String(context.extension.packageJSON.version ?? 'unknown');
+      const target = await BundleExporter.run(sessionManager, recordingScope, version, options);
+      if (target && interactive) {
+        vscode.window.showInformationMessage(
+          `CodeLapse: Saved "${path.basename(target.fsPath)}". Upload it together with your code.`
+        );
+      }
+      return target;
+    }
+  );
+
   const saveDataCmd = vscode.commands.registerCommand(
     'codelapse.exportForSubmission',
     async (options?: SubmissionOptions): Promise<vscode.Uri | undefined> => {
       const interactive = !options?.destination;
 
-      // A running session's log is still being written: end it first so the
-      // copied files are complete.
-      if (sessionManager.getState() !== 'idle') {
-        if (interactive) {
-          const choice = await vscode.window.showWarningMessage(
-            'CodeLapse needs to stop the current recording before saving its data.',
-            { modal: true },
-            'Stop and Continue'
-          );
-          if (choice !== 'Stop and Continue') {
-            return undefined;
-          }
-        }
-        documentTracker.flushPending();
-        await sessionManager.end();
-        updateStatusBar();
+      if (!(await endSessionBeforeExport(interactive, 'saving its data'))) {
+        return undefined;
       }
 
       const target = await SubmissionExporter.run(
@@ -226,6 +255,7 @@ export function activate(context: vscode.ExtensionContext) {
     showReportCmd,
     exportHtmlCmd,
     saveDataCmd,
+    exportBundleCmd,
     sessionManager,
     recordingScope,
     documentTracker,

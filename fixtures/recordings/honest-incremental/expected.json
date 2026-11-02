@@ -1,0 +1,14 @@
+{
+  "name": "honest-incremental",
+  "scripted": true,
+  "description": "Types reverse() and main() line by line, forgets a semicolon (build fails), fixes it, then adds count_vowels().",
+  "runs": [
+    "fail",
+    "pass",
+    "pass"
+  ],
+  "traits": {
+    "fixAfterFailedBuild": true,
+    "bulkInsert": false
+  }
+}

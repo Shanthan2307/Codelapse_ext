@@ -1,9 +1,12 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import { createHash, randomBytes } from 'crypto';
 import { isInsideFolder, foldersOverlap, toProjectRelativePath, isIgnoredPath } from './folderScope';
 
 /** workspaceState key: the chosen folder is remembered per VS Code workspace. */
 const STATE_KEY = 'codelapse.recordedFolder';
+/** globalState key: random per installation, so folder keys cannot be reversed into paths. */
+const SALT_KEY = 'codelapse.folderKeySalt';
 
 interface FolderPickItem extends vscode.QuickPickItem {
   uri?: vscode.Uri;
@@ -54,6 +57,25 @@ export class RecordingScope implements vscode.Disposable {
 
   public getFolder(): vscode.Uri | null {
     return this.folder;
+  }
+
+  /**
+   * Same for every session recorded in this folder on this computer, so a
+   * bundle can collect an assignment's sessions. A salted hash of the path,
+   * so the key does not reveal where the folder is or whose computer it is.
+   */
+  public getFolderKey(): string | null {
+    if (!this.folder) {
+      return null;
+    }
+    let salt = this.context.globalState.get<string>(SALT_KEY);
+    if (!salt) {
+      salt = randomBytes(16).toString('hex');
+      void this.context.globalState.update(SALT_KEY, salt);
+    }
+    const normalized = path.resolve(this.folder.fsPath);
+    const comparable = process.platform === 'linux' ? normalized : normalized.toLowerCase();
+    return createHash('sha256').update(`${salt}:${comparable}`).digest('hex').slice(0, 32);
   }
 
   public getFolderName(): string | null {

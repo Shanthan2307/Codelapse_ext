@@ -1,0 +1,12 @@
+{
+  "name": "copied-pair-a",
+  "scripted": true,
+  "description": "Pastes the same solution as pasted-solution and copied-pair-b.",
+  "runs": [
+    "pass"
+  ],
+  "traits": {
+    "bulkInsert": true,
+    "copiedWith": "copied-pair-b"
+  }
+}

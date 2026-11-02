@@ -29,22 +29,73 @@ function createWorkspace(root: string): void {
   }
 }
 
+/** Scenario folders for the test recordings, each starting with an empty reverse.c. */
+export const FIXTURE_SCENARIOS = [
+  'honest-incremental',
+  'pasted-solution',
+  'copied-pair-a',
+  'copied-pair-b',
+  'weak-but-honest',
+  'abandoned-approach',
+  'edited-after-recording'
+];
+
+function createFixtureWorkspace(root: string): void {
+  for (const name of FIXTURE_SCENARIOS) {
+    fs.mkdirSync(path.join(root, name), { recursive: true });
+    fs.writeFileSync(path.join(root, name, 'reverse.c'), '');
+  }
+}
+
+/**
+ * Test windows start from these user settings, so VS Code's own welcome pages,
+ * tips, chat and sign-in prompts stay out of the way while tests run.
+ */
+const QUIET_SETTINGS = {
+  'workbench.startupEditor': 'none',
+  'workbench.tips.enabled': false,
+  'workbench.welcomePage.walkthroughs.openOnInstall': false,
+  'workbench.secondarySideBar.defaultVisibility': 'hidden',
+  'chat.disableAIFeatures': true,
+  'extensions.ignoreRecommendations': true,
+  'update.mode': 'none',
+  'telemetry.telemetryLevel': 'off',
+  'git.enabled': false,
+  'github.gitAuthentication': false,
+  'security.workspace.trust.enabled': false,
+  'window.restoreWindows': 'none',
+  'terminal.integrated.enablePersistentSessions': false
+};
+
+function writeQuietSettings(userDataDir: string): void {
+  const settingsDir = path.join(userDataDir, 'User');
+  fs.mkdirSync(settingsDir, { recursive: true });
+  fs.writeFileSync(path.join(settingsDir, 'settings.json'), JSON.stringify(QUIET_SETTINGS, null, 2));
+}
+
 async function main() {
+  // CODELAPSE_SUITE=fixtures records the scripted test recordings instead of running the tests.
+  const fixtures = process.env.CODELAPSE_SUITE === 'fixtures';
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'codelapse-it-'));
   const workspace = path.join(sandbox, 'workspace');
   const userDataDir = path.join(sandbox, 'user-data');
   const extensionsDir = path.join(sandbox, 'extensions');
-  createWorkspace(workspace);
+  if (fixtures) {
+    createFixtureWorkspace(workspace);
+  } else {
+    createWorkspace(workspace);
+  }
 
   const candidate = process.env.VSCODE_EXECUTABLE || INSTALLED_VSCODE[process.platform];
   const vscodeExecutablePath = candidate && fs.existsSync(candidate) ? candidate : undefined;
 
   try {
+    writeQuietSettings(userDataDir);
     await runTests({
       vscodeExecutablePath,
       // CODELAPSE_EXTENSION_PATH lets the same tests run against an unpacked .vsix.
-      extensionDevelopmentPath: process.env.CODELAPSE_EXTENSION_PATH || path.resolve(__dirname, '../../'),
-      extensionTestsPath: path.resolve(__dirname, './integration/index'),
+      extensionDevelopmentPath: process.env.CODELAPSE_EXTENSION_PATH || path.resolve(__dirname, '../../../'),
+      extensionTestsPath: path.resolve(__dirname, fixtures ? './fixtures/index' : './integration/index'),
       launchArgs: [
         workspace,
         '--user-data-dir', userDataDir,
@@ -56,6 +107,7 @@ async function main() {
       ],
       extensionTestsEnv: {
         CODELAPSE_TEST_WORKSPACE: workspace,
+        CODELAPSE_FIXTURES_OUT: path.resolve(__dirname, '../../../fixtures/recordings'),
         CODELAPSE_TEST_STORAGE: path.join(userDataDir, 'User', 'globalStorage', 'shanthan2307.codelapse')
       }
     });

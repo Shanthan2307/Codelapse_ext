@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as os from 'os';
 import * as path from 'path';
-import { Session } from '../models';
+import { Session } from '@codelapse/core';
 import { SessionManager } from '../tracker/SessionManager';
 import { ReportExporter } from './ReportExporter';
 

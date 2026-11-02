@@ -1,4 +1,4 @@
-import { Snapshot, SessionEvent } from '../../models';
+import { Snapshot, SessionEvent } from '@codelapse/core';
 import { computeEdits } from '../playback/PlaybackModel';
 
 /**

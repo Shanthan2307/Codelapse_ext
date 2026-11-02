@@ -46,6 +46,7 @@ The activity chart splits the session into 24 equal time slices, and hovering ov
 The pass rate counts only runs with a known result, and is not shown when there are none.
 
 ### Reports and data export
+- **CodeLapse: Export Assignment Bundle (.codelapse)** writes one file holding every recorded session of the chosen folder, ready to upload with the code. See [The .codelapse bundle](#the-codelapse-bundle).
 - **CodeLapse: Export Standalone HTML Report** writes one `.html` file with the replay and the recorded code embedded, so it opens in a browser without VS Code.
 - **CodeLapse: Save Session Data to Folder** copies the sessions you choose into one new folder: the raw `.jsonl` log, the `.json` session file and an HTML report for each.
 
@@ -61,6 +62,16 @@ Sessions are saved in the extension's global storage in two forms:
 While a session is recording, every snapshot is held in memory as full file text, so memory use and the `.json` file both grow with session length.
 
 Recordings are plain text and are not signed or encrypted.
+
+## The .codelapse bundle
+
+A `.codelapse` file is gzip-compressed JSON, so no special tools are needed to read it. It holds:
+
+- **Sessions:** the raw `.jsonl` log of every session recorded in the folder, each with a SHA-256 hash.
+- **Files:** the path, size and SHA-256 hash of every file in the folder at export, so a server can compare them with the submitted code.
+- **Folder key:** a salted hash that groups one folder's sessions on one computer without revealing the folder's path or the username.
+
+The hashes catch damaged or partly edited files. They do not prove that a recording is genuine, because anyone can recompute them. Sessions recorded before folder keys existed are matched by folder name.
 
 ## Getting started
 
@@ -81,6 +92,7 @@ Then open the folder in VS Code, press `F5` and, in the Extension Development Ho
 - **CodeLapse: Stop Recording Session** (opens the report)
 - **CodeLapse: Show Session Report & Analytics**
 - **CodeLapse: Export Standalone HTML Report**
+- **CodeLapse: Export Assignment Bundle (.codelapse)**
 - **CodeLapse: Save Session Data to Folder**
 
 ### Development
@@ -90,25 +102,51 @@ npm run lint               # ESLint
 npm run typecheck          # TypeScript, no output
 npm test                   # Unit tests
 npm run test:integration   # End-to-end tests in a real VS Code window
+npm run package            # Build the .vsix
 ```
+
+## Analysis
+
+`@codelapse/core` analyses a student's recording without any AI:
+
+- **Replay check:** compares the final recorded state of each file with the submitted code. Each file is reported as matching, differing only in whitespace, differing (with the first different line), never recorded, or recorded but not submitted. For each file it also gives how much was typed, bulk inserted or already there.
+- **Decision moments:** picks up to 40 moments worth asking about: a fix after a failed build, repeated failed builds, a bulk insert, a rewrite, removed code with nothing in its place, and when each C function was first written. Each moment has a stable ID, a plain summary and short before and after excerpts.
+
+Neither says anyone cheated. They describe what the recording shows, for an instructor to judge.
+
+`fixtures/recordings` holds scripted recordings of a small C assignment, made by driving the real extension (see its README). They are for testing, not evidence of how students work. Regenerate them with `npm run fixtures`.
 
 ## Repository structure
 
+The extension is at the repository root. Logic that the extension and the future submission server share lives in `packages/core`, an npm workspace package.
+
 ```
-src/
-├── analytics/engine.ts          # Session metrics and activity buckets
+packages/core/                   # @codelapse/core: shared, no VS Code dependency
+├── src/
+│   ├── models.ts                # Session data types
+│   ├── deltaEngine.ts           # Keyframes, deltas, reconstruction, edit stats
+│   ├── analytics.ts             # Session metrics and activity buckets
+│   ├── sessionLog.ts            # Rebuilds a session from its .jsonl log
+│   ├── replayCheck.ts           # Does the recording end at the submitted code?
+│   ├── moments.ts               # Decision moments for questions to cite
+│   ├── cFunctions.ts            # Finds C function definitions
+│   └── bundleFormat.ts          # The .codelapse format (Node only)
+├── node.ts                      # Node-only entry point: @codelapse/core/node
+└── test/                        # Includes tests on the scripted recordings
+fixtures/recordings/             # Scripted C recordings made with the real extension
+src/                             # The VS Code extension
 ├── events/
 │   ├── EventMonitor.ts          # Tasks, debug sessions, terminal runs, idle detection
 │   └── terminalRuns.ts          # Terminal command filtering and output clean-up
 ├── export/
+│   ├── BundleExporter.ts        # .codelapse assignment bundle
 │   ├── ReportExporter.ts        # Standalone HTML report
 │   ├── SubmissionExporter.ts    # Save session data to a folder
 │   └── htmlSafety.ts            # Safe embedding of recorded code in HTML
 ├── storage/LogStreamer.ts       # Append-only .jsonl log
 ├── tracker/
-│   ├── DeltaEngine.ts           # Keyframes, deltas and reconstruction
 │   ├── DocumentTracker.ts       # Editor change, selection and focus capture
-│   ├── RecordingScope.ts        # Chosen folder: picker, persistence, filtering
+│   ├── RecordingScope.ts        # Chosen folder: picker, persistence, filtering, folder key
 │   ├── SessionManager.ts        # Session lifecycle and persistence
 │   └── folderScope.ts           # Path containment and relative paths
 ├── ui/
@@ -121,8 +159,7 @@ src/
 │   ├── ReportPanel.ts           # Webview panel and message handling
 │   └── index.tsx                # React entry point
 ├── test/                        # Unit tests (suite/) and VS Code tests (integration/)
-├── extension.ts                 # Activation and commands
-└── models.ts                    # Session data types
+└── extension.ts                 # Activation and commands
 ```
 
 ## Project direction

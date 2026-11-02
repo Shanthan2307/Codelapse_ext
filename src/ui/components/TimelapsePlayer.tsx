@@ -7,7 +7,7 @@ import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
 import 'prismjs/components/prism-c';
 import 'prismjs/components/prism-cpp';
-import { Snapshot, RunEvent, SessionEvent } from '../../models';
+import { Snapshot, RunEvent, SessionEvent } from '@codelapse/core';
 import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
 import { alignToPlayback, buildFileFlow, FileVisit } from '../flow/FileFlowModel';
 import { FileFlowGraph } from './FileFlowGraph';

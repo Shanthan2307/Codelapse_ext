@@ -1,7 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "out"
+    "outDir": "out",
+    "rootDir": "."
   },
-  "include": ["src/test/runIntegration.ts", "src/test/integration/**/*"]
+  "include": [
+    "src/test/runIntegration.ts",
+    "src/test/integration/**/*",
+    "src/test/fixtures/**/*",
+    "packages/core/src/**/*",
+    "packages/core/node.ts"
+  ]
 }

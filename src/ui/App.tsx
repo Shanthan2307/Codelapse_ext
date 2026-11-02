@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Session } from '../models';
+import { Session } from '@codelapse/core';
 import {
   computeSessionAnalytics,
   SessionAnalytics
-} from '../analytics/engine';
+} from '@codelapse/core';
 import { MetricsRow } from './components/MetricsRow';
 import { ActivityChart } from './components/ActivityChart';
 import { TimelapsePlayer } from './components/TimelapsePlayer';
