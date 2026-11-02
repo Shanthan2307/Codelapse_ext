@@ -5,8 +5,12 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
 import { Snapshot, RunEvent, SessionEvent } from '../../models';
 import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
+import { alignToPlayback, buildFileFlow, FileVisit } from '../flow/FileFlowModel';
+import { FileFlowGraph } from './FileFlowGraph';
 
 interface TimelapsePlayerProps {
   snapshots: Snapshot[];
@@ -33,11 +37,21 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(2); // 1x, 2x, 5x, 10x
   const [skipIdle, setSkipIdle] = useState<boolean>(true);
   const [selectedRun, setSelectedRun] = useState<RunEvent | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<SessionEvent | null>(null);
 
   // The animation loop reads the playhead from a ref so it never waits on a re-render.
   const playheadRef = useRef<number>(0);
   const codeBodyRef = useRef<HTMLDivElement | null>(null);
+  /** When set, playback pauses on reaching this time ("Replay this visit"). */
+  const stopAtRef = useRef<number | null>(null);
+  /** The visit being replayed, highlighted once its replay finishes. */
+  const replayingRef = useRef<FileVisit | null>(null);
+  /** Lines typed during a visit picked in the navigation graph. */
+  const [highlight, setHighlight] = useState<{ filePath: string; lines: Set<number> } | null>(null);
+
+  const flow = useMemo(
+    () => alignToPlayback(buildFileFlow(model.snapshots, events, model.durationMs), (ms) => model.windowStart(ms)),
+    [model, events]
+  );
 
   const seek = (ms: number) => {
     const clamped = Math.max(0, Math.min(model.durationMs, ms));
@@ -48,7 +62,9 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   // Live sessions grow while the panel is open: keep the playhead in range
   // instead of rewinding to the start on every update.
   useEffect(() => {
-    seek(Math.min(playheadRef.current, model.durationMs));
+    const inRange = Math.min(playheadRef.current, model.durationMs);
+    playheadRef.current = inRange;
+    setPlayheadMs(inRange);
   }, [model]);
 
   // Playback engine: requestAnimationFrame advances a continuous playhead in
@@ -75,12 +91,19 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         }
       }
 
-      const next = Math.min(model.durationMs, current + dt * rate);
+      const stopAt = stopAtRef.current ?? model.durationMs;
+      const next = Math.min(stopAt, model.durationMs, current + dt * rate);
       playheadRef.current = next;
       setPlayheadMs(next);
 
-      if (next >= model.durationMs) {
+      if (next >= stopAt || next >= model.durationMs) {
+        stopAtRef.current = null;
         setIsPlaying(false);
+        const replayed = replayingRef.current;
+        replayingRef.current = null;
+        if (replayed && next >= stopAt) {
+          setHighlight({ filePath: replayed.filePath, lines: new Set(replayed.changedLines) });
+        }
         return;
       }
       frameId = requestAnimationFrame(tick);
@@ -113,11 +136,26 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     }
   }, [activeLine, frame?.filePath]);
 
+  // Bring the first highlighted line into view (runs after the caret scroll above).
+  useLayoutEffect(() => {
+    const body = codeBodyRef.current;
+    if (!body || !highlight || highlight.lines.size === 0) {
+      return;
+    }
+    const lineEl = body.querySelector<HTMLElement>(`[data-line="${Math.min(...highlight.lines)}"]`);
+    if (lineEl) {
+      body.scrollTop = lineEl.offsetTop - body.clientHeight / 3;
+    }
+  }, [highlight]);
+
   const togglePlay = () => {
     if (isPlaying) {
       setIsPlaying(false);
       return;
     }
+    stopAtRef.current = null;
+    replayingRef.current = null;
+    setHighlight(null);
     if (playheadRef.current >= model.durationMs) {
       seek(0);
     }
@@ -126,22 +164,33 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
   const pauseAndSeek = (ms: number) => {
     setIsPlaying(false);
+    stopAtRef.current = null;
+    replayingRef.current = null;
+    setHighlight(null);
     seek(ms);
+  };
+
+  // Navigation graph: show what a visit produced, or play it back.
+  const showVisit = (visit: FileVisit) => {
+    pauseAndSeek(visit.resultTime);
+    setHighlight({ filePath: visit.filePath, lines: new Set(visit.changedLines) });
+  };
+  const replayVisit = (visit: FileVisit) => {
+    setHighlight(null);
+    seek(visit.start);
+    // Stop when the visit's last change is on screen; at visit.end the player
+    // would already be showing the next file.
+    stopAtRef.current = Math.max(visit.resultTime, visit.start + 1);
+    replayingRef.current = visit;
+    setIsPlaying(true);
   };
 
   const handleStepBack = () => pauseAndSeek(model.previousBoundary(playheadRef.current));
   const handleStepForward = () => pauseAndSeek(model.nextBoundary(playheadRef.current));
 
   const handleSeekToRun = (run: RunEvent) => {
-    setSelectedEvent(null);
     setSelectedRun(run);
     pauseAndSeek(run.timestamp);
-  };
-
-  const handleSeekToEvent = (event: SessionEvent) => {
-    setSelectedRun(null);
-    setSelectedEvent(event);
-    pauseAndSeek(event.timestamp);
   };
 
   // Keyboard shortcuts. The listener is registered once and reads the latest
@@ -196,21 +245,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
 
   const allFiles = useMemo(() => Array.from(new Set(model.snapshots.map((s) => s.filePath))), [model]);
 
-  // Prefer the explicit event type; fall back to detail sniffing so sessions
-  // recorded before 'framework' existed in the schema still show markers.
-  const frameworkEvents = useMemo(
-    () =>
-      events.filter(
-        (e) =>
-          e.type === 'framework' ||
-          e.detail?.includes('React') ||
-          e.detail?.includes('Next.js') ||
-          e.detail?.includes('Node') ||
-          e.detail?.includes('Django')
-      ),
-    [events]
-  );
-
   const totalSessionTime = Math.max(1, model.durationMs);
   const snapshotCount = model.snapshots.length;
   const showStartHint =
@@ -237,11 +271,13 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
         selStart={line.selStart}
         selEnd={line.selEnd}
         isActive={line.isActive}
+        isHighlighted={!!highlight && highlight.filePath === frame.filePath && highlight.lines.has(idx + 1)}
       />
     ));
   };
 
   return (
+    <>
     <div className="section-card timelapse-card">
       <div className="section-header">
         <div>
@@ -357,34 +393,16 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           {/* RunEvent Markers */}
           {runs.map((run, idx) => {
             const positionPct = Math.min(100, Math.max(0, (run.timestamp / totalSessionTime) * 100));
+            const status = runStatus(run);
             return (
               <button
                 key={`run-${idx}`}
-                className={`timeline-run-badge ${run.success ? 'pass' : 'fail'}`}
+                className={`timeline-run-badge ${status.className}`}
                 style={{ left: `${positionPct}%` }}
                 onClick={() => handleSeekToRun(run)}
-                title={`Execution at ${formatTime(run.timestamp)}: ${
-                  run.success ? 'PASSED' : 'FAILED'
-                }\n${run.command || ''}`}
+                title={`Execution at ${formatTime(run.timestamp)}: ${status.label}\n${run.command || ''}`}
               >
-                {run.success ? '✓' : '✕'}
-              </button>
-            );
-          })}
-
-          {/* Framework Milestone Markers */}
-          {frameworkEvents.map((evt, idx) => {
-            const positionPct = Math.min(100, Math.max(0, (evt.timestamp / totalSessionTime) * 100));
-            const icon = evt.detail?.includes('React') ? '⚛️' : evt.detail?.includes('Django') ? '🐍' : '📦';
-            return (
-              <button
-                key={`evt-${idx}`}
-                className="timeline-framework-badge"
-                style={{ left: `${positionPct}%` }}
-                onClick={() => handleSeekToEvent(evt)}
-                title={`Milestone at ${formatTime(evt.timestamp)}: ${evt.detail || ''}`}
-              >
-                {icon}
+                {status.icon}
               </button>
             );
           })}
@@ -400,12 +418,8 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
       {selectedRun && (
         <div className="run-details-banner">
           <div className="run-details-header">
-            <span
-              className={`run-status-tag ${
-                selectedRun.success ? 'positive' : 'negative'
-              }`}
-            >
-              {selectedRun.success ? '✓ Run Passed' : '✕ Run Failed'}
+            <span className={`run-status-tag ${runStatus(selectedRun).tagClass}`}>
+              {runStatus(selectedRun).icon} {runStatus(selectedRun).label}
             </span>
             <span className="run-command-text">
               {selectedRun.command || 'Execution output'} ({selectedRun.durationMs}ms)
@@ -420,27 +434,27 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           <pre className="run-output-box">{selectedRun.output}</pre>
         </div>
       )}
-
-      {/* Selected Framework Milestone Banner */}
-      {selectedEvent && (
-        <div className="run-details-banner">
-          <div className="run-details-header">
-            <span className="run-status-tag positive">
-              📌 Framework Milestone ({formatTime(selectedEvent.timestamp)})
-            </span>
-            <span className="run-command-text">{selectedEvent.detail}</span>
-            <button
-              className="btn-close-banner"
-              onClick={() => setSelectedEvent(null)}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
     </div>
+
+    {flow.nodes.length > 0 && (
+      <FileFlowGraph flow={flow} playheadMs={playheadMs} onShowVisit={showVisit} onReplayVisit={replayVisit} />
+    )}
+    </>
   );
 };
+
+// ---------------- Run results ---------------- //
+
+/** A run's result can be unknown, e.g. a debug session reports no exit code. */
+function runStatus(run: RunEvent): { className: string; tagClass: string; icon: string; label: string } {
+  if (run.success === true) {
+    return { className: 'pass', tagClass: 'positive', icon: '✓', label: 'Run Passed' };
+  }
+  if (run.success === false) {
+    return { className: 'fail', tagClass: 'negative', icon: '✕', label: 'Run Failed' };
+  }
+  return { className: 'unknown', tagClass: '', icon: '•', label: 'Finished (result unknown)' };
+}
 
 // ---------------- Code rendering ---------------- //
 
@@ -456,7 +470,11 @@ const LANGUAGES: Record<string, LanguageInfo> = {
   javascript: { grammar: Prism.languages.javascript, lang: 'javascript' },
   json: { grammar: Prism.languages.json || Prism.languages.javascript, lang: 'json' },
   css: { grammar: Prism.languages.css, lang: 'css' },
-  python: { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' }
+  python: { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' },
+  c: { grammar: Prism.languages.c, lang: 'c' },
+  cpp: { grammar: Prism.languages.cpp, lang: 'cpp' },
+  markup: { grammar: Prism.languages.markup, lang: 'markup' },
+  plain: { grammar: Prism.languages.plain, lang: 'plain' }
 };
 
 function languageFor(filePath: string): LanguageInfo {
@@ -471,8 +489,23 @@ function languageFor(filePath: string): LanguageInfo {
       return LANGUAGES.css;
     case 'py':
       return LANGUAGES.python;
-    default:
+    case 'js':
+    case 'jsx':
+    case 'mjs':
+    case 'cjs':
       return LANGUAGES.javascript;
+    case 'c':
+    case 'h':
+      return LANGUAGES.c;
+    case 'cpp':
+    case 'cc':
+    case 'hpp':
+      return LANGUAGES.cpp;
+    case 'html':
+    case 'xml':
+      return LANGUAGES.markup;
+    default:
+      return LANGUAGES.plain;
   }
 }
 
@@ -541,6 +574,8 @@ function buildLineModels(frame: PlaybackFrame): LineModel[] {
 }
 
 interface CodeLineProps {
+  /** Typed during the visit picked in the navigation graph. */
+  isHighlighted: boolean;
   lineNumber: number;
   text: string;
   language: LanguageInfo;
@@ -558,7 +593,8 @@ const CodeLine = React.memo(function CodeLine({
   caretCol,
   selStart,
   selEnd,
-  isActive
+  isActive,
+  isHighlighted
 }: CodeLineProps) {
   let content: React.ReactNode;
 
@@ -585,7 +621,7 @@ const CodeLine = React.memo(function CodeLine({
   }
 
   return (
-    <div className={`code-line ${isActive ? 'active-line' : ''}`} data-line={lineNumber}>
+    <div className={`code-line ${isActive ? 'active-line' : ''} ${isHighlighted ? 'typed-highlight' : ''}`} data-line={lineNumber}>
       <span className="line-number">{lineNumber}</span>
       <span className="line-content">{content}</span>
     </div>

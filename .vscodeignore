@@ -1,0 +1,14 @@
+# Only the webpack bundles in dist/ are needed at runtime: React, Prism and all
+# extension code are bundled into dist/extension.js and dist/webview.js.
+.vscode/**
+.vscode-test/**
+src/**
+out/**
+node_modules/**
+**/*.map
+**/*.ts
+tsconfig*.json
+webpack.config.js
+.gitignore
+eslint.config.mjs
+.github/**

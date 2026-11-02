@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { SessionManager } from './SessionManager';
 import { DeltaSnapshot, TextChange } from './DeltaEngine';
+import { RecordingScope } from './RecordingScope';
 
 export class DocumentTracker implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
@@ -9,11 +10,18 @@ export class DocumentTracker implements vscode.Disposable {
   private pendingSelections: Map<string, vscode.Selection> = new Map();
   private lastFileLengths: Map<string, number> = new Map();
   private fileEditCounts: Map<string, number> = new Map();
+  /** Document behind each pending capture, so flushing never depends on editor visibility. */
+  private pendingDocuments: Map<string, vscode.TextDocument> = new Map();
+  /** Session the per-file state above belongs to. */
+  private trackedSessionId: string | null = null;
+  /** Last file the user switched to, so repeated focus events for it are ignored. */
+  private lastFocusedPath: string | null = null;
   private readonly debounceDelayMs: number;
   private readonly KEYFRAME_INTERVAL = 50;
 
   constructor(
     private readonly sessionManager: SessionManager,
+    private readonly scope: RecordingScope,
     debounceDelayMs: number = 500
   ) {
     this.debounceDelayMs = debounceDelayMs;
@@ -38,35 +46,79 @@ export class DocumentTracker implements vscode.Disposable {
       }
     );
 
-    this.disposables.push(docChangeDisposable, selectionChangeDisposable);
+    // Per-file keyframe counters belong to one session's log. Without a reset,
+    // the next session (e.g. after Stop/Start or switching folders) would begin
+    // with deltas that have no keyframe in its own log, and could not be replayed.
+    const sessionStateDisposable = this.sessionManager.onSessionStateChanged(({ state, session }) => {
+      if (state === 'recording' && session && session.id !== this.trackedSessionId) {
+        this.resetFileState();
+        this.trackedSessionId = session.id;
+      }
+    });
+
+    // File switches: which file the user moved to, even if they only read it.
+    const focusDisposable = vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        this.handleFocusChange(editor.document);
+      }
+    });
+
+    this.disposables.push(docChangeDisposable, selectionChangeDisposable, sessionStateDisposable, focusDisposable);
+  }
+
+  /**
+   * Records a move to another file in the recorded folder: a 'focus' event,
+   * plus a snapshot of the file as it was on arrival, so what was typed during
+   * the visit can later be told apart from what was already there.
+   */
+  private handleFocusChange(document: vscode.TextDocument): void {
+    if (!this.shouldTrackDocument(document)) {
+      return;
+    }
+    const filePath = this.scope.relativePath(document.uri);
+    if (filePath === this.lastFocusedPath) {
+      return;
+    }
+    this.lastFocusedPath = filePath;
+
+    this.sessionManager.addSessionEvent({
+      type: 'focus',
+      timestamp: this.sessionManager.getElapsedTimeMs(),
+      filePath
+    });
+
+    // Capture now rather than after the debounce, so the arrival state is exact.
+    const pending = this.debounceTimers.get(filePath);
+    if (pending) {
+      clearTimeout(pending);
+      this.debounceTimers.delete(filePath);
+      this.pendingDocuments.delete(filePath);
+    }
+    this.captureSnapshot(document, filePath, 'focus');
+  }
+
+  /** Forgets all per-file state so the next capture of every file is a fresh keyframe. */
+  private resetFileState(): void {
+    for (const timer of this.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.debounceTimers.clear();
+    this.pendingChanges.clear();
+    this.pendingSelections.clear();
+    this.pendingDocuments.clear();
+    this.lastFileLengths.clear();
+    this.fileEditCounts.clear();
+    this.lastFocusedPath = null;
   }
 
   /**
    * Checks whether a document should be tracked.
    */
   private shouldTrackDocument(document: vscode.TextDocument): boolean {
-    if (!this.sessionManager.isRecording()) {
-      return false;
-    }
-
-    // Only track real workspace files or untitled buffers
-    const scheme = document.uri.scheme;
-    if (scheme !== 'file' && scheme !== 'untitled') {
-      return false;
-    }
-
-    const fsPath = document.uri.fsPath;
-    // Exclude git internal files and node_modules
-    if (
-      fsPath.includes('/.git/') ||
-      fsPath.includes('\\.git\\') ||
-      fsPath.includes('/node_modules/') ||
-      fsPath.includes('\\node_modules\\')
-    ) {
-      return false;
-    }
-
-    return true;
+    // Only files saved inside the chosen folder are recorded (never .git or
+    // node_modules). Unsaved "Untitled" buffers start being recorded once they
+    // are saved into the folder.
+    return this.sessionManager.isRecording() && this.scope.contains(document.uri);
   }
 
   /**
@@ -78,7 +130,7 @@ export class DocumentTracker implements vscode.Disposable {
       return;
     }
 
-    const filePath = vscode.workspace.asRelativePath(document.uri, false);
+    const filePath = this.scope.relativePath(document.uri);
 
     // Collect atomic content changes
     const changes: TextChange[] = event.contentChanges.map((c) => ({
@@ -121,7 +173,8 @@ export class DocumentTracker implements vscode.Disposable {
     document: vscode.TextDocument,
     selection?: vscode.Selection
   ): void {
-    const filePath = vscode.workspace.asRelativePath(document.uri, false);
+    const filePath = this.scope.relativePath(document.uri);
+    this.pendingDocuments.set(filePath, document);
 
     if (selection) {
       this.pendingSelections.set(filePath, selection);
@@ -136,6 +189,7 @@ export class DocumentTracker implements vscode.Disposable {
     // Debounce capture
     const timer = setTimeout(() => {
       this.debounceTimers.delete(filePath);
+      this.pendingDocuments.delete(filePath);
       this.captureSnapshot(document, filePath);
     }, this.debounceDelayMs);
 
@@ -145,7 +199,7 @@ export class DocumentTracker implements vscode.Disposable {
   /**
    * Captures a Keyframe (I-Frame) or Delta (P-Frame) snapshot and pushes it to SessionManager.
    */
-  private captureSnapshot(document: vscode.TextDocument, filePath: string): void {
+  private captureSnapshot(document: vscode.TextDocument, filePath: string, trigger?: 'focus'): void {
     if (!this.sessionManager.isRecording()) {
       return;
     }
@@ -215,9 +269,11 @@ export class DocumentTracker implements vscode.Disposable {
       filePath,
       isKeyframe,
       content: isKeyframe ? document.getText() : undefined,
-      changes: isKeyframe ? undefined : accumulatedChanges,
+      // Keyframes keep their edits too: replay uses the content, statistics use these.
+      changes: isKeyframe && !hasEdits ? undefined : accumulatedChanges,
       cursorStart,
-      cursorEnd
+      cursorEnd,
+      ...(trigger ? { trigger } : {})
     };
 
     this.sessionManager.addDeltaSnapshot(deltaSnapshot);
@@ -231,11 +287,15 @@ export class DocumentTracker implements vscode.Disposable {
       return;
     }
 
+    const active = vscode.window.activeTextEditor?.document;
     for (const editor of vscode.window.visibleTextEditors) {
-      if (this.shouldTrackDocument(editor.document)) {
-        const filePath = vscode.workspace.asRelativePath(editor.document.uri, false);
-        this.captureSnapshot(editor.document, filePath);
+      if (this.shouldTrackDocument(editor.document) && editor.document !== active) {
+        this.captureSnapshot(editor.document, this.scope.relativePath(editor.document.uri));
       }
+    }
+    // The file open when recording starts is where the session's first visit begins.
+    if (active) {
+      this.handleFocusChange(active);
     }
   }
 
@@ -245,14 +305,15 @@ export class DocumentTracker implements vscode.Disposable {
   public flushPending(): void {
     for (const [filePath, timer] of this.debounceTimers.entries()) {
       clearTimeout(timer);
-      const editor = vscode.window.visibleTextEditors.find(
-        (e) => vscode.workspace.asRelativePath(e.document.uri, false) === filePath
-      );
-      if (editor) {
-        this.captureSnapshot(editor.document, filePath);
+      // Use the stored document: an edit in a file that is no longer visible
+      // (e.g. its tab was switched away within the debounce window) still counts.
+      const document = this.pendingDocuments.get(filePath);
+      if (document) {
+        this.captureSnapshot(document, filePath);
       }
     }
     this.debounceTimers.clear();
+    this.pendingDocuments.clear();
   }
 
   /**
@@ -266,6 +327,7 @@ export class DocumentTracker implements vscode.Disposable {
     this.debounceTimers.clear();
     this.pendingChanges.clear();
     this.pendingSelections.clear();
+    this.pendingDocuments.clear();
     this.lastFileLengths.clear();
     this.fileEditCounts.clear();
 

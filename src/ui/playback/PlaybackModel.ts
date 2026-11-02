@@ -435,6 +435,16 @@ export class PlaybackModel {
     return idx < this.timestamps.length ? this.timestamps[idx] : this.durationMs;
   }
 
+  /**
+   * When the change recorded at `ms` starts appearing on screen. The typing
+   * that produced a snapshot is animated in the moments before its timestamp,
+   * so for a snapshot time this is the start of its typing window.
+   */
+  public windowStart(ms: number): number {
+    const idx = this.firstIndexAtOrAfter(ms);
+    return idx < this.timestamps.length && this.timestamps[idx] === ms ? this.steps[idx].typingStart : ms;
+  }
+
   /** Time of the first snapshot of `filePath`, or null if it never appears. */
   public firstTimeOf(filePath: string): number | null {
     const snap = this.snapshots.find((s) => s.filePath === filePath);

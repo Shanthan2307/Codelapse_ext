@@ -1,16 +1,16 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as readline from 'readline';
-import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
+import { Session, RunEvent, SessionEvent } from '../models';
 import { DeltaSnapshot, DeltaEngine } from '../tracker/DeltaEngine';
 
-export type LogRecordType = 'session_start' | 'keyframe' | 'delta' | 'run' | 'event' | 'session_end';
-
-export interface LogRecord {
-  type: LogRecordType;
-  timestamp: number;
-  data: any;
-}
+export type LogRecord = { timestamp: number } & (
+  | { type: 'session_start'; data: Pick<Session, 'id' | 'workspaceName' | 'startTime'> }
+  | { type: 'keyframe' | 'delta'; data: DeltaSnapshot }
+  | { type: 'run'; data: RunEvent }
+  | { type: 'event'; data: SessionEvent }
+  | { type: 'session_end'; data: { endTime: number } }
+);
 
 export class LogStreamer {
   private writeStream: fs.WriteStream | null = null;
@@ -79,7 +79,7 @@ export class LogStreamer {
       crlfDelay: Infinity
     });
 
-    let session: Session = {
+    const session: Session = {
       id: '',
       workspaceName: '',
       startTime: 0,
@@ -105,15 +105,15 @@ export class LogStreamer {
 
           case 'keyframe':
           case 'delta':
-            deltaSnapshots.push(record.data as DeltaSnapshot);
+            deltaSnapshots.push(record.data);
             break;
 
           case 'run':
-            session.runs.push(record.data as RunEvent);
+            session.runs.push(record.data);
             break;
 
           case 'event':
-            session.events.push(record.data as SessionEvent);
+            session.events.push(record.data);
             break;
 
           case 'session_end':

@@ -5,6 +5,26 @@ interface MetricsRowProps {
   analytics: SessionAnalytics;
 }
 
+function runSummary(analytics: SessionAnalytics): React.ReactNode {
+  const unrecorded = analytics.unrecordedTerminals > 0 ? 'Some terminal commands were not recorded' : null;
+  if (analytics.totalRuns === 0) {
+    return unrecorded ?? 'No runs logged';
+  }
+  const unknown = analytics.unknownRuns > 0 ? `${analytics.unknownRuns} result unknown` : null;
+  if (analytics.passRate === null) {
+    return [unknown, unrecorded].filter(Boolean).join(' · ');
+  }
+  return (
+    <>
+      <span className={analytics.passRate >= 80 ? 'positive' : 'negative'}>
+        {analytics.successfulRuns} passed ({analytics.passRate}% pass rate)
+      </span>
+      {unknown && ` · ${unknown}`}
+      {unrecorded && ` · ${unrecorded}`}
+    </>
+  );
+}
+
 export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
   const fileCount = Object.keys(analytics.files).length;
   const netLinesSign = analytics.netLinesWritten > 0 ? '+' : '';
@@ -22,20 +42,26 @@ export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
         </span>
       </div>
 
-      {/* 2. Total Keystrokes */}
+      {/* 2. Characters Typed */}
       <div className="metric-card">
-        <span className="metric-label">Total Keystrokes</span>
+        <span className="metric-label">Characters Typed</span>
         <div className="metric-value">
-          <span>⌨️</span> {analytics.totalKeystrokes.toLocaleString()}
+          <span>⌨️</span> {analytics.typedChars.toLocaleString()}
         </div>
-        <span className="metric-subtext">
-          Across {fileCount} {fileCount === 1 ? 'file' : 'files'}
+        <span
+          className="metric-subtext"
+          title="Bulk inserted means one edit added many characters at once: paste, autocomplete, formatting or undo. Pre-existing means the text was already in the file when it was first seen. Unclassified edits come from recordings made before edits were classified."
+        >
+          {analytics.bulkInsertedChars.toLocaleString()} bulk inserted ·{' '}
+          {analytics.unclassifiedChars > 0 && `${analytics.unclassifiedChars.toLocaleString()} unclassified · `}
+          {analytics.preExistingChars.toLocaleString()} pre-existing · {fileCount}{' '}
+          {fileCount === 1 ? 'file' : 'files'}
         </span>
       </div>
 
-      {/* 3. Net Lines Written */}
+      {/* 3. Net Lines Changed */}
       <div className="metric-card">
-        <span className="metric-label">Net Lines Written</span>
+        <span className="metric-label">Net Lines Changed</span>
         <div
           className={`metric-value ${
             analytics.netLinesWritten > 0
@@ -60,13 +86,7 @@ export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
           <span>🚀</span> {analytics.totalRuns}
         </div>
         <span className="metric-subtext">
-          {analytics.totalRuns > 0 ? (
-            <span className={analytics.passRate >= 80 ? 'positive' : 'negative'}>
-              {analytics.successfulRuns} passed ({analytics.passRate}% pass rate)
-            </span>
-          ) : (
-            'No runs logged'
-          )}
+          {runSummary(analytics)}
         </span>
       </div>
     </div>

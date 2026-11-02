@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Session } from '../models';
 import { computeSessionAnalytics } from '../analytics/engine';
-import { SessionSummarizer } from '../ai/SessionSummarizer';
+import { serializeForScript, escapeHtml } from './htmlSafety';
 
 export class ReportExporter {
   /**
@@ -30,28 +30,53 @@ export class ReportExporter {
     }
 
     try {
-      // Read the bundled webview.js
-      const webviewBundleUri = vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js');
-      const webviewJsData = await vscode.workspace.fs.readFile(webviewBundleUri);
-      const webviewJsText = new TextDecoder().decode(webviewJsData);
+      const htmlContent = await ReportExporter.buildStandaloneHtml(extensionUri, session);
 
-      const analytics = computeSessionAnalytics(session);
-      const aiSummary = SessionSummarizer.generateSummary(session);
+      const data = new TextEncoder().encode(htmlContent);
+      await vscode.workspace.fs.writeFile(saveUri, data);
 
-      const initialPayload = JSON.stringify({
-        session,
-        analytics,
-        aiSummary,
-        isRecording: false,
-        isPaused: false
+      vscode.window.showInformationMessage(
+        `CodeLapse: Standalone HTML report exported successfully!`,
+        'Open in Browser'
+      ).then((selection) => {
+        if (selection === 'Open in Browser') {
+          vscode.env.openExternal(saveUri);
+        }
       });
 
-      const htmlContent = `<!DOCTYPE html>
+      return saveUri;
+    } catch (err) {
+      console.error('Failed to export CodeLapse standalone HTML report:', err);
+      vscode.window.showErrorMessage(`Export failed: ${err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Builds the self-contained HTML page for a session: the React dashboard
+   * bundle plus the session and its analytics embedded as data.
+   */
+  public static async buildStandaloneHtml(extensionUri: vscode.Uri, session: Session): Promise<string> {
+    // Read the bundled webview.js
+    const webviewBundleUri = vscode.Uri.joinPath(extensionUri, 'dist', 'webview.js');
+    const webviewJsData = await vscode.workspace.fs.readFile(webviewBundleUri);
+    const webviewJsText = new TextDecoder().decode(webviewJsData);
+
+    const analytics = computeSessionAnalytics(session);
+
+    const initialPayload = serializeForScript({
+      session,
+      analytics,
+      isRecording: false,
+      isPaused: false
+    });
+
+    return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CodeLapse Replay: ${session.workspaceName}</title>
+  <title>CodeLapse Replay: ${escapeHtml(session.workspaceName)}</title>
   <style>
     /* Dark Theme Default for Standalone Web Export */
     :root {
@@ -89,24 +114,6 @@ export class ReportExporter {
   </script>
 </body>
 </html>`;
-
-      const data = new TextEncoder().encode(htmlContent);
-      await vscode.workspace.fs.writeFile(saveUri, data);
-
-      vscode.window.showInformationMessage(
-        `CodeLapse: Standalone HTML report exported successfully!`,
-        'Open in Browser'
-      ).then((selection) => {
-        if (selection === 'Open in Browser') {
-          vscode.env.openExternal(saveUri);
-        }
-      });
-
-      return saveUri;
-    } catch (err) {
-      console.error('Failed to export CodeLapse standalone HTML report:', err);
-      vscode.window.showErrorMessage(`Export failed: ${err}`);
-      return null;
-    }
   }
 }
+

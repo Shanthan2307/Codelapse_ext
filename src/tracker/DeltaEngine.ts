@@ -1,8 +1,11 @@
-import { Snapshot } from '../models';
+import { EditStats, Snapshot } from '../models';
+
+/** A single edit adding at least this many characters, ignoring surrounding whitespace, is bulk. */
+export const BULK_INSERT_MIN_CHARS = 20;
 
 /**
  * Represents a single atomic character/range modification within a file.
- * Matches VS Code's TextDocumentContentChangeEvent structure for zero-copy efficiency.
+ * Matches VS Code's TextDocumentContentChangeEvent structure.
  */
 export interface TextChange {
   /** Character index where modification begins */
@@ -25,12 +28,31 @@ export interface DeltaSnapshot {
   isKeyframe: boolean;
   /** Full content (populated only when isKeyframe is true) */
   content?: string;
-  /** Atomic diff changes (populated when isKeyframe is false) */
+  /** Atomic diff changes. Keyframes keep them too, so their edit stats survive. */
   changes?: TextChange[];
   /** Cursor selection character start offset */
   cursorStart: number;
   /** Cursor selection character end offset */
   cursorEnd: number;
+  /** 'focus' when captured because the user switched to this file. */
+  trigger?: 'focus';
+}
+
+/**
+ * Counts the characters behind a set of edits. Normal typing arrives as very
+ * small changes; one change carrying a lot of text at once is bulk inserted.
+ */
+export function summarizeEdits(changes: TextChange[]): EditStats {
+  const stats: EditStats = { typedChars: 0, bulkInsertedChars: 0, deletedChars: 0 };
+  for (const change of changes) {
+    stats.deletedChars += change.rangeLength;
+    if (change.text.trim().length >= BULK_INSERT_MIN_CHARS) {
+      stats.bulkInsertedChars += change.text.length;
+    } else {
+      stats.typedChars += change.text.length;
+    }
+  }
+  return stats;
 }
 
 export class DeltaEngine {
@@ -158,7 +180,9 @@ export class DeltaEngine {
           filePath,
           content: currentContent,
           cursorStart: item.cursorStart,
-          cursorEnd: item.cursorEnd
+          cursorEnd: item.cursorEnd,
+          ...(item.trigger ? { trigger: item.trigger } : {}),
+          ...(item.changes?.length ? { edit: summarizeEdits(item.changes) } : {})
         });
       }
     }

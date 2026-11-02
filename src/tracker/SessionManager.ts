@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
-import { DeltaSnapshot, DeltaEngine } from './DeltaEngine';
-import { LogStreamer, LogRecord } from '../storage/LogStreamer';
+import { DeltaSnapshot, DeltaEngine, summarizeEdits } from './DeltaEngine';
+import { LogStreamer } from '../storage/LogStreamer';
 
 export type SessionState = 'idle' | 'recording' | 'paused';
 
@@ -239,7 +239,9 @@ export class SessionManager {
       filePath: delta.filePath,
       content,
       cursorStart: delta.cursorStart,
-      cursorEnd: delta.cursorEnd
+      cursorEnd: delta.cursorEnd,
+      ...(delta.trigger ? { trigger: delta.trigger } : {}),
+      ...(delta.changes?.length ? { edit: summarizeEdits(delta.changes) } : {})
     };
 
     this.addSnapshot(snapshot);
@@ -275,9 +277,15 @@ export class SessionManager {
 
     // Auto-record milestone session event
     this.addSessionEvent({
-      type: run.success ? 'run-pass' : 'run-fail',
+      type: run.success === null ? 'run-unknown' : run.success ? 'run-pass' : 'run-fail',
       timestamp: run.timestamp,
-      detail: run.command ? `Command: ${run.command}` : (run.success ? 'Run passed' : 'Run failed')
+      detail: run.command
+        ? `Command: ${run.command}`
+        : run.success === null
+          ? 'Run finished with no known result'
+          : run.success
+            ? 'Run passed'
+            : 'Run failed'
     });
 
     this.isDirty = true;

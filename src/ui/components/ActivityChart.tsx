@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityBucket } from '../../analytics/engine';
+import { ActivityBucket, isInBucket } from '../../analytics/engine';
 import { Snapshot, RunEvent } from '../../models';
 import { ActivityTooltip } from './ActivityTooltip';
 
@@ -26,7 +26,7 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            <span style={{ fontSize: '18px' }}>📊</span> 24-Bucket Keystroke & Change Activity
+            <span style={{ fontSize: '18px' }}>📊</span> Edit Activity
           </h2>
           <span className="section-subtitle">
             Timeline distribution partitioned into 24 proportional slices. Hover for mini-diffs.
@@ -44,10 +44,12 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
 
             // Check if there are runs in this bucket
             const bucketRuns = runs.filter(
-              (r) => r.timestamp >= bucket.startTimeMs && r.timestamp <= bucket.endTimeMs
+              (r) => isInBucket(r.timestamp, bucket)
             );
-            const hasPass = bucketRuns.some((r) => r.success);
-            const hasFail = bucketRuns.some((r) => !r.success);
+            const hasPass = bucketRuns.some((r) => r.success === true);
+            const hasFail = bucketRuns.some((r) => r.success === false);
+            const runState = hasFail ? 'fail' : hasPass ? 'pass' : 'unknown';
+            const runLabel = hasFail ? 'Failed' : hasPass ? 'Passed' : 'Result unknown';
 
             return (
               <div
@@ -63,8 +65,8 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
                 {/* Run indicator marker */}
                 {bucketRuns.length > 0 && (
                   <div
-                    className={`run-marker ${hasFail ? 'fail' : 'pass'}`}
-                    title={`Run execution: ${hasFail ? 'Failed' : 'Passed'}`}
+                    className={`run-marker ${runState}`}
+                    title={`Run execution: ${runLabel}`}
                   />
                 )}
 

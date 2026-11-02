@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityBucket } from '../../analytics/engine';
+import { ActivityBucket, isInBucket } from '../../analytics/engine';
 import { Snapshot, RunEvent } from '../../models';
 
 interface ActivityTooltipProps {
@@ -15,11 +15,11 @@ export const ActivityTooltip: React.FC<ActivityTooltipProps> = ({
 }) => {
   // Find snapshots and runs that occurred during this bucket's window
   const bucketSnapshots = snapshots.filter(
-    (s) => s.timestamp >= bucket.startTimeMs && s.timestamp <= bucket.endTimeMs
+    (s) => isInBucket(s.timestamp, bucket)
   );
 
   const bucketRuns = runs.filter(
-    (r) => r.timestamp >= bucket.startTimeMs && r.timestamp <= bucket.endTimeMs
+    (r) => isInBucket(r.timestamp, bucket)
   );
 
   // Generate mini-diff representation
@@ -72,7 +72,7 @@ export const ActivityTooltip: React.FC<ActivityTooltipProps> = ({
         {bucketRuns.length > 0 && (
           <div style={{ gridColumn: 'span 2' }}>
             <strong>Executions:</strong> {bucketRuns.length} (
-            {bucketRuns.filter((r) => r.success).length} passed)
+            {bucketRuns.filter((r) => r.success === true).length} passed)
           </div>
         )}
       </div>
