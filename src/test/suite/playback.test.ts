@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { Snapshot } from '../../models';
+import { Snapshot } from '@codelapse/core';
 import {
   computeEdits,
   editUnits,

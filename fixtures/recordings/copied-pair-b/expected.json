@@ -1,0 +1,13 @@
+{
+  "name": "copied-pair-b",
+  "scripted": true,
+  "description": "Pastes the copied-pair-a solution with tmp, count and word renamed to swap, total and text.",
+  "runs": [
+    "pass"
+  ],
+  "traits": {
+    "bulkInsert": true,
+    "copiedWith": "copied-pair-a",
+    "renamedVariables": true
+  }
+}

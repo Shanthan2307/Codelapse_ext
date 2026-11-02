@@ -7,8 +7,8 @@ import {
   isInBucket,
   computePreExistingChars,
   computeSessionAnalytics
-} from '../../analytics/engine';
-import { Session, Snapshot, RunEvent, SessionEvent } from '../../models';
+} from '../src/analytics';
+import { Session, Snapshot, RunEvent, SessionEvent } from '../src/models';
 
 describe('AnalyticsEngine Unit Tests', () => {
   const createMockSession = (): Session => {

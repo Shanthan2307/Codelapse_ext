@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
-import { DeltaSnapshot, DeltaEngine, summarizeEdits } from './DeltaEngine';
+import { Session, Snapshot, RunEvent, SessionEvent } from '@codelapse/core';
+import { DeltaSnapshot, DeltaEngine, summarizeEdits } from '@codelapse/core';
 import { LogStreamer } from '../storage/LogStreamer';
 
 export type SessionState = 'idle' | 'recording' | 'paused';
@@ -53,7 +53,7 @@ export class SessionManager {
   /**
    * Starts a new recording session.
    */
-  public async start(workspaceName?: string): Promise<Session> {
+  public async start(workspaceName?: string, folderKey?: string): Promise<Session> {
     if (this.state === 'recording') {
       console.warn('Session is already recording.');
       return this.currentSession!;
@@ -78,6 +78,7 @@ export class SessionManager {
     this.currentSession = {
       id: sessionId,
       workspaceName: wsName,
+      ...(folderKey ? { folderKey } : {}),
       startTime: now,
       snapshots: [],
       runs: [],
@@ -96,7 +97,7 @@ export class SessionManager {
     this.currentLogStreamer.append({
       type: 'session_start',
       timestamp: now,
-      data: { id: sessionId, workspaceName: wsName, startTime: now }
+      data: { id: sessionId, workspaceName: wsName, startTime: now, ...(folderKey ? { folderKey } : {}) }
     });
     this.currentLogStreamer.append({
       type: 'event',

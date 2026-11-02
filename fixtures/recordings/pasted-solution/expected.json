@@ -1,0 +1,12 @@
+{
+  "name": "pasted-solution",
+  "scripted": true,
+  "description": "Inserts the whole finished solution in one edit, then builds once.",
+  "runs": [
+    "pass"
+  ],
+  "traits": {
+    "bulkInsert": true,
+    "copiedWith": "copied-pair-a"
+  }
+}

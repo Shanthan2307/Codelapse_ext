@@ -1,5 +1,5 @@
 import React from 'react';
-import { SessionAnalytics } from '../../analytics/engine';
+import { SessionAnalytics } from '@codelapse/core';
 
 interface MetricsRowProps {
   analytics: SessionAnalytics;

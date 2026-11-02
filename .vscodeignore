@@ -12,3 +12,4 @@ webpack.config.js
 .gitignore
 eslint.config.mjs
 .github/**
+packages/**

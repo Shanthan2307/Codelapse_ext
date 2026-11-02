@@ -1,4 +1,4 @@
-import { EditStats, Snapshot } from '../models';
+import { EditStats, Snapshot } from './models';
 
 /** A single edit adding at least this many characters, ignoring surrounding whitespace, is bulk. */
 export const BULK_INSERT_MIN_CHARS = 20;

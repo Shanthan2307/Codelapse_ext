@@ -1,0 +1,14 @@
+{
+  "name": "abandoned-approach",
+  "scripted": true,
+  "description": "Writes a working recursive reverse(), keeps it about 10 seconds, deletes it and writes the loop version.",
+  "runs": [
+    "pass",
+    "pass"
+  ],
+  "traits": {
+    "abandonedApproach": "recursive reverse_range()",
+    "keptForSeconds": "10",
+    "bulkInsert": false
+  }
+}

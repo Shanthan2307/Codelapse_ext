@@ -1,7 +1,7 @@
 import { randomBytes } from 'crypto';
 import * as vscode from 'vscode';
-import { Session } from '../models';
-import { computeSessionAnalytics, SessionAnalytics } from '../analytics/engine';
+import { Session } from '@codelapse/core';
+import { computeSessionAnalytics, SessionAnalytics } from '@codelapse/core';
 import { SessionManager } from '../tracker/SessionManager';
 import { ReportExporter } from '../export/ReportExporter';
 

@@ -49,6 +49,10 @@
         "title": "CodeLapse: Export Standalone HTML Report"
       },
       {
+        "command": "codelapse.exportBundle",
+        "title": "CodeLapse: Export Assignment Bundle (.codelapse)"
+      },
+      {
         "command": "codelapse.exportForSubmission",
         "title": "CodeLapse: Save Session Data to Folder"
       }
@@ -68,15 +72,18 @@
     "compile": "webpack --mode production",
     "watch": "webpack --mode development --watch",
     "build": "webpack --mode production",
-    "test": "mocha -r ts-node/register 'src/test/suite/**/*.test.ts'",
-    "test:integration": "npm run compile && tsc -p tsconfig.integration.json && node out/test/runIntegration.js",
-    "lint": "eslint src",
-    "typecheck": "tsc --noEmit -p ."
+    "test": "mocha -r ts-node/register 'src/test/suite/**/*.test.ts' 'packages/*/test/**/*.test.ts'",
+    "test:integration": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && node out/src/test/runIntegration.js",
+    "lint": "eslint src packages",
+    "typecheck": "tsc --noEmit -p .",
+    "package": "vsce package --no-dependencies",
+    "fixtures": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && CODELAPSE_SUITE=fixtures node out/src/test/runIntegration.js"
   },
   "dependencies": {
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "@codelapse/core": "0.0.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",
@@ -102,5 +109,8 @@
   "overrides": {
     "minimatch": "^11.0.4",
     "glob": "^14.0.3"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }

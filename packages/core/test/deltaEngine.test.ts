@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { BULK_INSERT_MIN_CHARS, DeltaEngine, DeltaSnapshot, TextChange, summarizeEdits } from '../../tracker/DeltaEngine';
+import { BULK_INSERT_MIN_CHARS, DeltaEngine, DeltaSnapshot, TextChange, summarizeEdits } from '../src/deltaEngine';
 
 describe('DeltaEngine Keyframe & Delta Patching Tests', () => {
   it('applies simple atomic insertions and deletions correctly', () => {

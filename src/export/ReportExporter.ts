@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { Session } from '../models';
-import { computeSessionAnalytics } from '../analytics/engine';
+import { Session } from '@codelapse/core';
+import { computeSessionAnalytics } from '@codelapse/core';
 import { serializeForScript, escapeHtml } from './htmlSafety';
 
 export class ReportExporter {

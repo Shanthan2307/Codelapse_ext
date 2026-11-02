@@ -1,4 +1,4 @@
-import { Snapshot } from '../../models';
+import { Snapshot } from '@codelapse/core';
 
 /**
  * Smooth playback model for the timelapse player.
