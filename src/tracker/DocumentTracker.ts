@@ -269,7 +269,8 @@ export class DocumentTracker implements vscode.Disposable {
       filePath,
       isKeyframe,
       content: isKeyframe ? document.getText() : undefined,
-      changes: isKeyframe ? undefined : accumulatedChanges,
+      // Keyframes keep their edits too: replay uses the content, statistics use these.
+      changes: isKeyframe && !hasEdits ? undefined : accumulatedChanges,
       cursorStart,
       cursorEnd,
       ...(trigger ? { trigger } : {})

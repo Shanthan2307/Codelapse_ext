@@ -1,6 +1,7 @@
 import * as assert from 'assert';
 import { Snapshot, SessionEvent } from '../../models';
-import { buildFileFlow, MIN_VIEW_MS } from '../../ui/flow/FileFlowModel';
+import { alignToPlayback, buildFileFlow, MIN_VIEW_MS } from '../../ui/flow/FileFlowModel';
+import { PlaybackModel } from '../../ui/playback/PlaybackModel';
 
 const snap = (timestamp: number, filePath: string, content: string, trigger?: 'focus'): Snapshot => ({
   timestamp,
@@ -115,8 +116,6 @@ describe('FileFlowModel Navigation Graph Tests', () => {
 
 describe('FileFlowModel alignment with the replay', () => {
   it('starts each visit when its typing starts appearing on screen', () => {
-    const { PlaybackModel } = require('../../ui/playback/PlaybackModel');
-    const { alignToPlayback } = require('../../ui/flow/FileFlowModel');
     const snaps = [snap(1000, 'a.js', 'aaaa'), snap(30000, 'b.js', 'b'.repeat(100)), snap(40000, 'a.js', 'aaaa!')];
     const model = new PlaybackModel(snaps, 45000);
     const aligned = alignToPlayback(buildFileFlow(snaps, [], 45000), (ms: number) => model.windowStart(ms));
@@ -125,9 +124,9 @@ describe('FileFlowModel alignment with the replay', () => {
     const b = aligned.visits[1];
     assert.ok(b.start < 30000 && b.start >= 1000, `b.js visit starts at ${b.start}`);
     // ...so the replay at that moment is already showing b.js, and so does the graph.
-    assert.strictEqual(model.frameAt(b.start + 1).filePath, 'b.js');
+    assert.strictEqual(model.frameAt(b.start + 1)?.filePath, 'b.js');
     assert.strictEqual(aligned.visits[0].end, b.start);
     assert.strictEqual(aligned.moves[0].time, b.start);
-    assert.deepStrictEqual(aligned.visits.map((v: { filePath: string }) => v.filePath), ['a.js', 'b.js', 'a.js']);
+    assert.deepStrictEqual(aligned.visits.map((v) => v.filePath), ['a.js', 'b.js', 'a.js']);
   });
 });

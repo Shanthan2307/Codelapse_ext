@@ -1,20 +1,39 @@
+import * as fs from 'fs';
+import * as os from 'os';
 import * as vscode from 'vscode';
 import { RunEvent, SessionEvent } from '../models';
 import { SessionManager } from '../tracker/SessionManager';
 import { RecordingScope } from '../tracker/RecordingScope';
-import { FrameworkDetector } from '../frameworks/FrameworkDetector';
+import { isInsideFolder } from '../tracker/folderScope';
+import { MAX_RUN_OUTPUT_CHARS, isRunCommand, isTaskCommand, sanitizeOutput } from './terminalRuns';
+
+/** How long a finished terminal command may take to deliver its remaining output. */
+const OUTPUT_DRAIN_TIMEOUT_MS = 1000;
+/** A task's end and its terminal command's end arrive in either order, this close together. */
+const TASK_COMMAND_WAIT_MS = 400;
+/** How long a terminal gets to start shell integration before it counts as unrecorded. */
+const SHELL_INTEGRATION_WAIT_MS = 15000;
+
+interface RunningTask {
+  name: string;
+  commandLine?: string;
+  startTime: number;
+  /** Output of the terminal command that carried this task, once it has been matched. */
+  output?: Promise<string>;
+}
 
 export class EventMonitor implements vscode.Disposable {
   private disposables: vscode.Disposable[] = [];
-  private taskStartTimes: Map<string, { startTime: number; command: string }> = new Map();
+  private runningTasks: Map<string, RunningTask> = new Map();
   private debugStartTimes: Map<string, { startTime: number; name: string; type: string }> = new Map();
-  private terminalOutputs: Map<string, string[]> = new Map();
+  private shellRuns: Map<vscode.TerminalShellExecution, { startTime: number; output: Promise<string> }> = new Map();
+  private terminalChecks: Map<vscode.Terminal, NodeJS.Timeout> = new Map();
+  private warnedAboutTerminals = false;
 
   private idleTimer: NodeJS.Timeout | null = null;
   private lastActivityTime: number = Date.now();
   private isCurrentlyIdle: boolean = false;
   private readonly idleThresholdMs: number;
-  public readonly frameworkDetector: FrameworkDetector;
 
   constructor(
     private readonly sessionManager: SessionManager,
@@ -22,20 +41,8 @@ export class EventMonitor implements vscode.Disposable {
     idleThresholdMs: number = 5 * 60 * 1000 // 5 minutes default
   ) {
     this.idleThresholdMs = idleThresholdMs;
-    this.frameworkDetector = new FrameworkDetector(sessionManager);
     this.setupListeners();
     this.resetIdleTimer();
-
-    // Detect frameworks from the recorded folder, and again whenever it changes.
-    this.detectFrameworks();
-    this.disposables.push(this.scope.onDidChange(() => this.detectFrameworks()));
-  }
-
-  private detectFrameworks(): void {
-    this.frameworkDetector
-      .initialize(this.scope.getFolder() ?? undefined)
-      .then((frameworks) => console.log('CodeLapse Frameworks Detected:', frameworks))
-      .catch((err) => console.warn('CodeLapse framework detection failed:', err));
   }
 
   /**
@@ -53,42 +60,22 @@ export class EventMonitor implements vscode.Disposable {
   }
 
   /**
-   * Subscribes to task, debugging, terminal, framework, and user activity events.
+   * Subscribes to task, debugging, terminal, and user activity events.
    */
   private setupListeners(): void {
     // 1. Task start and end processes
     const taskStartDisposable = vscode.tasks.onDidStartTaskProcess((e) => {
       this.recordActivity();
-      const taskId = this.getTaskIdentifier(e.execution.task);
-      this.taskStartTimes.set(taskId, {
-        startTime: Date.now(),
-        command: e.execution.task.name
+      this.runningTasks.set(this.getTaskIdentifier(e.execution.task), {
+        name: e.execution.task.name,
+        commandLine: taskCommandLine(e.execution.task),
+        startTime: Date.now()
       });
     });
 
     const taskEndDisposable = vscode.tasks.onDidEndTaskProcess((e) => {
       this.recordActivity();
-      const taskId = this.getTaskIdentifier(e.execution.task);
-      const startInfo = this.taskStartTimes.get(taskId);
-      const durationMs = startInfo ? Date.now() - startInfo.startTime : 0;
-      this.taskStartTimes.delete(taskId);
-
-      if (!this.isRunInScope(this.taskFolder(e.execution.task))) {
-        return;
-      }
-
-      const success = e.exitCode === 0;
-      const recentOutput = this.getRecentTerminalOutput();
-
-      const runEvent: RunEvent = {
-        timestamp: this.sessionManager.getElapsedTimeMs(),
-        command: startInfo?.command || e.execution.task.name,
-        output: recentOutput || `Task "${e.execution.task.name}" finished with exit code ${e.exitCode}`,
-        success,
-        durationMs
-      };
-
-      this.sessionManager.addRunEvent(runEvent);
+      void this.recordTaskRun(e);
     });
 
     // 2. Debug sessions
@@ -111,41 +98,49 @@ export class EventMonitor implements vscode.Disposable {
         return;
       }
 
-      const recentOutput = this.getRecentTerminalOutput();
-
+      // VS Code does not report how a debug session ended, so its result is unknown.
       const runEvent: RunEvent = {
         timestamp: this.sessionManager.getElapsedTimeMs(),
         command: `Debug [${startInfo?.type || session.type}]: ${startInfo?.name || session.name}`,
-        output: recentOutput || `Debug session "${session.name}" ended.`,
-        success: true,
+        output: `Debug session "${session.name}" ended.`,
+        success: null,
         durationMs
       };
 
       this.sessionManager.addRunEvent(runEvent);
     });
 
-    // 3. Terminal Output Monitoring & Framework Dispatching
-    if (typeof (vscode.window as any).onDidWriteTerminalData === 'function') {
-      try {
-        const terminalDataDisposable = (vscode.window as any).onDidWriteTerminalData(
-          (e: { terminal: vscode.Terminal; data: string }) => {
-            this.recordActivity();
-            this.appendTerminalOutput(e.terminal.name, e.data);
-            this.frameworkDetector.dispatchTerminalOutput(e.terminal.name, e.data);
-          }
-        );
-        this.disposables.push(terminalDataDisposable);
-      } catch (err) {
-        console.warn('onDidWriteTerminalData listener not supported:', err);
-      }
-    }
-
-    // 4. Document Save Hook for Framework Ast / Signature Detection
-    const docSaveDisposable = vscode.workspace.onDidSaveTextDocument((doc) => {
+    // 3. Commands run in the integrated terminal (needs VS Code shell integration).
+    // Output is only available from the start of a command, while its command line
+    // and folder are most reliable at the end, so filtering happens when it ends.
+    const shellStartDisposable = vscode.window.onDidStartTerminalShellExecution((e) => {
       this.recordActivity();
-      if (this.scope.contains(doc.uri)) {
-        this.frameworkDetector.dispatchDocumentSaved(doc, this.scope.relativePath(doc.uri));
+      if (this.sessionManager.getState() !== 'idle') {
+        this.shellRuns.set(e.execution, { startTime: Date.now(), output: collectOutput(e.execution) });
       }
+    });
+
+    const shellEndDisposable = vscode.window.onDidEndTerminalShellExecution((e) => {
+      this.recordActivity();
+      void this.recordShellRun(e);
+    });
+
+    // Without shell integration a terminal's commands cannot be seen at all, so
+    // say so rather than let a report look like nothing was run.
+    const terminalOpenDisposable = vscode.window.onDidOpenTerminal((terminal) => this.watchTerminal(terminal));
+    const terminalCloseDisposable = vscode.window.onDidCloseTerminal((terminal) => this.stopWatchingTerminal(terminal));
+    const terminalReadyDisposable = vscode.window.onDidChangeTerminalShellIntegration((e) =>
+      this.stopWatchingTerminal(e.terminal)
+    );
+    const sessionStateDisposable = this.sessionManager.onSessionStateChanged(({ state }) => {
+      if (state === 'recording') {
+        vscode.window.terminals.forEach((terminal) => this.watchTerminal(terminal));
+      }
+    });
+
+    // 4. Saving counts as activity
+    const docSaveDisposable = vscode.workspace.onDidSaveTextDocument(() => {
+      this.recordActivity();
     });
 
     // 5. Activity detection via editor typing/selection
@@ -162,10 +157,15 @@ export class EventMonitor implements vscode.Disposable {
       taskEndDisposable,
       debugStartDisposable,
       debugEndDisposable,
+      shellStartDisposable,
+      shellEndDisposable,
+      terminalOpenDisposable,
+      terminalCloseDisposable,
+      terminalReadyDisposable,
+      sessionStateDisposable,
       docSaveDisposable,
       docChangeDisposable,
-      selectionChangeDisposable,
-      this.frameworkDetector
+      selectionChangeDisposable
     );
   }
 
@@ -222,32 +222,141 @@ export class EventMonitor implements vscode.Disposable {
     this.sessionManager.addSessionEvent(idleEvent);
   }
 
-  /**
-   * Appends terminal stream output chunks to memory buffer.
-   */
-  private appendTerminalOutput(terminalName: string, chunk: string): void {
-    const cleanChunk = chunk.replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g, ''); // Strip ANSI escape codes
-    if (!cleanChunk.trim()) {
+  /** Records a finished task, with its terminal command's output when there is one. */
+  private async recordTaskRun(e: vscode.TaskProcessEndEvent): Promise<void> {
+    const task = e.execution.task;
+    const session = this.sessionManager.getCurrentSession();
+    const taskId = this.getTaskIdentifier(task);
+    const running = this.runningTasks.get(taskId);
+    const timestamp = this.sessionManager.getElapsedTimeMs();
+    const durationMs = running ? Date.now() - running.startTime : 0;
+
+    await new Promise((resolve) => setTimeout(resolve, TASK_COMMAND_WAIT_MS));
+    const rawOutput = running?.output ? await withTimeout(running.output, OUTPUT_DRAIN_TIMEOUT_MS, '') : '';
+    this.runningTasks.delete(taskId);
+
+    if (!session || !this.isRunInScope(this.taskFolder(task))) {
+      return;
+    }
+    // A folder switch while the output drained must not leak into the next session.
+    if (this.sessionManager.getCurrentSession()?.id !== session.id) {
       return;
     }
 
-    const lines = this.terminalOutputs.get(terminalName) || [];
-    lines.push(cleanChunk);
-    if (lines.length > 100) {
-      lines.shift(); // Keep only last 100 entries
+    this.sessionManager.addRunEvent({
+      timestamp,
+      command: task.name,
+      output:
+        sanitizeOutput(rawOutput, this.recordedFolderPaths(), os.homedir()) ||
+        `Task "${task.name}" finished with exit code ${e.exitCode ?? 'unknown'}`,
+      success: e.exitCode === undefined ? null : e.exitCode === 0,
+      durationMs
+    });
+  }
+
+  /** Warns once a terminal has had long enough to start shell integration and has not. */
+  private watchTerminal(terminal: vscode.Terminal): void {
+    if (terminal.shellIntegration || this.terminalChecks.has(terminal) || !this.sessionManager.isRecording()) {
+      return;
     }
-    this.terminalOutputs.set(terminalName, lines);
+    const timer = setTimeout(() => {
+      this.terminalChecks.delete(terminal);
+      const isTaskTerminal = [...this.runningTasks.values()].some((task) => isTaskCommand(terminal.name, '', task));
+      const isOpen = vscode.window.terminals.includes(terminal);
+      if (isOpen && !terminal.shellIntegration && !isTaskTerminal) {
+        this.reportUnrecordedTerminal();
+      }
+    }, SHELL_INTEGRATION_WAIT_MS);
+    this.terminalChecks.set(terminal, timer);
+  }
+
+  private stopWatchingTerminal(terminal: vscode.Terminal): void {
+    const timer = this.terminalChecks.get(terminal);
+    if (timer) {
+      clearTimeout(timer);
+      this.terminalChecks.delete(terminal);
+    }
+  }
+
+  private reportUnrecordedTerminal(): void {
+    if (!this.sessionManager.isRecording()) {
+      return;
+    }
+    this.sessionManager.addSessionEvent({
+      type: 'terminal-unrecorded',
+      timestamp: this.sessionManager.getElapsedTimeMs(),
+      detail: 'A terminal without shell integration was open: commands run in it were not recorded.'
+    });
+    if (!this.warnedAboutTerminals) {
+      this.warnedAboutTerminals = true;
+      void vscode.window.showWarningMessage(
+        'CodeLapse cannot record commands in this terminal because VS Code shell integration is not active. ' +
+          'Use bash, zsh, fish or PowerShell with "terminal.integrated.shellIntegration.enabled" turned on.'
+      );
+    }
   }
 
   /**
-   * Retrieves the most recent buffered terminal output.
+   * Records a finished terminal command if it ran from inside the recorded
+   * folder and actually ran something (not `cd`, `ls`, `git status`, ...).
    */
-  private getRecentTerminalOutput(): string {
-    const allRecentLines: string[] = [];
-    for (const lines of this.terminalOutputs.values()) {
-      allRecentLines.push(...lines.slice(-20));
+  private async recordShellRun(e: vscode.TerminalShellExecutionEndEvent): Promise<void> {
+    const started = this.shellRuns.get(e.execution);
+    this.shellRuns.delete(e.execution);
+    if (!started) {
+      return;
     }
-    return allRecentLines.join('').trim();
+
+    const commandLine = e.execution.commandLine.value;
+
+    // A task's command is the same run as the task: recordTaskRun takes its output.
+    const task = [...this.runningTasks.values()].find((t) => isTaskCommand(e.terminal.name, commandLine, t));
+    if (task) {
+      task.output = started.output;
+      return;
+    }
+
+    const session = this.sessionManager.getCurrentSession();
+    const folderPaths = this.recordedFolderPaths();
+    const cwd = e.execution.cwd?.fsPath;
+    const inFolder = !!cwd && folderPaths.some((folder) => isInsideFolder(folder, cwd));
+    if (!session || !inFolder || !isRunCommand(commandLine)) {
+      return;
+    }
+
+    const timestamp = this.sessionManager.getElapsedTimeMs();
+    const durationMs = Date.now() - started.startTime;
+    const rawOutput = await withTimeout(started.output, OUTPUT_DRAIN_TIMEOUT_MS, '');
+
+    // A folder switch while the output drained must not leak into the next session.
+    if (this.sessionManager.getCurrentSession()?.id !== session.id) {
+      return;
+    }
+
+    const homeDir = os.homedir();
+    this.sessionManager.addRunEvent({
+      timestamp,
+      command: sanitizeOutput(commandLine, folderPaths, homeDir),
+      output:
+        sanitizeOutput(rawOutput, folderPaths, homeDir) ||
+        `Command finished with exit code ${e.exitCode ?? 'unknown'}`,
+      // Ctrl+C and shells that do not report a code leave exitCode undefined.
+      success: e.exitCode === undefined ? null : e.exitCode === 0,
+      durationMs
+    });
+  }
+
+  /** The recorded folder as chosen and as the shell reports it (symlinks resolved). */
+  private recordedFolderPaths(): string[] {
+    const folder = this.scope.getFolder()?.fsPath;
+    if (!folder) {
+      return [];
+    }
+    try {
+      return [folder, fs.realpathSync(folder)];
+    } catch {
+      return [folder];
+    }
   }
 
   /**
@@ -266,13 +375,46 @@ export class EventMonitor implements vscode.Disposable {
       this.idleTimer = null;
     }
 
-    this.taskStartTimes.clear();
+    this.runningTasks.clear();
     this.debugStartTimes.clear();
-    this.terminalOutputs.clear();
+    this.shellRuns.clear();
+    for (const timer of this.terminalChecks.values()) {
+      clearTimeout(timer);
+    }
+    this.terminalChecks.clear();
 
     for (const disposable of this.disposables) {
       disposable.dispose();
     }
     this.disposables = [];
   }
+}
+
+/** The command line a task runs, when it is a shell command given as one string. */
+function taskCommandLine(task: vscode.Task): string | undefined {
+  const execution = task.execution;
+  return execution instanceof vscode.ShellExecution ? execution.commandLine?.trim() : undefined;
+}
+
+/** Reads a command's output as it arrives, holding on to only the newest part. */
+async function collectOutput(execution: vscode.TerminalShellExecution): Promise<string> {
+  let output = '';
+  try {
+    for await (const chunk of execution.read()) {
+      output = (output + chunk).slice(-2 * MAX_RUN_OUTPUT_CHARS);
+    }
+  } catch (err) {
+    console.warn('CodeLapse could not read terminal output:', err);
+  }
+  return output;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    void promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    });
+  });
 }

@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { Session } from '../models';
 import { computeSessionAnalytics } from '../analytics/engine';
-import { SessionSummarizer } from '../ai/SessionSummarizer';
 import { serializeForScript, escapeHtml } from './htmlSafety';
 
 export class ReportExporter {
@@ -55,7 +54,7 @@ export class ReportExporter {
 
   /**
    * Builds the self-contained HTML page for a session: the React dashboard
-   * bundle plus the session, its analytics and summary embedded as data.
+   * bundle plus the session and its analytics embedded as data.
    */
   public static async buildStandaloneHtml(extensionUri: vscode.Uri, session: Session): Promise<string> {
     // Read the bundled webview.js
@@ -64,12 +63,10 @@ export class ReportExporter {
     const webviewJsText = new TextDecoder().decode(webviewJsData);
 
     const analytics = computeSessionAnalytics(session);
-    const aiSummary = SessionSummarizer.generateSummary(session);
 
     const initialPayload = serializeForScript({
       session,
       analytics,
-      aiSummary,
       isRecording: false,
       isPaused: false
     });

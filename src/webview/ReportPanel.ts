@@ -1,8 +1,14 @@
+import { randomBytes } from 'crypto';
 import * as vscode from 'vscode';
 import { Session } from '../models';
 import { computeSessionAnalytics, SessionAnalytics } from '../analytics/engine';
 import { SessionManager } from '../tracker/SessionManager';
 import { ReportExporter } from '../export/ReportExporter';
+
+/** Messages the report webview sends to the extension. */
+type WebviewMessage =
+  | { type: 'READY' | 'REQUEST_DATA' | 'REQUEST_SAVED_SESSIONS' | 'EXPORT_HTML' }
+  | { type: 'LOAD_SESSION_BY_URI'; payload?: { uri?: string } };
 
 export class ReportPanel {
   public static currentPanel: ReportPanel | undefined;
@@ -189,7 +195,7 @@ export class ReportPanel {
   /**
    * Handles incoming IPC messages from the React Webview.
    */
-  private async _handleWebviewMessage(message: { type: string; payload?: any }): Promise<void> {
+  private async _handleWebviewMessage(message: WebviewMessage): Promise<void> {
     switch (message.type) {
       case 'READY':
       case 'REQUEST_DATA': {
@@ -224,21 +230,8 @@ export class ReportPanel {
         break;
       }
 
-      case 'SHOW_MESSAGE': {
-        const text = message.payload?.message || '';
-        const level = message.payload?.level || 'info';
-        if (level === 'error') {
-          vscode.window.showErrorMessage(text);
-        } else if (level === 'warn') {
-          vscode.window.showWarningMessage(text);
-        } else {
-          vscode.window.showInformationMessage(text);
-        }
-        break;
-      }
-
       default:
-        console.warn('Unhandled webview message type:', message.type);
+        console.warn('Unhandled webview message:', message);
     }
   }
 
@@ -290,10 +283,5 @@ export class ReportPanel {
 }
 
 function getNonce(): string {
-  let text = '';
-  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  for (let i = 0; i < 32; i++) {
-    text += possible.charAt(Math.floor(Math.random() * possible.length));
-  }
-  return text;
+  return randomBytes(16).toString('base64');
 }

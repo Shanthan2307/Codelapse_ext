@@ -1,4 +1,4 @@
-import { Session, Snapshot, RunEvent, SessionEvent } from '../models';
+import { EditStats, Session, Snapshot } from '../models';
 
 export interface ActivityBucket {
   bucketIndex: number;
@@ -10,21 +10,12 @@ export interface ActivityBucket {
   label: string;
 }
 
-export interface LineHeatmapEntry {
-  lineNumber: number; // 1-based line number
-  text: string;
-  editCount: number;
-  intensity: number; // 0.0 to 1.0 relative to max edits
-}
-
 export interface FileAnalytics {
   filePath: string;
   initialLines: number;
   finalLines: number;
   netLines: number;
   totalSnapshots: number;
-  estimatedKeystrokes: number;
-  lineHeatmap: LineHeatmapEntry[];
 }
 
 export interface SessionAnalytics {
@@ -32,17 +23,34 @@ export interface SessionAnalytics {
   workspaceName: string;
   durationMs: number;
   formattedDuration: string;
-  totalKeystrokes: number;
+  /** Characters added by ordinary small edits. */
+  typedChars: number;
+  /** Characters added by single large edits: paste, autocomplete, formatting or undo. */
+  bulkInsertedChars: number;
+  deletedChars: number;
+  /** Characters changed by edits with no classification (older recordings). */
+  unclassifiedChars: number;
+  /** Times a terminal was open whose commands could not be recorded. */
+  unrecordedTerminals: number;
+  /** Characters already in files before their first recorded edit. */
+  preExistingChars: number;
   netLinesWritten: number;
   totalSnapshots: number;
   totalRuns: number;
   successfulRuns: number;
   failedRuns: number;
-  passRate: number; // Percentage 0 - 100
+  /** Runs whose result is not known, such as debug sessions. */
+  unknownRuns: number;
+  /** Percentage 0 - 100 of runs with a known result; null when none has one. */
+  passRate: number | null;
   activityBuckets: ActivityBucket[]; // 24 buckets
   files: Record<string, FileAnalytics>;
-  overallHeatmap: LineHeatmapEntry[];
-  keyMoments: SessionEvent[];
+}
+
+/** True if `ms` falls in this bucket. Each time belongs to exactly one bucket. */
+export function isInBucket(ms: number, bucket: ActivityBucket): boolean {
+  const isLastBucket = bucket.bucketIndex === 23;
+  return ms >= bucket.startTimeMs && (ms < bucket.endTimeMs || isLastBucket);
 }
 
 /**
@@ -62,28 +70,49 @@ export function computeSessionDuration(session: Session): number {
 }
 
 /**
- * Computes the total estimated keystrokes / character alterations across all files.
+ * Totals the characters added and removed by recorded edits. Opening or
+ * switching to a file adds nothing here: its content counts as pre-existing.
  */
-export function computeTotalKeystrokes(session: Session): number {
-  let total = 0;
-  const fileSnapshots = groupSnapshotsByFile(session.snapshots);
-
-  for (const snapshots of fileSnapshots.values()) {
-    if (snapshots.length === 0) {
-      continue;
-    }
-
-    // Initial snapshot contribution
-    total += snapshots[0].content.length;
-
-    // Subsequent snapshot diff estimations
-    for (let i = 1; i < snapshots.length; i++) {
-      const prev = snapshots[i - 1].content;
-      const curr = snapshots[i].content;
-      total += estimateCharEdits(prev, curr);
+export function computeEditTotals(session: Session): EditStats {
+  const totals: EditStats = { typedChars: 0, bulkInsertedChars: 0, deletedChars: 0 };
+  for (const { edit } of session.snapshots) {
+    if (edit) {
+      totals.typedChars += edit.typedChars;
+      totals.bulkInsertedChars += edit.bulkInsertedChars;
+      totals.deletedChars += edit.deletedChars;
     }
   }
+  return totals;
+}
 
+/**
+ * Counts characters changed by edits that carry no edit data, as in recordings
+ * made before edits were classified. The content shows they changed, but not
+ * whether they were typed or inserted in bulk, so they are not guessed at.
+ */
+export function computeUnclassifiedChars(session: Session): number {
+  let total = 0;
+  for (const snapshots of groupSnapshotsByFile(session.snapshots).values()) {
+    for (let i = 1; i < snapshots.length; i++) {
+      if (!snapshots[i].edit) {
+        total += estimateCharEdits(snapshots[i - 1].content, snapshots[i].content);
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Counts the characters each file held before its first recorded edit. The first
+ * snapshot may already include edits, so those are taken back out.
+ */
+export function computePreExistingChars(session: Session): number {
+  let total = 0;
+  for (const snapshots of groupSnapshotsByFile(session.snapshots).values()) {
+    const first = snapshots[0];
+    const inserted = (first.edit?.typedChars ?? 0) + (first.edit?.bulkInsertedChars ?? 0);
+    total += Math.max(0, first.content.length - inserted + (first.edit?.deletedChars ?? 0));
+  }
   return total;
 }
 
@@ -135,8 +164,12 @@ export function compute24BucketActivity(session: Session): ActivityBucket[] {
       const bIndex = Math.min(23, Math.max(0, Math.floor(snap.timestamp / bucketDuration)));
       buckets[bIndex].snapshotCount += 1;
 
-      const editVol = i === 0 ? snap.content.length : estimateCharEdits(snapshots[i - 1].content, snap.content);
-      buckets[bIndex].changeVolume += Math.max(1, editVol);
+      // A file's first snapshot has nothing to compare against, so only its
+      // recorded edits count: content that was already there is not activity.
+      buckets[bIndex].changeVolume +=
+        i === 0
+          ? (snap.edit?.typedChars ?? 0) + (snap.edit?.bulkInsertedChars ?? 0) + (snap.edit?.deletedChars ?? 0)
+          : estimateCharEdits(snapshots[i - 1].content, snap.content);
     }
   }
 
@@ -144,72 +177,9 @@ export function compute24BucketActivity(session: Session): ActivityBucket[] {
   for (const run of session.runs) {
     const bIndex = Math.min(23, Math.max(0, Math.floor(run.timestamp / bucketDuration)));
     buckets[bIndex].runCount += 1;
-    buckets[bIndex].changeVolume += 10; // Boost weight for execution runs
   }
 
   return buckets;
-}
-
-/**
- * Computes the line edit heatmap for a specific file or the primary file in the session.
- * Diffs sequential snapshots and maps line modifications to final file line indices.
- */
-export function computeLineHeatmap(session: Session, targetFilePath?: string): LineHeatmapEntry[] {
-  const fileSnapshots = groupSnapshotsByFile(session.snapshots);
-  let filePath = targetFilePath;
-
-  if (!filePath || !fileSnapshots.has(filePath)) {
-    // Pick file with most snapshots
-    let maxCount = -1;
-    for (const [fPath, snpList] of fileSnapshots.entries()) {
-      if (snpList.length > maxCount) {
-        maxCount = snpList.length;
-        filePath = fPath;
-      }
-    }
-  }
-
-  if (!filePath || !fileSnapshots.has(filePath)) {
-    return [];
-  }
-
-  const snapshots = fileSnapshots.get(filePath)!;
-  if (snapshots.length === 0) {
-    return [];
-  }
-
-  const finalSnapshot = snapshots[snapshots.length - 1];
-  const finalLines = finalSnapshot.content.split(/\r?\n/);
-  const lineEditCounts = new Array(finalLines.length).fill(1); // Baseline: created = 1 edit
-
-  // Diff consecutive snapshots
-  for (let i = 1; i < snapshots.length; i++) {
-    const prevLines = snapshots[i - 1].content.split(/\r?\n/);
-    const currLines = snapshots[i].content.split(/\r?\n/);
-
-    const modifiedIndices = diffLines(prevLines, currLines);
-
-    // If this is the last step or near it, map directly; otherwise proportion to final line positions
-    for (const lineIdx of modifiedIndices) {
-      const mappedIdx = Math.min(
-        finalLines.length - 1,
-        Math.max(0, Math.floor((lineIdx / Math.max(currLines.length, 1)) * finalLines.length))
-      );
-      lineEditCounts[mappedIdx] = (lineEditCounts[mappedIdx] || 0) + 1;
-    }
-  }
-
-  const maxEdits = Math.max(1, ...lineEditCounts);
-
-  return finalLines.map((lineText, idx) => {
-    const count = lineEditCounts[idx] || 1;
-    return {
-      lineNumber: idx + 1,
-      text: lineText,
-      editCount: count,
-      intensity: Number((count / maxEdits).toFixed(2))
-    };
-  });
 }
 
 /**
@@ -217,13 +187,15 @@ export function computeLineHeatmap(session: Session, targetFilePath?: string): L
  */
 export function computeSessionAnalytics(session: Session): SessionAnalytics {
   const durationMs = computeSessionDuration(session);
-  const totalKeystrokes = computeTotalKeystrokes(session);
+  const editTotals = computeEditTotals(session);
   const netLinesWritten = computeNetLinesWritten(session);
   const activityBuckets = compute24BucketActivity(session);
 
-  const successfulRuns = session.runs.filter((r) => r.success).length;
-  const failedRuns = session.runs.length - successfulRuns;
-  const passRate = session.runs.length > 0 ? Math.round((successfulRuns / session.runs.length) * 100) : 100;
+  const successfulRuns = session.runs.filter((r) => r.success === true).length;
+  const failedRuns = session.runs.filter((r) => r.success === false).length;
+  const unknownRuns = session.runs.length - successfulRuns - failedRuns;
+  const knownRuns = successfulRuns + failedRuns;
+  const passRate = knownRuns > 0 ? Math.round((successfulRuns / knownRuns) * 100) : null;
 
   const fileSnapshots = groupSnapshotsByFile(session.snapshots);
   const files: Record<string, FileAnalytics> = {};
@@ -231,40 +203,34 @@ export function computeSessionAnalytics(session: Session): SessionAnalytics {
   for (const [filePath, snapshots] of fileSnapshots.entries()) {
     const initialLines = countLines(snapshots[0]?.content || '');
     const finalLines = countLines(snapshots[snapshots.length - 1]?.content || '');
-    let fileKeystrokes = snapshots[0]?.content.length || 0;
-    for (let i = 1; i < snapshots.length; i++) {
-      fileKeystrokes += estimateCharEdits(snapshots[i - 1].content, snapshots[i].content);
-    }
 
     files[filePath] = {
       filePath,
       initialLines,
       finalLines,
       netLines: finalLines - initialLines,
-      totalSnapshots: snapshots.length,
-      estimatedKeystrokes: fileKeystrokes,
-      lineHeatmap: computeLineHeatmap(session, filePath)
+      totalSnapshots: snapshots.length
     };
   }
-
-  const overallHeatmap = computeLineHeatmap(session);
 
   return {
     sessionId: session.id,
     workspaceName: session.workspaceName,
     durationMs,
     formattedDuration: formatDuration(durationMs),
-    totalKeystrokes,
+    ...editTotals,
+    unclassifiedChars: computeUnclassifiedChars(session),
+    unrecordedTerminals: session.events.filter((e) => e.type === 'terminal-unrecorded').length,
+    preExistingChars: computePreExistingChars(session),
     netLinesWritten,
     totalSnapshots: session.snapshots.length,
     totalRuns: session.runs.length,
     successfulRuns,
     failedRuns,
+    unknownRuns,
     passRate,
     activityBuckets,
-    files,
-    overallHeatmap,
-    keyMoments: session.events
+    files
   };
 }
 
@@ -307,23 +273,6 @@ function estimateCharEdits(str1: string, str2: string): number {
 
   const edits = Math.max(str1.length - prefix - suffix, str2.length - prefix - suffix);
   return Math.max(lenDiff, edits);
-}
-
-/**
- * Line diff algorithm computing modified line numbers in currLines.
- */
-function diffLines(prevLines: string[], currLines: string[]): number[] {
-  const modifiedIndices: number[] = [];
-  const prevSet = new Set(prevLines);
-
-  for (let j = 0; j < currLines.length; j++) {
-    const line = currLines[j];
-    if (j >= prevLines.length || prevLines[j] !== line || !prevSet.has(line)) {
-      modifiedIndices.push(j);
-    }
-  }
-
-  return modifiedIndices;
 }
 
 function formatTime(ms: number): string {

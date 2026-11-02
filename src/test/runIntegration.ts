@@ -18,6 +18,7 @@ function createWorkspace(root: string): void {
   const files: Record<string, string> = {
     'projectA/src/a.js': '// project A\n',
     'projectA/src/App.jsx': "import { useState } from 'react';\n",
+    'projectA/src/main.c': '#include <stdio.h>\n\nint main(void) {\n  return 0;\n}\n',
     'projectA/index.html': '<div id="root"></div>\n<script type="module" src="/src/main.jsx"></script>\n',
     'projectB/b.js': '// project B\n'
   };

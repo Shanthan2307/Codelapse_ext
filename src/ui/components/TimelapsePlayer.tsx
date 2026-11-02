@@ -5,6 +5,8 @@ import 'prismjs/components/prism-javascript';
 import 'prismjs/components/prism-json';
 import 'prismjs/components/prism-css';
 import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-c';
+import 'prismjs/components/prism-cpp';
 import { Snapshot, RunEvent, SessionEvent } from '../../models';
 import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
 import { alignToPlayback, buildFileFlow, FileVisit } from '../flow/FileFlowModel';
@@ -35,7 +37,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(2); // 1x, 2x, 5x, 10x
   const [skipIdle, setSkipIdle] = useState<boolean>(true);
   const [selectedRun, setSelectedRun] = useState<RunEvent | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<SessionEvent | null>(null);
 
   // The animation loop reads the playhead from a ref so it never waits on a re-render.
   const playheadRef = useRef<number>(0);
@@ -61,7 +62,9 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   // Live sessions grow while the panel is open: keep the playhead in range
   // instead of rewinding to the start on every update.
   useEffect(() => {
-    seek(Math.min(playheadRef.current, model.durationMs));
+    const inRange = Math.min(playheadRef.current, model.durationMs);
+    playheadRef.current = inRange;
+    setPlayheadMs(inRange);
   }, [model]);
 
   // Playback engine: requestAnimationFrame advances a continuous playhead in
@@ -186,15 +189,8 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   const handleStepForward = () => pauseAndSeek(model.nextBoundary(playheadRef.current));
 
   const handleSeekToRun = (run: RunEvent) => {
-    setSelectedEvent(null);
     setSelectedRun(run);
     pauseAndSeek(run.timestamp);
-  };
-
-  const handleSeekToEvent = (event: SessionEvent) => {
-    setSelectedRun(null);
-    setSelectedEvent(event);
-    pauseAndSeek(event.timestamp);
   };
 
   // Keyboard shortcuts. The listener is registered once and reads the latest
@@ -248,21 +244,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   }, []);
 
   const allFiles = useMemo(() => Array.from(new Set(model.snapshots.map((s) => s.filePath))), [model]);
-
-  // Prefer the explicit event type; fall back to detail sniffing so sessions
-  // recorded before 'framework' existed in the schema still show markers.
-  const frameworkEvents = useMemo(
-    () =>
-      events.filter(
-        (e) =>
-          e.type === 'framework' ||
-          e.detail?.includes('React') ||
-          e.detail?.includes('Next.js') ||
-          e.detail?.includes('Node') ||
-          e.detail?.includes('Django')
-      ),
-    [events]
-  );
 
   const totalSessionTime = Math.max(1, model.durationMs);
   const snapshotCount = model.snapshots.length;
@@ -412,34 +393,16 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           {/* RunEvent Markers */}
           {runs.map((run, idx) => {
             const positionPct = Math.min(100, Math.max(0, (run.timestamp / totalSessionTime) * 100));
+            const status = runStatus(run);
             return (
               <button
                 key={`run-${idx}`}
-                className={`timeline-run-badge ${run.success ? 'pass' : 'fail'}`}
+                className={`timeline-run-badge ${status.className}`}
                 style={{ left: `${positionPct}%` }}
                 onClick={() => handleSeekToRun(run)}
-                title={`Execution at ${formatTime(run.timestamp)}: ${
-                  run.success ? 'PASSED' : 'FAILED'
-                }\n${run.command || ''}`}
+                title={`Execution at ${formatTime(run.timestamp)}: ${status.label}\n${run.command || ''}`}
               >
-                {run.success ? '✓' : '✕'}
-              </button>
-            );
-          })}
-
-          {/* Framework Milestone Markers */}
-          {frameworkEvents.map((evt, idx) => {
-            const positionPct = Math.min(100, Math.max(0, (evt.timestamp / totalSessionTime) * 100));
-            const icon = evt.detail?.includes('React') ? '⚛️' : evt.detail?.includes('Django') ? '🐍' : '📦';
-            return (
-              <button
-                key={`evt-${idx}`}
-                className="timeline-framework-badge"
-                style={{ left: `${positionPct}%` }}
-                onClick={() => handleSeekToEvent(evt)}
-                title={`Milestone at ${formatTime(evt.timestamp)}: ${evt.detail || ''}`}
-              >
-                {icon}
+                {status.icon}
               </button>
             );
           })}
@@ -455,12 +418,8 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
       {selectedRun && (
         <div className="run-details-banner">
           <div className="run-details-header">
-            <span
-              className={`run-status-tag ${
-                selectedRun.success ? 'positive' : 'negative'
-              }`}
-            >
-              {selectedRun.success ? '✓ Run Passed' : '✕ Run Failed'}
+            <span className={`run-status-tag ${runStatus(selectedRun).tagClass}`}>
+              {runStatus(selectedRun).icon} {runStatus(selectedRun).label}
             </span>
             <span className="run-command-text">
               {selectedRun.command || 'Execution output'} ({selectedRun.durationMs}ms)
@@ -475,24 +434,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
           <pre className="run-output-box">{selectedRun.output}</pre>
         </div>
       )}
-
-      {/* Selected Framework Milestone Banner */}
-      {selectedEvent && (
-        <div className="run-details-banner">
-          <div className="run-details-header">
-            <span className="run-status-tag positive">
-              📌 Framework Milestone ({formatTime(selectedEvent.timestamp)})
-            </span>
-            <span className="run-command-text">{selectedEvent.detail}</span>
-            <button
-              className="btn-close-banner"
-              onClick={() => setSelectedEvent(null)}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      )}
     </div>
 
     {flow.nodes.length > 0 && (
@@ -501,6 +442,19 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     </>
   );
 };
+
+// ---------------- Run results ---------------- //
+
+/** A run's result can be unknown, e.g. a debug session reports no exit code. */
+function runStatus(run: RunEvent): { className: string; tagClass: string; icon: string; label: string } {
+  if (run.success === true) {
+    return { className: 'pass', tagClass: 'positive', icon: '✓', label: 'Run Passed' };
+  }
+  if (run.success === false) {
+    return { className: 'fail', tagClass: 'negative', icon: '✕', label: 'Run Failed' };
+  }
+  return { className: 'unknown', tagClass: '', icon: '•', label: 'Finished (result unknown)' };
+}
 
 // ---------------- Code rendering ---------------- //
 
@@ -516,7 +470,11 @@ const LANGUAGES: Record<string, LanguageInfo> = {
   javascript: { grammar: Prism.languages.javascript, lang: 'javascript' },
   json: { grammar: Prism.languages.json || Prism.languages.javascript, lang: 'json' },
   css: { grammar: Prism.languages.css, lang: 'css' },
-  python: { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' }
+  python: { grammar: Prism.languages.python || Prism.languages.javascript, lang: 'python' },
+  c: { grammar: Prism.languages.c, lang: 'c' },
+  cpp: { grammar: Prism.languages.cpp, lang: 'cpp' },
+  markup: { grammar: Prism.languages.markup, lang: 'markup' },
+  plain: { grammar: Prism.languages.plain, lang: 'plain' }
 };
 
 function languageFor(filePath: string): LanguageInfo {
@@ -531,8 +489,23 @@ function languageFor(filePath: string): LanguageInfo {
       return LANGUAGES.css;
     case 'py':
       return LANGUAGES.python;
-    default:
+    case 'js':
+    case 'jsx':
+    case 'mjs':
+    case 'cjs':
       return LANGUAGES.javascript;
+    case 'c':
+    case 'h':
+      return LANGUAGES.c;
+    case 'cpp':
+    case 'cc':
+    case 'hpp':
+      return LANGUAGES.cpp;
+    case 'html':
+    case 'xml':
+      return LANGUAGES.markup;
+    default:
+      return LANGUAGES.plain;
   }
 }
 

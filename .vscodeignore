@@ -3,12 +3,12 @@
 .vscode/**
 .vscode-test/**
 src/**
-scripts/**
 out/**
 node_modules/**
 **/*.map
 **/*.ts
 tsconfig*.json
 webpack.config.js
-demo_showcase_report.html
 .gitignore
+eslint.config.mjs
+.github/**

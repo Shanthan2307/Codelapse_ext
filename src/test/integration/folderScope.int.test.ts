@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { computeSessionAnalytics } from '../../analytics/engine';
 import { Session } from '../../models';
 import { LogStreamer } from '../../storage/LogStreamer';
 import { buildFileFlow } from '../../ui/flow/FileFlowModel';
@@ -17,6 +18,7 @@ const projectA = vscode.Uri.file(path.join(workspace, 'projectA'));
 const projectB = vscode.Uri.file(path.join(workspace, 'projectB'));
 const fileA = path.join(workspace, 'projectA', 'src', 'a.js');
 const fileB = path.join(workspace, 'projectB', 'b.js');
+const mainC = path.join(workspace, 'projectA', 'src', 'main.c');
 
 /** Longer than the tracker's 500ms debounce, so each burst becomes its own snapshot. */
 const AFTER_DEBOUNCE_MS = 750;
@@ -31,6 +33,14 @@ async function typeInto(filePath: string, text: string): Promise<vscode.TextDocu
   }
   await sleep(AFTER_DEBOUNCE_MS);
   return doc;
+}
+
+/** Shell integration of a terminal, or undefined if it does not activate in time. */
+async function shellIntegrationOf(terminal: vscode.Terminal): Promise<vscode.TerminalShellIntegration | undefined> {
+  for (let waited = 0; waited < 10000 && !terminal.shellIntegration; waited += 200) {
+    await sleep(200);
+  }
+  return terminal.shellIntegration;
 }
 
 function sessionLogs(): string[] {
@@ -163,17 +173,129 @@ describe('Folder-scoped recording (real VS Code)', () => {
     assert.ok(flow.visits[flow.visits.length - 1].changedLines.length > 0, 'typing on the return visit is highlighted');
   });
 
-  it('never writes absolute paths (or the username in them) into recordings', async () => {
+  it('batches rapid typing into one snapshot', async () => {
     await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
-    // Saving a file that uses hooks triggers the React watcher's milestone.
-    const app = await typeInto(path.join(workspace, 'projectA', 'src', 'App.jsx'), '\nconst [n, setN] = useState(0);');
-    await app.save();
-    await sleep(300);
+    await typeInto(fileA, '\nint rapid = 1;');
     const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
 
-    const hookEvent = session!.events.find((e) => e.type === 'framework' && e.detail?.includes('useState'));
-    assert.ok(hookEvent, 'saving a hook file should record a framework milestone');
-    assert.strictEqual(hookEvent!.filePath, 'src/App.jsx');
+    const edited = session!.snapshots.filter((s) => s.edit);
+    assert.strictEqual(edited.length, 1, 'all the keystrokes land in one debounced snapshot');
+    assert.strictEqual(edited[0].edit!.typedChars, '\nint rapid = 1;'.length);
+    assert.strictEqual(edited[0].edit!.bulkInsertedChars, 0);
+  });
+
+  it('records a large deletion as a milestone', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    const doc = await typeInto(fileA, `\n// ${'to be deleted '.repeat(5)}`);
+    const editor = await vscode.window.showTextDocument(doc);
+    const end = doc.getText().length;
+    await editor.edit((eb) => eb.delete(new vscode.Range(doc.positionAt(end - 60), doc.positionAt(end))));
+    await sleep(AFTER_DEBOUNCE_MS);
+    const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
+
+    const deletion = session!.events.find((e) => e.type === 'large-delete');
+    assert.ok(deletion, 'a 60 character deletion should be a milestone');
+    assert.strictEqual(deletion!.filePath, 'src/a.js');
+  });
+
+  it('counts one large insertion as bulk inserted, and it survives a reload from disk', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    const pasted = '\nint sum(int a, int b) { return a + b; }';
+    const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(mainC));
+    const editor = await vscode.window.showTextDocument(doc);
+    await editor.edit((eb) => eb.insert(doc.positionAt(doc.getText().length), pasted));
+    await sleep(AFTER_DEBOUNCE_MS);
+    await vscode.commands.executeCommand('codelapse.stopSession');
+
+    const { session } = await newestSessionFromDisk();
+    const analytics = computeSessionAnalytics(session);
+    assert.strictEqual(analytics.bulkInsertedChars, pasted.length);
+    assert.strictEqual(analytics.typedChars, 0);
+    assert.ok(analytics.preExistingChars > 0, 'the file content on arrival is pre-existing');
+  });
+
+  it('records a real terminal command with its exit code, and without absolute paths', async function () {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    const terminal = vscode.window.createTerminal({ name: 'CodeLapse test', cwd: projectA });
+    terminal.show();
+    const integration = await shellIntegrationOf(terminal);
+    if (!integration) {
+      terminal.dispose();
+      this.skip();
+      return;
+    }
+
+    const finished = (commandPart: string) =>
+      new Promise<void>((resolve) => {
+        const sub = vscode.window.onDidEndTerminalShellExecution((e) => {
+          if (e.execution.commandLine.value.includes(commandPart)) {
+            sub.dispose();
+            resolve();
+          }
+        });
+      });
+
+    // Not a run: must be ignored.
+    let done = finished('ls');
+    integration.executeCommand('ls');
+    await done;
+
+    done = finished('nonexistent-codelapse-tool');
+    integration.executeCommand(`node -e "console.log(process.cwd()); process.exit(3)" # nonexistent-codelapse-tool`);
+    await done;
+    await sleep(1500); // output drain
+
+    const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
+    terminal.dispose();
+
+    assert.strictEqual(session!.runs.length, 1, 'only the real run is recorded');
+    assert.strictEqual(session!.runs[0].success, false, 'exit code 3 is a failure');
+    assert.ok(session!.events.some((e) => e.type === 'run-fail'));
+    assert.ok(!session!.runs[0].output.includes(path.basename(workspace)), 'output must not expose the folder path');
+  });
+
+  it('records a task as one run, with its real output', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    const task = new vscode.Task(
+      { type: 'shell' },
+      vscode.workspace.workspaceFolders![0],
+      'codelapse-build',
+      'codelapse-test',
+      new vscode.ShellExecution(`node -e "console.log('task-output'); process.exit(2)"`, { cwd: projectA.fsPath })
+    );
+    const ended = new Promise<void>((resolve) => {
+      const sub = vscode.tasks.onDidEndTaskProcess(() => {
+        sub.dispose();
+        resolve();
+      });
+    });
+    await vscode.tasks.executeTask(task);
+    await ended;
+    await sleep(2000); // the task waits for its command, then for the output
+
+    const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
+    assert.strictEqual(session!.runs.length, 1, 'a task and its terminal command are one run');
+    assert.strictEqual(session!.runs[0].command, 'codelapse-build');
+    assert.strictEqual(session!.runs[0].success, false);
+    assert.ok(session!.runs[0].output.includes('task-output'), `got: ${session!.runs[0].output}`);
+  });
+
+  it('notes a terminal whose commands cannot be recorded', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    // Plain sh is not a shell VS Code can integrate with.
+    const terminal = vscode.window.createTerminal({ name: 'No integration', shellPath: '/bin/sh', cwd: projectA });
+    terminal.show();
+    await sleep(16000);
+    const session = await vscode.commands.executeCommand<Session>('codelapse.stopSession');
+    terminal.dispose();
+    assert.strictEqual(computeSessionAnalytics(session!).unrecordedTerminals, 1);
+  });
+
+  it('never writes absolute paths (or the username in them) into recordings', async () => {
+    await vscode.commands.executeCommand('codelapse.selectFolder', projectA);
+    await typeInto(path.join(workspace, 'projectA', 'src', 'App.jsx'), '\nconst n = 0;');
+    await sleep(300);
+    await vscode.commands.executeCommand('codelapse.stopSession');
 
     for (const file of fs.readdirSync(storageDir)) {
       const text = fs.readFileSync(path.join(storageDir, file), 'utf-8');

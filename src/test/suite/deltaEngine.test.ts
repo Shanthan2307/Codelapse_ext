@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { DeltaEngine, DeltaSnapshot, TextChange } from '../../tracker/DeltaEngine';
+import { BULK_INSERT_MIN_CHARS, DeltaEngine, DeltaSnapshot, TextChange, summarizeEdits } from '../../tracker/DeltaEngine';
 
 describe('DeltaEngine Keyframe & Delta Patching Tests', () => {
   it('applies simple atomic insertions and deletions correctly', () => {
@@ -185,5 +185,56 @@ describe('DeltaEngine Keyframe & Delta Patching Tests', () => {
     assert.strictEqual(materialized[0].content, 'A1');
     assert.strictEqual(materialized[1].content, 'B1');
     assert.strictEqual(materialized[2].content, 'A1 A2');
+  });
+});
+
+describe('summarizeEdits', () => {
+  const insert = (text: string, rangeLength = 0): TextChange => ({ rangeOffset: 0, rangeLength, text });
+
+  it('counts small edits as typed and sums deletions', () => {
+    assert.deepStrictEqual(summarizeEdits([insert('a'), insert('b'), insert('', 3), insert('c', 1)]), {
+      typedChars: 3,
+      bulkInsertedChars: 0,
+      deletedChars: 4
+    });
+  });
+
+  it('counts one large insertion as bulk, at exactly the threshold', () => {
+    const atThreshold = 'x'.repeat(BULK_INSERT_MIN_CHARS);
+    assert.strictEqual(summarizeEdits([insert(atThreshold)]).bulkInsertedChars, BULK_INSERT_MIN_CHARS);
+    assert.strictEqual(summarizeEdits([insert(atThreshold.slice(1))]).bulkInsertedChars, 0);
+  });
+
+  it('does not treat auto-indentation as bulk', () => {
+    const newline = `\n${' '.repeat(40)}`;
+    assert.deepStrictEqual(summarizeEdits([insert(newline)]), {
+      typedChars: newline.length,
+      bulkInsertedChars: 0,
+      deletedChars: 0
+    });
+  });
+
+  it('keeps edit stats on keyframes while replaying from their content', () => {
+    const changes = [insert('y'.repeat(30))];
+    const frame: DeltaSnapshot = {
+      timestamp: 1,
+      filePath: 'a.c',
+      isKeyframe: true,
+      content: 'y'.repeat(30),
+      changes,
+      cursorStart: 0,
+      cursorEnd: 0
+    };
+    const [snapshot] = DeltaEngine.materializeSnapshots([frame]);
+    assert.strictEqual(snapshot.content, 'y'.repeat(30));
+    assert.strictEqual(snapshot.edit?.bulkInsertedChars, 30);
+    assert.strictEqual(DeltaEngine.foldDelta('old text', frame), 'y'.repeat(30));
+  });
+
+  it('leaves edit stats off frames with no edits', () => {
+    const [snapshot] = DeltaEngine.materializeSnapshots([
+      { timestamp: 1, filePath: 'a.c', isKeyframe: true, content: 'text', cursorStart: 0, cursorEnd: 0 }
+    ]);
+    assert.strictEqual(snapshot.edit, undefined);
   });
 });

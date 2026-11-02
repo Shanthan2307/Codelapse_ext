@@ -1,4 +1,17 @@
 /**
+ * Character counts for the edits behind one snapshot.
+ *
+ * "Bulk inserted" means one edit added many characters at once. That covers
+ * pasting, but also autocomplete, formatters and undo: the editor does not say
+ * which, so this is a description of the edit and not evidence of copying.
+ */
+export interface EditStats {
+  typedChars: number;
+  bulkInsertedChars: number;
+  deletedChars: number;
+}
+
+/**
  * Represents a single file snapshot captured during a recording session.
  * Supports multi-file tracking across the entire workspace.
  */
@@ -15,6 +28,8 @@ export interface Snapshot {
   cursorEnd: number;
   /** 'focus' when captured because the user switched to this file (its content on arrival). */
   trigger?: 'focus';
+  /** Edits folded into this snapshot. Absent when none were recorded. */
+  edit?: EditStats;
 }
 
 /**
@@ -27,8 +42,8 @@ export interface RunEvent {
   command?: string;
   /** Terminal or execution output */
   output: string;
-  /** Whether the command or test exited successfully */
-  success: boolean;
+  /** True or false from a real exit code; null when the outcome is unknown. */
+  success: boolean | null;
   /** Execution duration in milliseconds */
   durationMs: number;
 }
@@ -37,7 +52,7 @@ export interface RunEvent {
  * Key moments and milestones during a coding session.
  */
 export interface SessionEvent {
-  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'idle' | 'large-delete' | 'framework' | 'focus';
+  type: 'start' | 'end' | 'run-pass' | 'run-fail' | 'run-unknown' | 'terminal-unrecorded' | 'idle' | 'large-delete' | 'focus';
   /** Milliseconds elapsed since session start */
   timestamp: number;
   /** Associated file path if the event pertains to a specific file */
