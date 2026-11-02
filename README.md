@@ -116,9 +116,28 @@ Neither says anyone cheated. They describe what the recording shows, for an inst
 
 `fixtures/recordings` holds scripted recordings of a small C assignment, made by driving the real extension (see its README). They are for testing, not evidence of how students work. Regenerate them with `npm run fixtures`.
 
+## Demo submission site
+
+`apps/web` is a small course website for the research demo, styled like a learning management system but not connected to one. Students pick who they are from a demo list, then upload their `.codelapse` file with their code. The server checks the upload with `@codelapse/core` and stores it.
+
+```bash
+npm run web:dev        # http://localhost:3100
+```
+
+| Page | For | Shows |
+|---|---|---|
+| `/courses/cs101/assignments/a3-reverse` | Students | The assignment and the submission form |
+| `/submissions/<id>` | The student | Confirmation, and when the feedback questions close (one hour after submitting) |
+| `/instructor` | Instructors | Each student's latest submission: recording summary and replay check |
+| `/instructor/submissions/<id>` | Instructors | Per-file replay check, the submitted code and the decision moments |
+
+The course, assignment and the five demo students are defined in `apps/web/src/lib/course.ts`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. There is no real sign-in yet: anyone who can open the site can see the instructor pages, so run it only on your own machine or a private network for the demo.
+
+`npm run web:build && npm run web:smoke` builds the site and submits the scripted recordings as all five students to check every page.
+
 ## Repository structure
 
-The extension is at the repository root. Logic that the extension and the future submission server share lives in `packages/core`, an npm workspace package.
+The extension is at the repository root. Logic shared by the extension and the submission site lives in `packages/core`, and the site is `apps/web`. Both are npm workspace packages.
 
 ```
 packages/core/                   # @codelapse/core: shared, no VS Code dependency
@@ -134,6 +153,11 @@ packages/core/                   # @codelapse/core: shared, no VS Code dependenc
 ├── node.ts                      # Node-only entry point: @codelapse/core/node
 └── test/                        # Includes tests on the scripted recordings
 fixtures/recordings/             # Scripted C recordings made with the real extension
+apps/web/                        # Demo submission site (Next.js)
+├── src/lib/                     # Course data, upload processing, file storage
+├── src/app/                     # Pages and the upload API
+├── test/                        # Upload processing tests
+└── scripts/smoke.mjs            # End-to-end check of the built site
 src/                             # The VS Code extension
 ├── events/
 │   ├── EventMonitor.ts          # Tasks, debug sessions, terminal runs, idle detection
@@ -164,7 +188,7 @@ src/                             # The VS Code extension
 
 ## Project direction
 
-CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. This repository currently contains only the recorder and report described above.
+CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. Next come the four feedback questions per submission, the AI that writes them, the AI that evaluates the answers, and an instructor view that compares students.
 
 ## License
 
