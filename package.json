@@ -72,12 +72,15 @@
     "compile": "webpack --mode production",
     "watch": "webpack --mode development --watch",
     "build": "webpack --mode production",
-    "test": "mocha -r ts-node/register 'src/test/suite/**/*.test.ts' 'packages/*/test/**/*.test.ts'",
+    "test": "mocha -r ts-node/register 'src/test/suite/**/*.test.ts' 'packages/*/test/**/*.test.ts' 'apps/*/test/**/*.test.ts'",
     "test:integration": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && node out/src/test/runIntegration.js",
-    "lint": "eslint src packages",
-    "typecheck": "tsc --noEmit -p .",
+    "lint": "eslint src packages apps/web/src apps/web/test",
+    "typecheck": "tsc --noEmit -p . && tsc --noEmit -p apps/web",
     "package": "vsce package --no-dependencies",
-    "fixtures": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && CODELAPSE_SUITE=fixtures node out/src/test/runIntegration.js"
+    "fixtures": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && CODELAPSE_SUITE=fixtures node out/src/test/runIntegration.js",
+    "web:dev": "npm run dev -w @codelapse/web",
+    "web:build": "npm run build -w @codelapse/web",
+    "web:smoke": "npm run smoke -w @codelapse/web"
   },
   "dependencies": {
     "prismjs": "^1.30.0",
@@ -111,6 +114,7 @@
     "glob": "^14.0.3"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ]
 }

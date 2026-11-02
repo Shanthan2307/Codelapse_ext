@@ -18,5 +18,7 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run compile
+      - name: Build and smoke-test the submission site
+        run: npm run web:build && npm run web:smoke
       - name: Integration tests
         run: xvfb-run -a npm run test:integration

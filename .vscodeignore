@@ -13,3 +13,5 @@ webpack.config.js
 eslint.config.mjs
 .github/**
 packages/**
+apps/**
+fixtures/**

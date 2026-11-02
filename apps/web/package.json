@@ -1,0 +1,19 @@
+{
+  "name": "@codelapse/web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Demo course site where students submit code with their CodeLapse recording.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "next start --port 3100",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@codelapse/core": "0.0.0",
+    "next": "^16.4.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}
