@@ -8,3 +8,4 @@ apps/web/.next
 apps/web/data
 apps/web/next-env.d.ts
 *.tsbuildinfo
+.env*.local

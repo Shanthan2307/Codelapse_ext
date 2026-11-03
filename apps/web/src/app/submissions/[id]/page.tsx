@@ -3,7 +3,9 @@ import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDateTime, formatDuration, plural } from '@/components/format';
 import { COURSE, findAssignment, findStudent } from '@/lib/course';
-import { getSubmission } from '@/lib/store';
+import { getAnswers, getQuestionSet, getSubmission } from '@/lib/store';
+import { studentView } from '@/lib/questions/answers';
+import { QuestionsForm, QuestionsState } from '@/components/QuestionsForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +19,17 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
   const assignment = findAssignment(submission.assignmentId);
   const student = findStudent(submission.studentId);
   const assignmentHref = `/courses/${COURSE.id}/assignments/${submission.assignmentId}`;
+  const set = await getQuestionSet(id);
+  const answers = await getAnswers(id);
+  // Only what the student may see: question text and excerpts, never the generator's notes.
+  const questions: QuestionsState = {
+    status: set?.status ?? 'pending',
+    closesAt: submission.questionsCloseAt,
+    questions: set?.status === 'ready' ? studentView(set) : [],
+    answered: answers !== null,
+    answers: answers?.answers ?? [],
+    answeredAt: answers?.submittedAt
+  };
 
   return (
     <CourseShell
@@ -52,14 +65,7 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
         </ul>
       </section>
 
-      <section className="card card-upcoming">
-        <h2>Coming next: four questions about your work</h2>
-        <p>
-          Four short questions about the choices you made in this assignment will open on this page. Answer them
-          before <strong>{formatDateTime(submission.questionsCloseAt)}</strong>, one hour after you submitted.
-        </p>
-        <p className="muted">The questions are not ready in this version of the demo yet.</p>
-      </section>
+      <QuestionsForm submissionId={submission.id} initial={questions} />
 
       <p>
         <Link href={assignmentHref}>Back to the assignment</Link>

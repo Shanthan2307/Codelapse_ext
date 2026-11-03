@@ -2,23 +2,30 @@ import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDuration, formatShortDateTime, plural } from '@/components/format';
 import { COURSE } from '@/lib/course';
-import { latestSubmissions } from '@/lib/store';
+import { getAnswers, getQuestionSet, latestSubmissions } from '@/lib/store';
+import type { AnswerSet, QuestionSet } from '@/lib/questions/types';
 import type { SubmissionRecord } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function InstructorPage() {
   const assignment = COURSE.assignments[0];
-  const byStudent = new Map<string, SubmissionRecord>(
-    (await latestSubmissions(assignment.id)).map((s) => [s.studentId, s])
+  const latest = await latestSubmissions(assignment.id);
+  const byStudent = new Map<string, SubmissionRecord>(latest.map((s) => [s.studentId, s]));
+  const questionState = new Map<string, { set: QuestionSet | null; answers: AnswerSet | null }>(
+    await Promise.all(
+      latest.map(async (s) => [s.id, { set: await getQuestionSet(s.id), answers: await getAnswers(s.id) }] as const)
+    )
   );
+  const now = Date.now();
 
   return (
     <CourseShell active="instructor" crumbs={[{ label: 'Instructor view' }]}>
       <h1>Submissions: {assignment.title}</h1>
       <p className="lead">
         Each student&apos;s latest submission. The recording check compares the end of the recording with the
-        submitted code. These numbers describe the recording; you decide what they mean.
+        submitted code. These numbers describe the recording; you decide what they mean. Select a name for the
+        details.
       </p>
 
       <div className="table-wrap">
@@ -33,9 +40,7 @@ export default async function InstructorPage() {
               <th scope="col">Builds</th>
               <th scope="col">Recording check</th>
               <th scope="col">Moments</th>
-              <th scope="col">
-                <span className="sr-only">Details</span>
-              </th>
+              <th scope="col">Questions</th>
             </tr>
           </thead>
           <tbody>
@@ -59,7 +64,7 @@ export default async function InstructorPage() {
               return (
                 <tr key={student.id}>
                   <th scope="row" className="nowrap">
-                    {student.name}
+                    <Link href={`/instructor/submissions/${s.id}`}>{student.name}</Link>
                   </th>
                   <td className="nowrap">{formatShortDateTime(s.submittedAt)}</td>
                   <td className="nowrap">
@@ -82,8 +87,11 @@ export default async function InstructorPage() {
                     )}
                   </td>
                   <td className="num">{s.moments.length}</td>
-                  <td>
-                    <Link href={`/instructor/submissions/${s.id}`}>Details</Link>
+                  <td className="q-cell">
+                    <QuestionCell
+                      state={questionState.get(s.id) ?? { set: null, answers: null }}
+                      closed={now > s.questionsCloseAt}
+                    />
                   </td>
                 </tr>
               );
@@ -92,5 +100,23 @@ export default async function InstructorPage() {
         </table>
       </div>
     </CourseShell>
+  );
+}
+
+function QuestionCell({
+  state,
+  closed
+}: {
+  state: { set: QuestionSet | null; answers: AnswerSet | null };
+  closed: boolean;
+}) {
+  const status = state.set?.status ?? 'pending';
+  const label = status === 'ready' ? 'Ready' : status === 'failed' ? 'Failed' : 'Preparing';
+  const answer = state.answers ? 'Answered' : closed ? 'Closed unanswered' : 'Not answered';
+  return (
+    <>
+      <span className={`q-status q-status-${status}`}>{label}</span>
+      {status === 'ready' && <span className="sub">{answer}</span>}
+    </>
   );
 }

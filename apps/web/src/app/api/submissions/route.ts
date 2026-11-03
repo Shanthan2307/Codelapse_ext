@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { processSubmission, SubmissionError, UploadedFile } from '@/lib/processSubmission';
 import { saveSubmission } from '@/lib/store';
+import { markQuestionsPending, runQuestionGeneration } from '@/lib/questions/run';
 
 export const runtime = 'nodejs';
 
@@ -37,6 +38,9 @@ export async function POST(request: Request): Promise<NextResponse> {
       codeFiles
     });
     await saveSubmission(record, bundle, codeFiles);
+    // The hour to answer starts now; the questions are written after the response is sent.
+    await markQuestionsPending(record.id);
+    after(() => runQuestionGeneration(record.id));
     return NextResponse.json({ id: record.id }, { status: 201 });
   } catch (err) {
     if (err instanceof SubmissionError) {
