@@ -127,13 +127,32 @@ npm run web:dev        # http://localhost:3100
 | Page | For | Shows |
 |---|---|---|
 | `/courses/cs101/assignments/a3-reverse` | Students | The assignment and the submission form |
-| `/submissions/<id>` | The student | Confirmation, and when the feedback questions close (one hour after submitting) |
+| `/submissions/<id>` | The student | Confirmation and the four feedback questions, with the time left to answer |
 | `/instructor` | Instructors | Each student's latest submission: recording summary and replay check |
-| `/instructor/submissions/<id>` | Instructors | Per-file replay check, the submitted code and the decision moments |
+| `/instructor/submissions/<id>` | Instructors | Per-file replay check, the questions with why each was asked, the answers, the code and the decision moments |
 
 The course, assignment and the five demo students are defined in `apps/web/src/lib/course.ts`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. There is no real sign-in yet: anyone who can open the site can see the instructor pages, so run it only on your own machine or a private network for the demo.
 
 `npm run web:build && npm run web:smoke` builds the site and submits the scripted recordings as all five students to check every page.
+
+### Feedback questions
+
+After an upload, the server asks Claude Opus 5.5 to write four questions for that student: two about decisions in their recording (each citing one decision moment) and two about specific lines of their code. The student's submission page shows them with a countdown. Answers can be sent once, and only within one hour of uploading.
+
+- **Credentials:** set `ANTHROPIC_API_KEY` where the site runs (or sign in with `ant auth login`). Without credentials, the questions are marked as failed with the reason; the instructor page has a **Try again** button.
+- **Model:** `claude-opus-5-5` by default, with structured JSON output and Anthropic's server-side fallback turned on (if Claude declines a request, it is re-run on Anthropic's recommended fallback model). Set `CODELAPSE_QUESTION_MODEL` to use another Claude model.
+- **Checks on the questions:** the server rejects questions that cite a moment or lines that don't exist, repeat each other, or break the two-and-two mix, and asks once more with the problems listed.
+- **Prompt injection:** the student's code and the recording go into clearly marked sections that the prompt says are material, never instructions. Text in the code that addresses an AI or grader is listed for the instructor, and the model can note it too.
+- **Shared record:** each submission's `questions.json` holds the questions plus, for the instructor and the future answer evaluator only, why each was asked and what a strong answer might mention. It also keeps every prompt and reply, for research and for training a local model later. Students never see these parts.
+
+### Using a different model, such as an open-source one
+
+Question writing goes through one interface, `QuestionModel` in `apps/web/src/lib/questions/model.ts`. Prompting, validation, retries and storage don't depend on the model. To switch:
+
+1. Serve the model, for example with Ollama or vLLM.
+2. Write a class that implements `QuestionModel`: send `system` and `user`, and return JSON that matches `GeneratorOutputSchema` (`schema.ts`). Most servers can constrain output to a JSON schema; `z.toJSONSchema(GeneratorOutputSchema)` produces one.
+3. Return it from `createQuestionModel()` in `apps/web/src/lib/questions/run.ts`.
+4. Compare it with Claude on the same submissions before relying on it. The prompts and replies stored in each `questions.json` are a starting dataset if you later fine-tune a model.
 
 ## Repository structure
 
@@ -155,6 +174,7 @@ packages/core/                   # @codelapse/core: shared, no VS Code dependenc
 fixtures/recordings/             # Scripted C recordings made with the real extension
 apps/web/                        # Demo submission site (Next.js)
 ├── src/lib/                     # Course data, upload processing, file storage
+├── src/lib/questions/           # Question prompt, model, validation, answers
 ├── src/app/                     # Pages and the upload API
 ├── test/                        # Upload processing tests
 └── scripts/smoke.mjs            # End-to-end check of the built site
@@ -188,7 +208,7 @@ src/                             # The VS Code extension
 
 ## Project direction
 
-CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. Next come the four feedback questions per submission, the AI that writes them, the AI that evaluates the answers, and an instructor view that compares students.
+CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. Next come the AI that evaluates the answers and an instructor view that compares students.
 
 ## License
 

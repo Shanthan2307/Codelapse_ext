@@ -80,6 +80,26 @@ try {
   if (bad.status !== 400 || !/not a C source file/.test(badJson.error)) fail(`a bad upload was not refused clearly: ${JSON.stringify(badJson)}`);
   console.log('ok  a bad upload gets a clear message');
 
+  // Questions are written after the upload response. Without Anthropic credentials
+  // (as in CI) they end up "failed" with a reason; with credentials, "ready".
+  let questions;
+  for (let i = 0; i < 240; i++) {
+    questions = await (await fetch(`${base}/api/submissions/${ids[0]}/questions`)).json();
+    if (questions.status !== 'pending') break;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (questions.status === 'pending') fail('questions were still being prepared after 2 minutes');
+  if (JSON.stringify(questions).includes('rationale')) fail('the student view of the questions leaked reviewer hints');
+  const answerBody = { answers: questions.questions.map((q) => ({ questionId: q.id, text: 'Because it stops halfway through the string.' })) };
+  const answered = await fetch(`${base}/api/submissions/${ids[0]}/answers`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(answerBody)
+  });
+  const expected = questions.status === 'ready' ? 201 : 409;
+  if (answered.status !== expected) fail(`answers with questions ${questions.status}: expected ${expected}, got ${answered.status}`);
+  console.log(`ok  questions ${questions.status}; answers answered ${answered.status}`);
+
   await page('/courses/cs101/assignments/a3-reverse', ['Reverse a String']);
   await page(`/submissions/${ids[0]}`, ['reverse.c']);
   await page('/instructor', ['Student A', 'Student E']);

@@ -2,6 +2,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { SubmissionRecord } from './types';
 import { UploadedFile } from './processSubmission';
+import type { AnswerSet, QuestionSet } from './questions/types';
 
 /**
  * Submissions are kept as plain files, one folder each, so they are easy to
@@ -77,6 +78,63 @@ export async function readSubmittedCode(id: string, name: string): Promise<strin
   }
   try {
     return await fs.readFile(path.join(submissionsDir(), id, 'code', path.basename(name)), 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
+// ---- Questions and answers (Phase 4) ----
+//   <data>/submissions/<id>/questions.json  shared record of the generator, read by the evaluator
+//   <data>/submissions/<id>/answers.json    the student's answers, written once
+
+export async function saveQuestionSet(id: string, set: QuestionSet): Promise<void> {
+  if (!SAFE_ID.test(id)) {
+    throw new Error(`Unsafe submission id: ${id}`);
+  }
+  const file = path.join(submissionsDir(), id, 'questions.json');
+  // Write then rename, so a reader never sees half a file.
+  await fs.writeFile(`${file}.tmp`, JSON.stringify(set, null, 2));
+  await fs.rename(`${file}.tmp`, file);
+}
+
+export async function getQuestionSet(id: string): Promise<QuestionSet | null> {
+  return readJson<QuestionSet>(id, 'questions.json');
+}
+
+/** Saves answers once; returns false if answers already exist. */
+export async function saveAnswers(id: string, answers: AnswerSet): Promise<boolean> {
+  if (!SAFE_ID.test(id)) {
+    return false;
+  }
+  try {
+    await fs.writeFile(path.join(submissionsDir(), id, 'answers.json'), JSON.stringify(answers, null, 2), { flag: 'wx' });
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
+      return false;
+    }
+    throw err;
+  }
+}
+
+export async function getAnswers(id: string): Promise<AnswerSet | null> {
+  return readJson<AnswerSet>(id, 'answers.json');
+}
+
+/** The submitted code files, for the question generator. */
+export async function readAllSubmittedCode(record: SubmissionRecord): Promise<{ name: string; content: string }[]> {
+  const files = await Promise.all(
+    record.files.map(async (f) => ({ name: f.name, content: (await readSubmittedCode(record.id, f.name)) ?? '' }))
+  );
+  return files;
+}
+
+async function readJson<T>(id: string, name: string): Promise<T | null> {
+  if (!SAFE_ID.test(id)) {
+    return null;
+  }
+  try {
+    return JSON.parse(await fs.readFile(path.join(submissionsDir(), id, name), 'utf-8')) as T;
   } catch {
     return null;
   }
