@@ -4,6 +4,64 @@ A VS Code extension that records the work done in one folder you choose, then re
 
 Requires VS Code 1.93 or newer.
 
+## Pilot study: quick start
+
+CodeLapse is being tried with a small group of student testers. Students install the extension and record their work in VS Code; the instructor runs a small website on their laptop where students upload the recording, answer four short questions, and the instructor reviews the results.
+
+### For students
+
+You need VS Code 1.93 or newer and a C compiler (`gcc --version` in a terminal should print a version). The full guide, with troubleshooting, is [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
+
+1. **Install the extension.** Download `codelapse-0.1.0.vsix` from the [pilot release](https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot) (under **Assets**). In VS Code, open **Extensions**, click **`···`**, choose **Install from VSIX…** and pick the file. A short walkthrough opens.
+2. **Choose your assignment folder.** Create an empty folder, open it in VS Code, and click **CodeLapse: Choose folder** in the status bar. Only this folder is recorded.
+3. **Write and build your code as usual.** Write `reverse.c` and build it in the VS Code terminal (`gcc -Wall -o reverse reverse.c && ./reverse`). Your edits and builds are recorded on your computer.
+4. **Export your recording.** Run **CodeLapse: Export Assignment Bundle** from the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`). This saves a `.codelapse` file.
+5. **Open the submission page.** Click **Open Submission Page** in the message that appears. The first time, VS Code asks for the address your instructor gives you; paste it in.
+6. **Submit.** Pick your name, drop in the `.codelapse` file and `reverse.c`, and click **Submit Assignment**.
+7. **Answer the four questions** on the page that opens. You have one hour from submitting, and you can submit your answers once.
+
+Nothing leaves your computer until you upload it yourself in step 6.
+
+### For the instructor
+
+You need Node.js 20 or newer, and your laptop and the students' laptops on the same Wi-Fi. The full guide is [docs/RUNNING_THE_DEMO.md](docs/RUNNING_THE_DEMO.md); the study plan is [docs/RESEARCH_PILOT.md](docs/RESEARCH_PILOT.md).
+
+**Once, before the session**
+
+1. Install: `npm install`.
+2. Add an Anthropic API key with credit to `apps/web/.env.local`:
+   ```bash
+   echo 'ANTHROPIC_API_KEY=sk-ant-...' > apps/web/.env.local && chmod 600 apps/web/.env.local
+   ```
+3. Put your testers' names in place of "Student A" to "Student E" in `apps/web/src/lib/course.ts`.
+4. Try the whole flow yourself: start the site (next step), upload `fixtures/recordings/honest-incremental/honest-incremental.codelapse` with `fixtures/recordings/honest-incremental/submission/reverse.c`, and check that four questions appear within a minute. Then clear it with `npm run demo:reset`.
+
+**On the day**
+
+1. Start the site:
+   ```bash
+   npm run demo
+   ```
+   It builds the site, then prints the **submission page address** to give students (for example `http://192.168.1.23:3100/courses/cs101/assignments/a3-reverse`) and the **instructor password**. Write the address on the board.
+2. Open the instructor view on your laptop at http://localhost:3100/instructor. Your browser asks for a user name (anything) and the password.
+3. As students submit, each row shows their recording, the check that the recording ends at the submitted code, their questions and, once they answer, the AI's review of the answers.
+
+**After the session**
+
+1. Open each student's page and fill in **Your ratings**: whether you agree with each review, and whether each question was useful.
+2. Use **Compare students** to see which submissions resemble each other more than usual.
+3. Download the **Research export** (CSV) from the instructor view. Names are replaced by participant codes.
+4. Stop the site with `Ctrl+C`. Back up `apps/web/data` (it holds the students' work), then run `npm run demo:reset` before the next session.
+
+**If something goes wrong**
+
+| Problem | What to do |
+|---|---|
+| Students can't open the address | Check that everyone is on the same Wi-Fi (guest networks often block this) and that your firewall allows incoming connections for Node.js. |
+| Questions say they couldn't be prepared | The instructor page shows why. Usually the API key is missing or the account has no credit; fix it, then click **Try again**. |
+| A student's builds don't appear | Their VS Code terminal must be bash, zsh, fish or PowerShell. Building with **Terminal → Run Task** also works. |
+| The address changed | It depends on the Wi-Fi. Restart `npm run demo` and use the address it prints. Students can change it under **Settings → CodeLapse: Submission Url**. |
+
 ## What it does
 
 ### Records one chosen folder
