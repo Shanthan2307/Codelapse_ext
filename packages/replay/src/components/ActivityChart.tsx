@@ -26,10 +26,10 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            <span style={{ fontSize: '18px' }}>📊</span> Edit Activity
+            Edit activity
           </h2>
           <span className="section-subtitle">
-            Timeline distribution partitioned into 24 proportional slices. Hover for mini-diffs.
+            How much changed over the session, in 24 equal slices. Hover over a slice to see what changed.
           </span>
         </div>
       </div>
@@ -95,7 +95,7 @@ export const ActivityChart: React.FC<ActivityChartProps> = ({
         {/* Timeline Axis Labels */}
         <div className="timeline-axis">
           <span>{buckets[0]?.label.split(' - ')[0] || '00:00'}</span>
-          <span>Session Midpoint</span>
+          <span>{buckets[11]?.label.split(' - ')[1] ?? ''}</span>
           <span>{buckets[buckets.length - 1]?.label.split(' - ')[1] || 'End'}</span>
         </div>
       </div>

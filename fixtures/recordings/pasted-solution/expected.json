@@ -1,12 +1,11 @@
 {
   "name": "pasted-solution",
   "scripted": true,
-  "description": "Inserts the whole finished solution in one edit, then builds once.",
+  "description": "Inserts a whole solution from elsewhere in one edit, then builds once. It is not the one the copied pair shares.",
   "runs": [
     "pass"
   ],
   "traits": {
-    "bulkInsert": true,
-    "copiedWith": "copied-pair-a"
+    "bulkInsert": true
   }
 }

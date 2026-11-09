@@ -15,3 +15,5 @@ eslint.config.mjs
 packages/**
 apps/**
 fixtures/**
+scripts/**
+docs/**

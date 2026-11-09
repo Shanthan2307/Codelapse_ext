@@ -5,7 +5,7 @@ import {
   editUnits,
   renderPartial,
   PlaybackModel
-} from '../../ui/playback/PlaybackModel';
+} from '../src/playback/PlaybackModel';
 
 /** Applies every edit in full. */
 function applyAll(oldText: string, newText: string): string {

@@ -1,29 +1,32 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 
 void reverse(char *s) {
-    size_t len = strlen(s);
-    for (size_t i = 0; i < len / 2; i++) {
-        char tmp = s[i];
-        s[i] = s[len - 1 - i];
-        s[len - 1 - i] = tmp;
+    char *end = s + strlen(s) - 1;
+    while (s < end) {
+        char t = *s;
+        *s++ = *end;
+        *end-- = t;
     }
 }
 
 int count_vowels(const char *s) {
-    int count = 0;
-    for (; *s; s++) {
-        if (strchr("aeiouAEIOU", *s)) {
-            count++;
+    const char *vowels = "aeiou";
+    int found = 0;
+    while (*s) {
+        if (strchr(vowels, tolower((unsigned char)*s)) != NULL) {
+            found++;
         }
+        s++;
     }
-    return count;
+    return found;
 }
 
 int main(void) {
-    char word[] = "codelapse";
-    reverse(word);
-    printf("%s\n", word);
-    printf("%d\n", count_vowels("codelapse"));
+    char name[] = "programming";
+    reverse(name);
+    printf("%s\n", name);
+    printf("%d\n", count_vowels("programming"));
     return 0;
 }

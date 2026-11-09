@@ -1,0 +1,10 @@
+/* The extension's report page: the replay fills the webview. */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--vscode-editor-background, #1e1e1e);
+}
+
+.codelapse-report {
+  min-height: 100vh;
+}

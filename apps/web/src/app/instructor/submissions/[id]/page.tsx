@@ -2,9 +2,17 @@ import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { formatClock, formatCount, formatDateTime, formatDuration, plural } from '@/components/format';
 import { findAssignment, findStudent } from '@/lib/course';
-import { getAnswers, getQuestionSet, getSubmission, readSubmittedCode } from '@/lib/store';
+import { getAnswers, getEvaluation, getQuestionSet, getSubmission, readSubmittedCode } from '@/lib/store';
 import type { AnswerSet, GeneratedQuestion, QuestionSet } from '@/lib/questions/types';
 import { RetryQuestionsButton } from '@/components/RetryQuestionsButton';
+import { RetryButton } from '@/components/RetryButton';
+import { AutoRefresh } from '@/components/AutoRefresh';
+import { OpenDetailsOnHash } from '@/components/OpenDetailsOnHash';
+import { WatchMomentLink, replayHref } from '@/components/ReplayLink';
+import { AnswerEvaluationView, HighlightedAnswer, LevelCounts } from '@/components/AnswerReview';
+import { RatingPanel } from '@/components/RatingPanel';
+import { getFeedback } from '@/lib/research/feedback';
+import type { AnswerEvaluation, EvaluationSet } from '@/lib/evaluation/types';
 import type { FileCheck, Moment } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -40,8 +48,13 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   const { recording } = submission;
   const questionSet = await getQuestionSet(submission.id);
   const answers = await getAnswers(submission.id);
+  const evaluation = answers ? await getEvaluation(submission.id) : null;
   const momentsById = new Map(submission.moments.map((m) => [m.id, m]));
   const closed = Date.now() > submission.questionsCloseAt;
+  const feedback = answers && questionSet?.status === 'ready' ? await getFeedback(submission.id) : null;
+  const reviewLevels = new Map(
+    (evaluation?.status === 'ready' ? evaluation.evaluations : []).map((e) => [e.questionId, e.level])
+  );
 
   return (
     <CourseShell
@@ -55,8 +68,23 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
         Submitted {formatDateTime(submission.submittedAt)}. Everything below describes what the recording shows. It
         is not a judgement: you decide what it means.
       </p>
+      <p>
+        <a className="button button-primary" href={replayHref(submission.id)}>
+          Watch replay
+        </a>
+      </p>
 
-      <section className="card">
+      <OpenDetailsOnHash />
+      <SummaryStrip
+        verdict={submission.replay.verdict}
+        questions={questionSet}
+        answers={answers}
+        evaluation={evaluation}
+        closed={closed}
+        closesAt={submission.questionsCloseAt}
+      />
+
+      <section className="card" id="recording">
         <h2>Recording</h2>
         <dl className="facts facts-grid">
           <div>
@@ -134,47 +162,71 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
         </div>
       </section>
 
-      <section className="card">
-        <h2>Submitted code</h2>
-        {code.map(({ file, text }) => (
-          <div key={file.name} className="code-block">
-            <p className="code-name">
-              <code>{file.name}</code> <span className="muted">{formatCount(file.size)} bytes</span>
-            </p>
-            <pre>{text ?? 'This file could not be read.'}</pre>
-          </div>
-        ))}
-      </section>
+      <details className="section" id="code">
+        <summary>
+          <h2>Submitted code</h2>
+          <span className="muted">{plural(code.length, 'file')}</span>
+        </summary>
+        <div className="section-body">
+          {code.map(({ file, text }) => (
+            <div key={file.name} className="code-block">
+              <p className="code-name">
+                <code>{file.name}</code> <span className="muted">{formatCount(file.size)} bytes</span>
+              </p>
+              <pre>{text ?? 'This file could not be read.'}</pre>
+            </div>
+          ))}
+        </div>
+      </details>
 
       <QuestionsSection
         submissionId={submission.id}
         set={questionSet}
         answers={answers}
+        evaluation={evaluation}
         closed={closed}
         closesAt={submission.questionsCloseAt}
         momentsById={momentsById}
       />
 
-      <section className="card">
-        <h2>Moments ({submission.moments.length})</h2>
-        <p className="hint">
-          Points in the recording worth asking about, in time order. The process questions are built from these.
-        </p>
-        {submission.moments.length === 0 ? (
-          <p className="muted">No moments were found in this recording.</p>
-        ) : (
-          <ol className="moments">
-            {submission.moments.map((moment) => (
-              <MomentItem key={moment.id} moment={moment} showSession={recording.sessionCount > 1} />
-            ))}
-          </ol>
-        )}
-      </section>
+      {feedback && questionSet && (
+        <RatingPanel
+          submissionId={submission.id}
+          initial={feedback}
+          questions={questionSet.questions.map((q, i) => ({
+            id: q.id,
+            number: i + 1,
+            type: q.type,
+            text: q.text,
+            reviewLevel: reviewLevels.get(q.id) ?? null
+          }))}
+        />
+      )}
+
+      <details className="section" id="moments">
+        <summary>
+          <h2>Decision moments ({submission.moments.length})</h2>
+        </summary>
+        <div className="section-body">
+          <p className="hint">
+            Points in the recording worth asking about, in time order. The process questions are built from these.
+          </p>
+          {submission.moments.length === 0 ? (
+            <p className="muted">No moments were found in this recording.</p>
+          ) : (
+            <ol className="moments">
+              {submission.moments.map((moment) => (
+                <MomentItem key={moment.id} moment={moment} showSession={recording.sessionCount > 1} submissionId={submission.id} />
+              ))}
+            </ol>
+          )}
+        </div>
+      </details>
     </CourseShell>
   );
 }
 
-function MomentItem({ moment, showSession }: { moment: Moment; showSession: boolean }) {
+function MomentItem({ moment, showSession, submissionId }: { moment: Moment; showSession: boolean; submissionId: string }) {
   const failedOutput = typeof moment.evidence.failedOutput === 'string' ? moment.evidence.failedOutput : null;
   return (
     <li className="moment" id={moment.id}>
@@ -191,7 +243,9 @@ function MomentItem({ moment, showSession }: { moment: Moment; showSession: bool
           </code>
         )}
       </div>
-      <p>{moment.summary}</p>
+      <p>
+        {moment.summary} <WatchMomentLink submissionId={submissionId} moment={moment} />
+      </p>
       {failedOutput && (
         <details>
           <summary>Build output</summary>
@@ -232,6 +286,7 @@ function QuestionsSection({
   submissionId,
   set,
   answers,
+  evaluation,
   closed,
   closesAt,
   momentsById
@@ -239,6 +294,7 @@ function QuestionsSection({
   submissionId: string;
   set: QuestionSet | null;
   answers: AnswerSet | null;
+  evaluation: EvaluationSet | null;
   closed: boolean;
   closesAt: number;
   momentsById: Map<string, Moment>;
@@ -246,9 +302,12 @@ function QuestionsSection({
   const status = set?.status ?? 'pending';
   const answerById = new Map((answers?.answers ?? []).map((a) => [a.questionId, a.text]));
   const notAnswered = closed ? 'Not answered' : 'Not answered yet';
+  const reviewById = new Map(
+    (evaluation?.status === 'ready' ? evaluation.evaluations : []).map((e) => [e.questionId, e])
+  );
 
   return (
-    <section className="card">
+    <section className="card" id="questions">
       <h2>
         Questions and answers <span className={`q-status q-status-${status}`}>{STATUS_TEXT[status]}</span>
       </h2>
@@ -301,6 +360,8 @@ function QuestionsSection({
         </div>
       )}
 
+      {answers && status === 'ready' && <ReviewSummary submissionId={submissionId} evaluation={evaluation} />}
+
       {status === 'ready' && set && (
         <ol className="question-list">
           {set.questions.map((q) => (
@@ -308,7 +369,9 @@ function QuestionsSection({
               key={q.id}
               question={q}
               moment={q.momentId ? momentsById.get(q.momentId) : undefined}
+              submissionId={submissionId}
               answer={answerById.get(q.id)}
+              review={reviewById.get(q.id)}
               notAnswered={notAnswered}
             />
           ))}
@@ -322,11 +385,15 @@ function InstructorQuestion({
   question,
   moment,
   answer,
-  notAnswered
+  review,
+  notAnswered,
+  submissionId
 }: {
   question: GeneratedQuestion;
   moment: Moment | undefined;
+  submissionId: string;
   answer: string | undefined;
+  review: AnswerEvaluation | undefined;
   notAnswered: string;
 }) {
   return (
@@ -339,6 +406,7 @@ function InstructorQuestion({
             {moment ? `${KIND_LABELS[moment.kind]} at ${formatClock(moment.at)}` : `Moment ${question.momentId}`}
           </a>
         )}
+        {question.type === 'process' && moment && <WatchMomentLink submissionId={submissionId} moment={moment} />}
         {question.type === 'code' && question.codeRef && (
           <code className="question-ref">
             {question.codeRef.file}, lines {question.codeRef.startLine}–{question.codeRef.endLine}
@@ -376,7 +444,152 @@ function InstructorQuestion({
         )}
       </dl>
       <p className="answer-label">Student&apos;s answer</p>
-      {answer ? <p className="answer-readonly">{answer}</p> : <p className="muted">{notAnswered}</p>}
+      {answer ? (
+        <HighlightedAnswer text={answer} quotes={review?.evidenceQuotes ?? []} />
+      ) : (
+        <p className="muted">{notAnswered}</p>
+      )}
+      {answer && review && <AnswerEvaluationView evaluation={review} />}
     </li>
+  );
+}
+
+const REVIEW_STATUS: Record<EvaluationSet['status'], string> = {
+  pending: 'Reviewing',
+  ready: 'Reviewed',
+  failed: 'Failed',
+  skipped: 'Not reviewed'
+};
+
+/** The answer evaluator's overall review, shown above the questions. Instructors only. */
+function ReviewSummary({ submissionId, evaluation }: { submissionId: string; evaluation: EvaluationSet | null }) {
+  const status = evaluation?.status ?? 'pending';
+  return (
+    <div className="review-summary">
+      <h3>
+        Answer review <span className={`q-status q-status-${status === 'skipped' ? 'pending' : status}`}>{REVIEW_STATUS[status]}</span>
+      </h3>
+      <p className="hint">
+        {evaluation?.model ? `Reviewed by ${evaluation.model} (prompt ${evaluation.promptVersion}). ` : ''}
+        This review describes the answers; it is not a grade or a judgement of honesty. You decide.
+      </p>
+
+      {status === 'pending' && (
+        <>
+          <p className="muted">Reviewing answers…</p>
+          <AutoRefresh everyMs={5000} />
+        </>
+      )}
+
+      {status === 'failed' && (
+        <div className="callout callout-error">
+          <p>
+            <strong>The answers could not be reviewed.</strong> {evaluation?.error ?? 'No reason was recorded.'}
+          </p>
+          <RetryButton url={`/api/submissions/${submissionId}/evaluation`} />
+        </div>
+      )}
+
+      {status === 'ready' && evaluation && (
+        <>
+          <p className="review-counts">
+            <LevelCounts counts={evaluation.counts} />
+          </p>
+          {evaluation.summary && <p>{evaluation.summary}</p>}
+        </>
+      )}
+
+      {evaluation && (evaluation.notesForInstructor || evaluation.injectionSignals.length > 0) && (
+        <div className="callout">
+          {evaluation.injectionSignals.length > 0 && (
+            <>
+              <p>
+                <strong>Text in the answers that addresses an AI or grader</strong>
+              </p>
+              <ul className="signal-list">
+                {evaluation.injectionSignals.map((signal) => (
+                  <li key={`${signal.file}:${signal.line}`}>
+                    <code>
+                      {signal.file}, line {signal.line}
+                    </code>{' '}
+                    <span className="signal-text">{signal.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="hint">The reviewer was told to ignore such text. This is shown for you to judge.</p>
+            </>
+          )}
+          {evaluation.notesForInstructor && (
+            <p>
+              <strong>Note from the reviewer:</strong> {evaluation.notesForInstructor}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** One line at the top with the state of everything, plus links to the sections. */
+function SummaryStrip({
+  verdict,
+  questions,
+  answers,
+  evaluation,
+  closed,
+  closesAt
+}: {
+  verdict: 'consistent' | 'inconsistent';
+  questions: QuestionSet | null;
+  answers: AnswerSet | null;
+  evaluation: EvaluationSet | null;
+  closed: boolean;
+  closesAt: number;
+}) {
+  const qStatus = questions?.status ?? 'pending';
+  const review = !answers ? null : evaluation?.status ?? 'pending';
+  return (
+    <div className="summary-strip">
+      <div className="summary-item">
+        <span className="summary-label">Recording check</span>
+        {verdict === 'consistent' ? (
+          <span className="pill pill-ok">Consistent</span>
+        ) : (
+          <span className="pill pill-look">Needs a look</span>
+        )}
+      </div>
+      <div className="summary-item">
+        <span className="summary-label">Questions</span>
+        <span className={`q-status q-status-${qStatus}`}>{STATUS_TEXT[qStatus]}</span>
+      </div>
+      <div className="summary-item">
+        <span className="summary-label">Answers</span>
+        <span>
+          {answers
+            ? `Received ${formatDateTime(answers.submittedAt)}`
+            : closed
+              ? 'Closed without a reply'
+              : `Open until ${formatDateTime(closesAt)}`}
+        </span>
+      </div>
+      <div className="summary-item">
+        <span className="summary-label">Review</span>
+        {review === null ? (
+          <span className="muted">—</span>
+        ) : review === 'ready' && evaluation ? (
+          <LevelCounts counts={evaluation.counts} />
+        ) : (
+          <span className={`q-status q-status-${review === 'failed' ? 'failed' : 'pending'}`}>
+            {REVIEW_STATUS[review]}
+          </span>
+        )}
+      </div>
+      <nav className="jump-links" aria-label="Sections">
+        <a href="#recording">Recording</a>
+        <a href="#questions">Questions</a>
+        <a href="#code">Code</a>
+        <a href="#moments">Moments</a>
+      </nav>
+    </div>
   );
 }

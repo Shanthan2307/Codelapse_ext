@@ -10,13 +10,18 @@ import 'prismjs/components/prism-cpp';
 import { Snapshot, RunEvent, SessionEvent } from '@codelapse/core';
 import { PlaybackModel, PlaybackFrame } from '../playback/PlaybackModel';
 import { alignToPlayback, buildFileFlow, FileVisit } from '../flow/FileFlowModel';
-import { FileFlowGraph } from './FileFlowGraph';
+import { FileJourney } from './FileJourney';
 
-interface TimelapsePlayerProps {
+export interface TimelapsePlayerProps {
   snapshots: Snapshot[];
   runs: RunEvent[];
   events?: SessionEvent[];
   totalDurationMs?: number;
+  /**
+   * Session time (ms) to open at, e.g. a moment an instructor clicked. To jump
+   * somewhere else later, render the player again with a different React key.
+   */
+  initialMs?: number;
 }
 
 /** Wall-clock time (ms) the player spends gliding across any idle gap when "Skip idle" is on. */
@@ -28,18 +33,20 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
   snapshots,
   runs,
   events = [],
-  totalDurationMs
+  totalDurationMs,
+  initialMs = 0
 }) => {
   const model = useMemo(() => new PlaybackModel(snapshots, totalDurationMs), [snapshots, totalDurationMs]);
+  const startMs = Math.max(0, Math.min(model.durationMs, initialMs));
 
-  const [playheadMs, setPlayheadMs] = useState<number>(0);
+  const [playheadMs, setPlayheadMs] = useState<number>(startMs);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(2); // 1x, 2x, 5x, 10x
   const [skipIdle, setSkipIdle] = useState<boolean>(true);
   const [selectedRun, setSelectedRun] = useState<RunEvent | null>(null);
 
   // The animation loop reads the playhead from a ref so it never waits on a re-render.
-  const playheadRef = useRef<number>(0);
+  const playheadRef = useRef<number>(startMs);
   const codeBodyRef = useRef<HTMLDivElement | null>(null);
   /** When set, playback pauses on reaching this time ("Replay this visit"). */
   const stopAtRef = useRef<number | null>(null);
@@ -257,7 +264,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     if (showStartHint) {
       return (
         <div className="empty-player-state">
-          Press ▶ Play (or Space) to watch this session being written.
+          Press Play (or Space) to watch this session being written.
         </div>
       );
     }
@@ -282,11 +289,10 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            <span>🎬</span> Interactive Code Timelapse Player
+            Replay
           </h2>
           <span className="section-subtitle">
-            Watch the code being typed, scrub anywhere in time, or jump to runs and milestones.
-            Shortcuts: Space play/pause, ← → step, Home/End.
+            Watch the code being written. Drag the timeline or click a run marker to jump. Keys: Space play/pause, ← → step, Home/End.
           </span>
         </div>
 
@@ -327,7 +333,6 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
                 }
               }}
             >
-              <span className="tab-icon">📄</span>
               <span className="tab-name">{file}</span>
             </button>
           ))}
@@ -357,23 +362,25 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
             onClick={handleStepBack}
             disabled={playheadMs <= 0}
             title="Previous snapshot (←)"
+            aria-label="Previous snapshot"
           >
-            ⏮️
+            <StepIcon direction="back" />
           </button>
           <button
             className="btn btn-icon btn-play"
             onClick={togglePlay}
-            title={isPlaying ? 'Pause (Space)' : 'Play Timelapse (Space)'}
+            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
           >
-            {isPlaying ? '⏸️ Pause' : '▶️ Play'}
+            {isPlaying ? 'Pause' : 'Play'}
           </button>
           <button
             className="btn btn-secondary btn-icon"
             onClick={handleStepForward}
             disabled={playheadMs >= model.durationMs}
             title="Next snapshot (→)"
+            aria-label="Next snapshot"
           >
-            ⏭️
+            <StepIcon direction="forward" />
           </button>
         </div>
 
@@ -437,7 +444,7 @@ export const TimelapsePlayer: React.FC<TimelapsePlayerProps> = ({
     </div>
 
     {flow.nodes.length > 0 && (
-      <FileFlowGraph flow={flow} playheadMs={playheadMs} onShowVisit={showVisit} onReplayVisit={replayVisit} />
+      <FileJourney flow={flow} playheadMs={playheadMs} onShowVisit={showVisit} onReplayVisit={replayVisit} />
     )}
     </>
   );
@@ -633,4 +640,14 @@ function formatTime(ms: number): string {
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+}
+
+/** Step buttons as small inline icons, so they look the same in every theme and font. */
+function StepIcon({ direction }: { direction: 'back' | 'forward' }) {
+  const path = direction === 'back' ? 'M11 3 L5 8 L11 13 M4 3 V13' : 'M5 3 L11 8 L5 13 M12 3 V13';
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }

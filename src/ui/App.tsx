@@ -1,13 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Session } from '@codelapse/core';
-import {
-  computeSessionAnalytics,
-  SessionAnalytics
-} from '@codelapse/core';
-import { MetricsRow } from './components/MetricsRow';
-import { ActivityChart } from './components/ActivityChart';
-import { TimelapsePlayer } from './components/TimelapsePlayer';
-import './styles.css';
+import { Session, computeSessionAnalytics, SessionAnalytics } from '@codelapse/core';
+import { ActivityChart, MetricsRow, TimelapsePlayer } from '@codelapse/replay';
+import '@codelapse/replay/styles.css';
+import './app.css';
 
 // VS Code API declaration
 interface VsCodeApi {
@@ -30,6 +25,8 @@ type OutgoingMessage =
   | { type: 'READY' }
   | { type: 'REQUEST_DATA' }
   | { type: 'EXPORT_HTML' }
+  | { type: 'EXPORT_BUNDLE' }
+  | { type: 'OPEN_SUBMISSION_PAGE' }
   | { type: 'LOAD_SESSION_BY_URI'; payload: { uri: string } };
 
 type IncomingMessage =
@@ -112,78 +109,70 @@ export const App: React.FC = () => {
     vscodeApi.postMessage({ type: 'LOAD_SESSION_BY_URI', payload: { uri } });
   };
 
-  const handleExportHtml = () => {
-    vscodeApi.postMessage({ type: 'EXPORT_HTML' });
-  };
+  const send = (type: 'EXPORT_HTML' | 'EXPORT_BUNDLE' | 'OPEN_SUBMISSION_PAGE') => () => vscodeApi.postMessage({ type });
+
+  const status = isRecording ? 'recording' : isPaused ? 'paused' : 'idle';
+  const statusLabel = isRecording ? 'Recording' : isPaused ? 'Paused' : isStandalone ? 'Exported report' : 'Saved session';
 
   return (
+    <div className="codelapse-replay codelapse-report">
     <div className="codelapse-container">
-      {/* 1. Header */}
       <header className="dashboard-header">
         <div className="header-left">
-          <h1 className="header-title">
-            <span>⚡</span> CodeLapse Dashboard
-          </h1>
-          {session && <span className="workspace-pill">{session.workspaceName}</span>}
+          <h1 className="header-title">CodeLapse</h1>
+          {session && <span className="workspace-pill" title="Recorded folder">{session.workspaceName}</span>}
           {session && (
-            <span
-              className={`status-badge ${
-                isRecording ? 'recording' : isPaused ? 'paused' : 'idle'
-              }`}
-            >
-              <span className="pulse-dot" />
-              {isRecording ? 'Recording' : isPaused ? 'Paused' : isStandalone ? 'Standalone Replay' : 'Saved Session'}
+            <span className={`status-badge ${status}`}>
+              {status !== 'idle' && <span className="pulse-dot" />}
+              {statusLabel}
             </span>
           )}
         </div>
 
-        <div className="header-actions">
-          {!isStandalone && session && savedSessions.length > 0 && (
-            <select
-              className="btn btn-secondary"
-              value={session.id}
-              onChange={(e) => {
-                const found = savedSessions.find((s) => s.id === e.target.value);
-                if (found) handleLoadSavedSession(found.uri);
-              }}
-            >
-              <option value={session.id}>Active / Current Session</option>
-              {savedSessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {new Date(s.startTime).toLocaleTimeString()} ({s.snapshotCount} snaps)
-                </option>
-              ))}
-            </select>
-          )}
-
-          {!isStandalone && (
-            <>
-              <button className="btn btn-secondary" onClick={handleRefresh} title="Reload active session data">
-                🔄 Refresh
-              </button>
-              {session && (
-                <button className="btn" onClick={handleExportHtml} title="Export as standalone self-contained HTML file">
-                  📥 Export HTML Report
+        {!isStandalone && (
+          <div className="header-actions">
+            {session && savedSessions.length > 0 && (
+              <select
+                className="btn btn-secondary session-select"
+                aria-label="Session to show"
+                value={session.id}
+                onChange={(e) => {
+                  const found = savedSessions.find((s) => s.id === e.target.value);
+                  if (found) handleLoadSavedSession(found.uri);
+                }}
+              >
+                <option value={session.id}>Current session</option>
+                {savedSessions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {new Date(s.startTime).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · {s.snapshotCount} snapshots
+                  </option>
+                ))}
+              </select>
+            )}
+            <button className="btn btn-secondary" onClick={handleRefresh} title="Reload the recorded data">
+              Refresh
+            </button>
+            {session && (
+              <>
+                <button className="btn btn-secondary" onClick={send('EXPORT_HTML')} title="Save this report as one HTML file">
+                  Export HTML
                 </button>
-              )}
-            </>
-          )}
-        </div>
+                <button className="btn btn-secondary" onClick={send('OPEN_SUBMISSION_PAGE')} title="Open the assignment page to upload your work">
+                  Submission Page
+                </button>
+                <button className="btn" onClick={send('EXPORT_BUNDLE')} title="Save the .codelapse file to upload with your code">
+                  Export Assignment Bundle
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </header>
 
       {session && analytics ? (
         <>
-          {/* 2. Top Metrics Row */}
           <MetricsRow analytics={analytics} />
-
-          {/* 3. 24-Bucket Edit Activity Chart */}
-          <ActivityChart
-            buckets={analytics.activityBuckets}
-            snapshots={session.snapshots}
-            runs={session.runs}
-          />
-
-          {/* 4. Interactive Code Timelapse Player */}
+          <ActivityChart buckets={analytics.activityBuckets} snapshots={session.snapshots} runs={session.runs} />
           <TimelapsePlayer
             snapshots={session.snapshots}
             runs={session.runs}
@@ -195,12 +184,15 @@ export const App: React.FC = () => {
         <div className="section-card empty-recording-state">
           <h2>No recording yet</h2>
           <p>
-            Click <strong>CodeLapse: Choose folder</strong> in the status bar, or run{' '}
-            <strong>CodeLapse: Start Recording Session</strong> from the Command Palette.
+            Click <strong>CodeLapse: Choose folder</strong> in the status bar and pick your assignment folder. Recording starts
+            straight away; your report appears here as you work.
           </p>
-          <p>Your report appears here once a session has been recorded.</p>
+          <p>
+            New to CodeLapse? Run <strong>CodeLapse: Get Started</strong> from the Command Palette for a short walkthrough.
+          </p>
         </div>
       )}
+    </div>
     </div>
   );
 };

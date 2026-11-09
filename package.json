@@ -2,7 +2,7 @@
   "name": "codelapse",
   "displayName": "CodeLapse",
   "description": "Records one chosen folder in VS Code and replays the work as a timelapse with session metrics",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "shanthan2307",
   "license": "MIT",
   "repository": {
@@ -55,6 +55,18 @@
       {
         "command": "codelapse.exportForSubmission",
         "title": "CodeLapse: Save Session Data to Folder"
+      },
+      {
+        "command": "codelapse.getStarted",
+        "title": "CodeLapse: Get Started"
+      },
+      {
+        "command": "codelapse.openSubmissionPage",
+        "title": "CodeLapse: Open Submission Page"
+      },
+      {
+        "command": "codelapse.statusMenu",
+        "title": "CodeLapse: Recording Options"
       }
     ],
     "menus": {
@@ -64,8 +76,86 @@
           "when": "explorerResourceIsFolder",
           "group": "z_codelapse"
         }
+      ],
+      "commandPalette": [
+        {
+          "command": "codelapse.statusMenu",
+          "when": "false"
+        }
       ]
-    }
+    },
+    "configuration": {
+      "title": "CodeLapse",
+      "properties": {
+        "codelapse.submissionUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Address of the assignment page where you upload your `.codelapse` bundle and code, for example `http://192.168.1.20:3100/courses/cs101/assignments/a3-reverse`. Use the address your instructor gives you. If it is empty, **CodeLapse: Open Submission Page** asks for it once.",
+          "order": 0
+        }
+      }
+    },
+    "walkthroughs": [
+      {
+        "id": "recordAndSubmit",
+        "title": "CodeLapse: Record and submit an assignment",
+        "description": "Record your work on an assignment, export it, and submit it with your code.",
+        "steps": [
+          {
+            "id": "chooseFolder",
+            "title": "Choose your assignment folder",
+            "description": "CodeLapse records only the folder you choose, so nothing else you have open is included.\n[Choose Folder](command:codelapse.selectFolder)",
+            "media": {
+              "markdown": "media/walkthrough/1-choose-folder.md"
+            },
+            "completionEvents": [
+              "onCommand:codelapse.selectFolder"
+            ]
+          },
+          {
+            "id": "writeCode",
+            "title": "Write and build your code as usual",
+            "description": "Type, build and run as you normally would. Builds run in the terminal or as VS Code tasks are recorded with their results.\n[Open Report](command:codelapse.showReport)",
+            "media": {
+              "markdown": "media/walkthrough/2-write-code.md"
+            },
+            "completionEvents": [
+              "onCommand:codelapse.showReport"
+            ]
+          },
+          {
+            "id": "exportBundle",
+            "title": "Export your recording",
+            "description": "When you are done, export one .codelapse file with everything recorded in the folder.\n[Export Assignment Bundle](command:codelapse.exportBundle)",
+            "media": {
+              "markdown": "media/walkthrough/3-export.md"
+            },
+            "completionEvents": [
+              "onCommand:codelapse.exportBundle"
+            ]
+          },
+          {
+            "id": "submit",
+            "title": "Submit it with your code",
+            "description": "Open the assignment page, choose your name, and upload the .codelapse file together with your code files.\n[Open Submission Page](command:codelapse.openSubmissionPage)",
+            "media": {
+              "markdown": "media/walkthrough/4-submit.md"
+            },
+            "completionEvents": [
+              "onCommand:codelapse.openSubmissionPage"
+            ]
+          },
+          {
+            "id": "answer",
+            "title": "Answer four questions within an hour",
+            "description": "After you submit, the page shows four short questions about your own work. Answer them in your own words within one hour.",
+            "media": {
+              "markdown": "media/walkthrough/5-answer.md"
+            }
+          }
+        ]
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -80,13 +170,16 @@
     "fixtures": "npm run compile && node -e \"require('fs').rmSync('out',{recursive:true,force:true})\" && tsc -p tsconfig.integration.json && CODELAPSE_SUITE=fixtures node out/src/test/runIntegration.js",
     "web:dev": "npm run dev -w @codelapse/web",
     "web:build": "npm run build -w @codelapse/web",
-    "web:smoke": "npm run smoke -w @codelapse/web"
+    "web:smoke": "npm run smoke -w @codelapse/web",
+    "demo": "node scripts/demo.mjs",
+    "demo:reset": "node scripts/reset-demo-data.mjs"
   },
   "dependencies": {
     "prismjs": "^1.30.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@codelapse/core": "0.0.0"
+    "@codelapse/core": "0.0.0",
+    "@codelapse/replay": "0.0.0"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.10",

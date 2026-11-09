@@ -18,9 +18,10 @@ Requires VS Code 1.93 or newer.
 - Keyboard shortcuts: `Space` play/pause, `←` / `→` previous/next snapshot, `Home` / `End` jump to start/end.
 - The cursor and selection are shown as recorded.
 
-### File navigation graph
-- Shows files grouped by top-level folder, with an arrow for each move between files. Thicker arrows were taken more often.
-- Arrows appear in sync with the replay. Click one to list each time that move happened, then jump to it or replay that visit.
+### File journey
+- One row per file, with time running left to right. Each stretch of work in a file is a bar: solid if the file was changed, outlined if it was only read. A thin line marks each switch between files, so back-and-forth work shows as a zigzag.
+- A summary line gives the number of files and switches, where most of the time went, and which two files the student went back and forth between most.
+- It follows the replay: a playhead moves across and what hasn't happened yet is faded. Click a bar to jump there with the lines typed during that visit highlighted, step to the previous or next visit, or replay it.
 - Switching to a file counts as a visit even if it was only read. Glances under 3 seconds are ignored.
 
 ### Metrics
@@ -129,11 +130,14 @@ npm run web:dev        # http://localhost:3100
 | `/courses/cs101/assignments/a3-reverse` | Students | The assignment and the submission form |
 | `/submissions/<id>` | The student | Confirmation and the four feedback questions, with the time left to answer |
 | `/instructor` | Instructors | Each student's latest submission: recording summary and replay check |
-| `/instructor/submissions/<id>` | Instructors | Per-file replay check, the questions with why each was asked, the answers, the code and the decision moments |
+| `/instructor/submissions/<id>` | Instructors | Per-file replay check, the questions with why each was asked, the answers and their review, the code and the decision moments |
 
-The course, assignment and the five demo students are defined in `apps/web/src/lib/course.ts`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. There is no real sign-in yet: anyone who can open the site can see the instructor pages, so run it only on your own machine or a private network for the demo.
+The course, assignment and the five demo students are defined in `apps/web/src/lib/course.ts`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. Students have no sign-in. Set `CODELAPSE_INSTRUCTOR_PASSWORD` (`npm run demo` creates one) to put the instructor pages, comparison, ratings and research export behind a password; without it they are open to anyone who can reach the site.
 
 `npm run web:build && npm run web:smoke` builds the site and submits the scripted recordings as all five students to check every page.
+
+- **Running a session with testers:** [docs/RUNNING_THE_DEMO.md](docs/RUNNING_THE_DEMO.md). `npm run demo` starts the site for other computers on your network and prints the address testers need; `npm run demo:reset` moves old submissions aside.
+- **Steps for student testers:** [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
 
 ### Feedback questions
 
@@ -144,6 +148,35 @@ After an upload, the server asks Claude Opus 5.5 to write four questions for tha
 - **Checks on the questions:** the server rejects questions that cite a moment or lines that don't exist, repeat each other, or break the two-and-two mix, and asks once more with the problems listed.
 - **Prompt injection:** the student's code and the recording go into clearly marked sections that the prompt says are material, never instructions. Text in the code that addresses an AI or grader is listed for the instructor, and the model can note it too.
 - **Shared record:** each submission's `questions.json` holds the questions plus, for the instructor and the future answer evaluator only, why each was asked and what a strong answer might mention. It also keeps every prompt and reply, for research and for training a local model later. Students never see these parts.
+
+### Answer review
+
+When a student submits their answers, a second Claude Opus 5.5 request reviews them for the instructor. It reads each answer next to the question, the question writer's reasons and hints from `questions.json` (as hypotheses, not an answer key), the code or recording evidence the question is about, and the full code. For each answer it gives:
+
+- three scores from 0 to 3: **specificity** (refers to concrete details of this code), **consistency** (fits what the code and recording show) and **reasoning** (explains why, correctly)
+- a level from the total: **strong** (7–9), **partial** (4–6) or **limited** (0–3, or if the answer doesn't address the question)
+- short quotes from the answer that support the scores, which the server checks appear word for word
+- a short explanation and any specific concerns, such as an answer naming a different build error from the one in the recording
+
+It is told to judge understanding, not writing, and not to speculate about AI use or copying. Students never see the review. It is stored in each submission's `evaluation.json`, with every prompt and reply. Set `CODELAPSE_EVALUATOR_MODEL` to use another Claude model; the evaluator goes through its own `EvaluatorModel` interface (`apps/web/src/lib/evaluation/model.ts`), so it can be swapped the same way as the question writer.
+
+### Comparing students
+
+`/instructor/compare` puts every pair of students side by side on three kinds of evidence:
+
+- **Code:** token fingerprints of the submitted code, compared both exactly and with names, numbers and strings ignored, so renamed variables don't hide a match. Shared starter code can be excluded.
+- **Blocks inserted in one edit:** the same block (or the same structure with names changed) appearing in both recordings.
+- **Answer wording:** answers to different questions that share long phrases.
+
+Pairs are ranked by how many of these agree, then by strength. Each signal is compared with the class median, and only called above typical when it clearly stands out (this needs at least four pairs). The pair page shows the two submissions with matching code lines marked, the inserted blocks and the answers with shared wording highlighted. Everyone works on the same assignment, so some similarity is expected; the page says so and leaves the judgement to the instructor.
+
+### Watching a replay
+
+Each instructor detail page has **Watch replay**, and every decision moment and process question has **Watch this moment**, which opens the student's recording a few seconds before it. The player is the same one the VS Code extension uses (`packages/replay`).
+
+### Research pilot
+
+For the five-tester pilot, the instructor detail page has a **Your ratings** card: agree or disagree with each review, give your own level, mark useful questions and add notes. The instructor list has a **Research export** card with CSV and JSON downloads, in which names are replaced by participant codes and answer text is left out unless asked for. [docs/RESEARCH_PILOT.md](docs/RESEARCH_PILOT.md) has the session plan, what each column means and how to compare process and code questions.
 
 ### Using a different model, such as an open-source one
 
@@ -166,15 +199,20 @@ packages/core/                   # @codelapse/core: shared, no VS Code dependenc
 │   ├── analytics.ts             # Session metrics and activity buckets
 │   ├── sessionLog.ts            # Rebuilds a session from its .jsonl log
 │   ├── replayCheck.ts           # Does the recording end at the submitted code?
+│   ├── similarity.ts            # Code, inserted-block and answer similarity
 │   ├── moments.ts               # Decision moments for questions to cite
 │   ├── cFunctions.ts            # Finds C function definitions
 │   └── bundleFormat.ts          # The .codelapse format (Node only)
 ├── node.ts                      # Node-only entry point: @codelapse/core/node
 └── test/                        # Includes tests on the scripted recordings
 fixtures/recordings/             # Scripted C recordings made with the real extension
+packages/replay/                 # @codelapse/replay: the replay player, shared by the extension and the site
 apps/web/                        # Demo submission site (Next.js)
 ├── src/lib/                     # Course data, upload processing, file storage
 ├── src/lib/questions/           # Question prompt, model, validation, answers
+├── src/lib/evaluation/          # Answer review prompt, model, validation
+├── src/lib/cohort.ts            # Comparing students
+├── src/lib/research/            # Instructor ratings, research export, participant codes
 ├── src/app/                     # Pages and the upload API
 ├── test/                        # Upload processing tests
 └── scripts/smoke.mjs            # End-to-end check of the built site
@@ -195,7 +233,7 @@ src/                             # The VS Code extension
 │   └── folderScope.ts           # Path containment and relative paths
 ├── ui/
 │   ├── App.tsx                  # Report shell
-│   ├── components/              # Metrics, activity chart, player, navigation graph
+│   ├── components/              # Metrics, activity chart, player, file journey
 │   ├── flow/FileFlowModel.ts    # Visits, moves and edges
 │   ├── playback/PlaybackModel.ts # Typing interpolation and timeline
 │   └── styles.css
@@ -208,7 +246,7 @@ src/                             # The VS Code extension
 
 ## Project direction
 
-CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. Next come the AI that evaluates the answers and an instructor view that compares students.
+CodeLapse is part of a research project on whether students understand the code they submit. C is the first language being studied. All phases of the first plan are built. What remains is running the pilot and learning from it.
 
 ## License
 

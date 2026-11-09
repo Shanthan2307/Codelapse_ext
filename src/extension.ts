@@ -9,9 +9,13 @@ import { ReportPanel } from './webview/ReportPanel';
 import { ReportExporter } from './export/ReportExporter';
 import { SubmissionExporter, SubmissionOptions } from './export/SubmissionExporter';
 import { BundleExporter, BundleOptions } from './export/BundleExporter';
+import { EXAMPLE_SUBMISSION_URL, submissionUrlProblem } from './export/submissionPage';
 
 /** workspaceState key: the "choose a folder" prompt is shown once per workspace. */
 const PROMPTED_KEY = 'codelapse.folderPromptShown';
+/** globalState key: the getting-started walkthrough opens once per installation. */
+const WALKTHROUGH_SHOWN_KEY = 'codelapse.walkthroughShown';
+const WALKTHROUGH_ID = 'shanthan2307.codelapse#recordAndSubmit';
 
 let sessionManager: SessionManager;
 let recordingScope: RecordingScope;
@@ -39,8 +43,8 @@ export function activate(context: vscode.ExtensionContext) {
     const folderName = recordingScope.getFolderName();
     if (sessionManager.isRecording()) {
       statusBarItem.text = `$(record) CodeLapse: ${folderName}`;
-      statusBarItem.tooltip = `Recording changes inside "${folderName}" only. Click to open the report.`;
-      statusBarItem.command = 'codelapse.showReport';
+      statusBarItem.tooltip = `Recording "${folderName}" only. Click for the report, export and submission.`;
+      statusBarItem.command = 'codelapse.statusMenu';
     } else if (sessionManager.isPaused()) {
       statusBarItem.text = `$(debug-pause) CodeLapse: Paused (${folderName})`;
       statusBarItem.tooltip = 'CodeLapse recording is paused. Click to open the report.';
@@ -214,9 +218,19 @@ export function activate(context: vscode.ExtensionContext) {
       const version = String(context.extension.packageJSON.version ?? 'unknown');
       const target = await BundleExporter.run(sessionManager, recordingScope, version, options);
       if (target && interactive) {
-        vscode.window.showInformationMessage(
-          `CodeLapse: Saved "${path.basename(target.fsPath)}". Upload it together with your code.`
-        );
+        void vscode.window
+          .showInformationMessage(
+            `CodeLapse: Saved "${path.basename(target.fsPath)}". Upload it together with your code.`,
+            'Open Submission Page',
+            'Show File'
+          )
+          .then((choice) => {
+            if (choice === 'Open Submission Page') {
+              void openSubmissionPage();
+            } else if (choice === 'Show File') {
+              void vscode.commands.executeCommand('revealFileInOS', target);
+            }
+          });
       }
       return target;
     }
@@ -248,6 +262,62 @@ export function activate(context: vscode.ExtensionContext) {
     }
   );
 
+  const openSubmissionPage = async (): Promise<boolean> => {
+    let url = vscode.workspace.getConfiguration('codelapse').get<string>('submissionUrl', '').trim();
+    if (!url) {
+      // First time: ask for the address the instructor gave out, and remember it.
+      const entered = await vscode.window.showInputBox({
+        title: 'CodeLapse: Submission page address',
+        prompt: 'Enter the address of the submission page your instructor gave you.',
+        placeHolder: EXAMPLE_SUBMISSION_URL,
+        ignoreFocusOut: true,
+        validateInput: (value) => (value.trim() ? submissionUrlProblem(value) : null)
+      });
+      if (!entered?.trim()) {
+        return false;
+      }
+      url = entered.trim();
+      await vscode.workspace
+        .getConfiguration('codelapse')
+        .update('submissionUrl', url, vscode.ConfigurationTarget.Global);
+    }
+    const problem = submissionUrlProblem(url);
+    if (problem) {
+      // Not awaited: the command finishes now, and the button works whenever it's clicked.
+      void vscode.window.showErrorMessage(`CodeLapse: ${problem}`, 'Open Settings').then((choice) => {
+        if (choice === 'Open Settings') {
+          void vscode.commands.executeCommand('workbench.action.openSettings', 'codelapse.submissionUrl');
+        }
+      });
+      return false;
+    }
+    return vscode.env.openExternal(vscode.Uri.parse(url.trim()));
+  };
+
+  const openSubmissionPageCmd = vscode.commands.registerCommand('codelapse.openSubmissionPage', openSubmissionPage);
+
+  const getStartedCmd = vscode.commands.registerCommand('codelapse.getStarted', () =>
+    vscode.commands.executeCommand('workbench.action.openWalkthrough', WALKTHROUGH_ID, false)
+  );
+
+  // Everything a student needs while recording, one click from the status bar.
+  const statusMenuCmd = vscode.commands.registerCommand('codelapse.statusMenu', async () => {
+    const items: (vscode.QuickPickItem & { command: string })[] = [
+      { label: '$(graph) Open Report', description: 'See and replay what has been recorded', command: 'codelapse.showReport' },
+      { label: '$(package) Export Assignment Bundle', description: 'Save the .codelapse file to upload', command: 'codelapse.exportBundle' },
+      { label: '$(link-external) Open Submission Page', description: 'Upload your bundle and code', command: 'codelapse.openSubmissionPage' },
+      { label: '$(folder) Choose Another Folder', description: 'Save this session and record a different folder', command: 'codelapse.selectFolder' },
+      { label: '$(debug-stop) Stop Recording', description: 'Save the session and stop', command: 'codelapse.stopSession' }
+    ];
+    const picked = await vscode.window.showQuickPick(items, {
+      title: `CodeLapse: recording "${recordingScope.getFolderName()}"`,
+      placeHolder: 'What would you like to do?'
+    });
+    if (picked) {
+      await vscode.commands.executeCommand(picked.command);
+    }
+  });
+
   context.subscriptions.push(
     startCmd,
     selectFolderCmd,
@@ -256,11 +326,21 @@ export function activate(context: vscode.ExtensionContext) {
     exportHtmlCmd,
     saveDataCmd,
     exportBundleCmd,
+    openSubmissionPageCmd,
+    getStartedCmd,
+    statusMenuCmd,
     sessionManager,
     recordingScope,
     documentTracker,
     eventMonitor
   );
+
+  // First run: show how to record and submit an assignment. Not in automated
+  // tests, where an editor tab opening would take focus away from the test.
+  if (!context.globalState.get<boolean>(WALKTHROUGH_SHOWN_KEY) && context.extensionMode !== vscode.ExtensionMode.Test) {
+    void context.globalState.update(WALKTHROUGH_SHOWN_KEY, true);
+    void vscode.commands.executeCommand('workbench.action.openWalkthrough', WALKTHROUGH_ID, false);
+  }
 
   // Nothing is recorded until a folder has been chosen. If one was chosen
   // earlier in this workspace, resume recording it; otherwise ask once.

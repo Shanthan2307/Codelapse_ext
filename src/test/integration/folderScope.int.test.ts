@@ -5,7 +5,7 @@ import * as vscode from 'vscode';
 import { computeSessionAnalytics } from '@codelapse/core';
 import { Session } from '@codelapse/core';
 import { LogStreamer } from '../../storage/LogStreamer';
-import { buildFileFlow } from '../../ui/flow/FileFlowModel';
+import { buildFileFlow } from '@codelapse/replay/model';
 import { decodeBundle, sha256 } from '@codelapse/core/node';
 
 /**
@@ -371,5 +371,21 @@ describe('Folder-scoped recording (real VS Code)', () => {
     const a = bundle.files.find((f) => f.path === 'src/a.js');
     assert.strictEqual(a?.sha256, sha256(fs.readFileSync(fileA)), 'file hashes match the folder');
     assert.ok(!JSON.stringify(bundle).includes(workspace), 'no absolute paths in the bundle');
+  });
+
+  it('offers the tester commands, and refuses a submission page that is not a web address', async () => {
+    const commands = await vscode.commands.getCommands(true);
+    for (const id of ['codelapse.getStarted', 'codelapse.openSubmissionPage', 'codelapse.exportBundle', 'codelapse.statusMenu']) {
+      assert.ok(commands.includes(id), `${id} should be registered`);
+    }
+
+    const config = vscode.workspace.getConfiguration('codelapse');
+    await config.update('submissionUrl', 'file:///etc/passwd', vscode.ConfigurationTarget.Global);
+    try {
+      const opened = await vscode.commands.executeCommand<boolean>('codelapse.openSubmissionPage');
+      assert.strictEqual(opened, false, 'a file: address must not be opened');
+    } finally {
+      await config.update('submissionUrl', undefined, vscode.ConfigurationTarget.Global);
+    }
   });
 });

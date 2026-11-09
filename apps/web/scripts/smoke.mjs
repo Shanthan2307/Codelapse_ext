@@ -12,6 +12,14 @@ const webDir = path.resolve(here, '..');
 const recordings = path.resolve(webDir, '../../fixtures/recordings');
 const port = 3199;
 const base = `http://localhost:${port}`;
+const instructorPassword = 'smoke-test-password';
+const plainFetch = globalThis.fetch;
+// Every request signs in as the instructor; student routes simply ignore it.
+const fetch = (url, init = {}) =>
+  plainFetch(url, {
+    ...init,
+    headers: { ...init.headers, authorization: `Basic ${Buffer.from(`instructor:${instructorPassword}`).toString('base64')}` }
+  });
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codelapse-smoke-'));
 
 const SUBMISSIONS = [
@@ -60,7 +68,7 @@ async function page(url, mustInclude = []) {
 
 const server = spawn('npx', ['next', 'start', '--port', String(port)], {
   cwd: webDir,
-  env: { ...process.env, CODELAPSE_DATA_DIR: dataDir },
+  env: { ...process.env, CODELAPSE_DATA_DIR: dataDir, CODELAPSE_INSTRUCTOR_PASSWORD: instructorPassword },
   stdio: ['ignore', 'ignore', 'inherit']
 });
 
@@ -99,6 +107,33 @@ try {
   const expected = questions.status === 'ready' ? 201 : 409;
   if (answered.status !== expected) fail(`answers with questions ${questions.status}: expected ${expected}, got ${answered.status}`);
   console.log(`ok  questions ${questions.status}; answers answered ${answered.status}`);
+
+  // With answers, the review runs next; without them, retrying a review is refused.
+  const retry = await fetch(`${base}/api/submissions/${ids[1]}/evaluation`, { method: 'POST' });
+  if (retry.status !== 409) fail(`reviewing a submission with no answers should be refused, got ${retry.status}`);
+  console.log('ok  no review without answers');
+
+  // Phase 6 and 7: comparing students, watching a replay, ratings and the research export.
+  await page('/instructor/compare', ['Student A']);
+  await page(`/instructor/compare/${ids[0]}/${ids[1]}`, ['reverse.c']);
+  await page(`/instructor/submissions/${ids[0]}/replay`);
+  const feedback = await fetch(`${base}/api/submissions/${ids[0]}/feedback`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ overall: { note: 'smoke test', followUp: true } })
+  });
+  if (feedback.status !== 200) fail(`saving instructor feedback answered ${feedback.status}`);
+  const csv = await fetch(`${base}/api/research/export?assignment=a3-reverse&format=csv&table=submissions`);
+  const csvText = await csv.text();
+  if (csv.status !== 200 || !csvText.startsWith('participant,')) fail(`research export: ${csv.status} ${csvText.slice(0, 80)}`);
+  if (/Student [A-E]|student-[a-e]/.test(csvText)) fail('the research export contains a student name or id');
+  console.log(`ok  compare, replay, feedback and research export (${csvText.trim().split('\n').length - 1} rows)`);
+
+  const locked = await plainFetch(`${base}/instructor`);
+  if (locked.status !== 401) fail(`/instructor without the password answered ${locked.status}, expected 401`);
+  const lockedExport = await plainFetch(`${base}/api/research/export?assignment=a3-reverse`);
+  if (lockedExport.status !== 401) fail(`the research export without the password answered ${lockedExport.status}`);
+  console.log('ok  instructor pages and research data need the password');
 
   await page('/courses/cs101/assignments/a3-reverse', ['Reverse a String']);
   await page(`/submissions/${ids[0]}`, ['reverse.c']);

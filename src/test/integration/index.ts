@@ -10,7 +10,8 @@ import { glob } from 'glob';
  */
 const CORE_ENTRIES: Record<string, string> = {
   '@codelapse/core': '../../../packages/core/src/index.js',
-  '@codelapse/core/node': '../../../packages/core/node.js'
+  '@codelapse/core/node': '../../../packages/core/node.js',
+  '@codelapse/replay/model': '../../../packages/replay/model.js'
 };
 type Resolve = (request: string, ...rest: unknown[]) => string;
 // eslint-disable-next-line @typescript-eslint/no-require-imports

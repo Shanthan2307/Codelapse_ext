@@ -209,6 +209,10 @@ function outputExcerpt(output: string): string {
 }
 
 function formatDuration(ms: number): string {
+  if (ms < 60000) {
+    const seconds = Math.max(1, Math.round(ms / 1000));
+    return `${seconds} second${seconds === 1 ? '' : 's'}`;
+  }
   const minutes = Math.round(ms / 60000);
   if (minutes < 60) {
     return `${minutes} minute${minutes === 1 ? '' : 's'}`;
