@@ -82,6 +82,10 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
     [draftKey]
   );
 
+  const steps = (
+    <StatusSteps status={state.status} answered={state.answered} closed={now !== null && now > state.closesAt} />
+  );
+
   const unanswered = useMemo(
     () => state.questions.filter((q) => !(drafts[q.id] ?? '').trim()).length,
     [state.questions, drafts]
@@ -124,6 +128,8 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
 
   if (state.status === 'pending') {
     return (
+      <>
+      {steps}
       <section className="card questions" aria-live="polite">
         <h2>Four questions about your work</h2>
         <p className="preparing">
@@ -134,21 +140,27 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
           hour after you submitted.
         </p>
       </section>
+      </>
     );
   }
 
   if (state.status === 'failed') {
     return (
+      <>
+      {steps}
       <section className="card questions">
         <h2>Four questions about your work</h2>
         <p>Your questions could not be prepared. Your instructor has been told; you do not need to do anything.</p>
       </section>
+      </>
     );
   }
 
   if (state.answered) {
     const byId = new Map(state.answers.map((a) => [a.questionId, a.text]));
     return (
+      <>
+      {steps}
       <section className="card questions">
         <h2>Your answers</h2>
         <div className="notice notice-success" role="status">
@@ -165,12 +177,15 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
           ))}
         </ol>
       </section>
+      </>
     );
   }
 
   const closed = now !== null && now > state.closesAt;
   if (closed) {
     return (
+      <>
+      {steps}
       <section className="card questions">
         <h2>Four questions about your work</h2>
         <p>
@@ -178,11 +193,14 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
           submitted.
         </p>
       </section>
+      </>
     );
   }
 
   const remaining = now === null ? null : state.closesAt - now;
   return (
+    <>
+    {steps}
     <section className="card questions">
       <div className="questions-head">
         <h2>Four questions about your work</h2>
@@ -259,6 +277,39 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
         </fieldset>
       </form>
     </section>
+    </>
+  );
+}
+
+/** Where the student is: received, then questions, then answers. Updates as the page polls. */
+function StatusSteps({ status, answered, closed }: { status: QuestionsStatus; answered: boolean; closed: boolean }) {
+  const questions =
+    status === 'ready'
+      ? { cls: 'step-done', icon: '✓', text: 'Questions ready' }
+      : status === 'failed'
+        ? { cls: 'step-problem', icon: '!', text: 'Questions unavailable' }
+        : { cls: 'step-current', icon: '…', text: 'Preparing questions' };
+  const answers = answered
+    ? { cls: 'step-done', icon: '✓', text: 'Answered' }
+    : status === 'ready' && closed
+      ? { cls: 'step-problem', icon: '!', text: 'Time ended' }
+      : status === 'ready'
+        ? { cls: 'step-current', icon: '3', text: 'Answer the questions' }
+        : { cls: '', icon: '3', text: 'Answer the questions' };
+  return (
+    <ol className="status-steps" aria-label="Submission progress">
+      <li className="step-done">
+        <span className="step-icon" aria-hidden="true">✓</span>Received
+      </li>
+      <li className={questions.cls} aria-current={questions.cls === 'step-current' ? 'step' : undefined}>
+        <span className="step-icon" aria-hidden="true">{questions.icon}</span>
+        {questions.text}
+      </li>
+      <li className={answers.cls} aria-current={answers.cls === 'step-current' ? 'step' : undefined}>
+        <span className="step-icon" aria-hidden="true">{answers.icon}</span>
+        {answers.text}
+      </li>
+    </ol>
   );
 }
 

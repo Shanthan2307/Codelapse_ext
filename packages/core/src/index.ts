@@ -9,3 +9,4 @@ export * from './sessionLog';
 export * from './replayCheck';
 export * from './cFunctions';
 export * from './moments';
+export * from './similarity';

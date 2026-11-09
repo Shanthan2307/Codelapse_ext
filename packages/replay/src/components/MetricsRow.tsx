@@ -16,7 +16,7 @@ function runSummary(analytics: SessionAnalytics): React.ReactNode {
   }
   return (
     <>
-      <span className={analytics.passRate >= 80 ? 'positive' : 'negative'}>
+      <span>
         {analytics.successfulRuns} passed ({analytics.passRate}% pass rate)
       </span>
       {unknown && ` · ${unknown}`}
@@ -31,22 +31,20 @@ export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
 
   return (
     <div className="metrics-row">
-      {/* 1. Session Duration */}
       <div className="metric-card">
-        <span className="metric-label">Session Duration</span>
+        <span className="metric-label">Recorded time</span>
         <div className="metric-value">
-          <span>⏱️</span> {analytics.formattedDuration}
+          {analytics.formattedDuration}
         </div>
         <span className="metric-subtext">
-          {analytics.totalSnapshots} snapshots captured
+          {analytics.totalSnapshots} snapshots
         </span>
       </div>
 
-      {/* 2. Characters Typed */}
       <div className="metric-card">
-        <span className="metric-label">Characters Typed</span>
+        <span className="metric-label">Characters typed</span>
         <div className="metric-value">
-          <span>⌨️</span> {analytics.typedChars.toLocaleString()}
+          {analytics.typedChars.toLocaleString()}
         </div>
         <span
           className="metric-subtext"
@@ -59,9 +57,8 @@ export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
         </span>
       </div>
 
-      {/* 3. Net Lines Changed */}
       <div className="metric-card">
-        <span className="metric-label">Net Lines Changed</span>
+        <span className="metric-label">Net lines changed</span>
         <div
           className={`metric-value ${
             analytics.netLinesWritten > 0
@@ -71,19 +68,18 @@ export const MetricsRow: React.FC<MetricsRowProps> = ({ analytics }) => {
               : ''
           }`}
         >
-          <span>📝</span> {netLinesSign}
+          {netLinesSign}
           {analytics.netLinesWritten}
         </div>
         <span className="metric-subtext">
-          {analytics.netLinesWritten >= 0 ? 'Lines added to workspace' : 'Lines removed from workspace'}
+          {analytics.netLinesWritten >= 0 ? 'Lines added across files' : 'Lines removed across files'}
         </span>
       </div>
 
-      {/* 4. Runs & Pass Rate */}
       <div className="metric-card">
-        <span className="metric-label">Executions & Runs</span>
+        <span className="metric-label">Builds and runs</span>
         <div className="metric-value">
-          <span>🚀</span> {analytics.totalRuns}
+          {analytics.totalRuns}
         </div>
         <span className="metric-subtext">
           {runSummary(analytics)}

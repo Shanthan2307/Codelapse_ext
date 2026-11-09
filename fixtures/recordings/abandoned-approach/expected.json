@@ -1,7 +1,7 @@
 {
   "name": "abandoned-approach",
   "scripted": true,
-  "description": "Writes a working recursive reverse(), keeps it about 10 seconds, deletes it and writes the loop version.",
+  "description": "Writes a working recursive reverse(), keeps it about 10 seconds, deletes it and writes a two-pointer loop instead.",
   "runs": [
     "pass",
     "pass"

@@ -47,8 +47,10 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
 
       <h1>Your submission</h1>
 
+      <QuestionsForm submissionId={submission.id} initial={questions} />
+
       <section className="card">
-        <h2>Files</h2>
+        <h2>What you submitted</h2>
         <ul className="file-list">
           {submission.files.map((file) => (
             <li key={file.name}>
@@ -64,8 +66,6 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
           </li>
         </ul>
       </section>
-
-      <QuestionsForm submissionId={submission.id} initial={questions} />
 
       <p>
         <Link href={assignmentHref}>Back to the assignment</Link>

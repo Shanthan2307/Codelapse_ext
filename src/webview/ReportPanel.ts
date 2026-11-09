@@ -7,7 +7,7 @@ import { ReportExporter } from '../export/ReportExporter';
 
 /** Messages the report webview sends to the extension. */
 type WebviewMessage =
-  | { type: 'READY' | 'REQUEST_DATA' | 'REQUEST_SAVED_SESSIONS' | 'EXPORT_HTML' }
+  | { type: 'READY' | 'REQUEST_DATA' | 'REQUEST_SAVED_SESSIONS' | 'EXPORT_HTML' | 'EXPORT_BUNDLE' | 'OPEN_SUBMISSION_PAGE' }
   | { type: 'LOAD_SESSION_BY_URI'; payload?: { uri?: string } };
 
 export class ReportPanel {
@@ -227,6 +227,16 @@ export class ReportPanel {
         } else {
           vscode.window.showWarningMessage('CodeLapse: No session data available to export.');
         }
+        break;
+      }
+
+      case 'EXPORT_BUNDLE': {
+        await vscode.commands.executeCommand('codelapse.exportBundle');
+        break;
+      }
+
+      case 'OPEN_SUBMISSION_PAGE': {
+        await vscode.commands.executeCommand('codelapse.openSubmissionPage');
         break;
       }
 

@@ -1,7 +1,7 @@
 import * as assert from 'assert';
 import { Snapshot, SessionEvent } from '@codelapse/core';
-import { alignToPlayback, buildFileFlow, MIN_VIEW_MS } from '../../ui/flow/FileFlowModel';
-import { PlaybackModel } from '../../ui/playback/PlaybackModel';
+import { alignToPlayback, buildFileFlow, MIN_VIEW_MS } from '../src/flow/FileFlowModel';
+import { PlaybackModel } from '../src/playback/PlaybackModel';
 
 const snap = (timestamp: number, filePath: string, content: string, trigger?: 'focus'): Snapshot => ({
   timestamp,

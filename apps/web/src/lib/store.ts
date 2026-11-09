@@ -3,6 +3,7 @@ import path from 'path';
 import { SubmissionRecord } from './types';
 import { UploadedFile } from './processSubmission';
 import type { AnswerSet, QuestionSet } from './questions/types';
+import type { EvaluationSet } from './evaluation/types';
 
 /**
  * Submissions are kept as plain files, one folder each, so they are easy to
@@ -119,6 +120,22 @@ export async function saveAnswers(id: string, answers: AnswerSet): Promise<boole
 
 export async function getAnswers(id: string): Promise<AnswerSet | null> {
   return readJson<AnswerSet>(id, 'answers.json');
+}
+
+// ---- Answer evaluation (Phase 5) ----
+//   <data>/submissions/<id>/evaluation.json  the evaluator's review, for instructors only
+
+export async function saveEvaluation(id: string, set: EvaluationSet): Promise<void> {
+  if (!SAFE_ID.test(id)) {
+    throw new Error(`Unsafe submission id: ${id}`);
+  }
+  const file = path.join(submissionsDir(), id, 'evaluation.json');
+  await fs.writeFile(`${file}.tmp`, JSON.stringify(set, null, 2));
+  await fs.rename(`${file}.tmp`, file);
+}
+
+export async function getEvaluation(id: string): Promise<EvaluationSet | null> {
+  return readJson<EvaluationSet>(id, 'evaluation.json');
 }
 
 /** The submitted code files, for the question generator. */

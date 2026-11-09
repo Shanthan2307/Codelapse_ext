@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { getAnswers, getQuestionSet, getSubmission, saveAnswers } from '@/lib/store';
 import { AnswerError, acceptAnswers } from '@/lib/questions/answers';
+import { markEvaluationPending, runEvaluation } from '@/lib/evaluation/run';
 
 export const runtime = 'nodejs';
 
@@ -28,6 +29,9 @@ export async function POST(request: Request, { params }: Params): Promise<NextRe
     if (!(await saveAnswers(id, answers))) {
       return NextResponse.json({ error: 'Your answers were already submitted.' }, { status: 409 });
     }
+    // The review is for the instructor; it runs after the student gets their confirmation.
+    await markEvaluationPending(id);
+    after(() => runEvaluation(id));
     return NextResponse.json({ submittedAt: answers.submittedAt }, { status: 201 });
   } catch (err) {
     if (err instanceof AnswerError) {

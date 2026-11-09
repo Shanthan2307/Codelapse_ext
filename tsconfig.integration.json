@@ -9,6 +9,9 @@
     "src/test/integration/**/*",
     "src/test/fixtures/**/*",
     "packages/core/src/**/*",
-    "packages/core/node.ts"
+    "packages/core/node.ts",
+    "packages/replay/model.ts",
+    "packages/replay/src/flow/**/*",
+    "packages/replay/src/playback/**/*"
   ]
 }

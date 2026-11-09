@@ -1,16 +1,28 @@
-:root {
-  --vscode-font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+/*
+ * Replay styles, all scoped to .codelapse-replay so they never reach the page
+ * around the replay (the instructor site, for example). Report styles. Colours and fonts come from the VS Code theme, so the report
+ * looks native in light, dark and high-contrast themes. The fallbacks are used
+ * by exported reports, which open outside VS Code with a dark default.
+ */
+.codelapse-replay {
+  --font-ui: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif);
+  --font-code: var(--vscode-editor-font-family, 'SF Mono', Menlo, Consolas, monospace);
   --bg-primary: var(--vscode-editor-background, #1e1e1e);
   --bg-secondary: var(--vscode-sideBar-background, #252526);
-  --bg-card: var(--vscode-editorWidget-background, #2d2d2d);
-  --bg-card-hover: var(--vscode-list-hoverBackground, #37373d);
+  --bg-card: var(--vscode-editorWidget-background, #252526);
+  --bg-card-hover: var(--vscode-list-hoverBackground, #2a2d2e);
   --text-primary: var(--vscode-editor-foreground, #cccccc);
   --text-muted: var(--vscode-descriptionForeground, #9d9d9d);
   --border-color: var(--vscode-widget-border, var(--vscode-panel-border, #3c3c3c));
   --accent-color: var(--vscode-button-background, #0e639c);
   --accent-hover: var(--vscode-button-hoverBackground, #1177bb);
-  --success-color: var(--vscode-gitDecoration-addedResourceForeground, #4ec9b0);
-  --error-color: var(--vscode-errorForeground, #f14c4c);
+  --accent-fg: var(--vscode-button-foreground, #ffffff);
+  --secondary-bg: var(--vscode-button-secondaryBackground, #3a3d41);
+  --secondary-hover: var(--vscode-button-secondaryHoverBackground, #45494e);
+  --secondary-fg: var(--vscode-button-secondaryForeground, #cccccc);
+  --focus-color: var(--vscode-focusBorder, #007fd4);
+  --success-color: var(--vscode-testing-iconPassed, var(--vscode-gitDecoration-addedResourceForeground, #4ec9b0));
+  --error-color: var(--vscode-testing-iconFailed, var(--vscode-errorForeground, #f14c4c));
   --warning-color: var(--vscode-editorWarning-foreground, #cca700);
   --badge-bg: var(--vscode-badge-background, #4d4d4d);
   --badge-fg: var(--vscode-badge-foreground, #ffffff);
@@ -18,98 +30,106 @@
   --diff-add-fg: var(--vscode-gitDecoration-addedResourceForeground, #7ee787);
   --diff-del-bg: var(--vscode-diffEditor-removedTextBackground, rgba(248, 81, 73, 0.25));
   --diff-del-fg: var(--vscode-gitDecoration-deletedResourceForeground, #ffa198);
+  --radius: 6px;
+  --space: 16px;
 }
 
-* {
+.codelapse-replay, .codelapse-replay * {
   box-sizing: border-box;
 }
 
-body {
+.codelapse-replay {
   margin: 0;
   padding: 0;
-  font-family: var(--vscode-font-family);
+  font-family: var(--font-ui);
+  font-size: var(--vscode-font-size, 13px);
   color: var(--text-primary);
   background-color: var(--bg-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Dashboard Container */
-.codelapse-container {
-  max-width: 1200px;
+.codelapse-replay :focus-visible {
+  outline: 1px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* Layout */
+.codelapse-replay .codelapse-container {
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 20px 24px 40px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: var(--space);
 }
 
 /* Header */
-.dashboard-header {
+.codelapse-replay .dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 16px;
 }
 
-.header-left {
+.codelapse-replay .header-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
-.header-title {
-  font-size: 20px;
+.codelapse-replay .header-title {
+  font-size: 18px;
   font-weight: 600;
   margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  letter-spacing: -0.01em;
 }
 
-.workspace-pill {
+.codelapse-replay .workspace-pill {
+  font-family: var(--font-code);
   font-size: 12px;
   padding: 2px 8px;
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 12px;
-  color: var(--text-muted);
+  border-radius: 4px;
+  color: var(--text-primary);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.status-badge {
+.codelapse-replay .status-badge {
   font-size: 11px;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
-.status-badge.recording {
-  background-color: rgba(235, 87, 87, 0.2);
-  color: #ff6b6b;
-  border: 1px solid rgba(235, 87, 87, 0.4);
+.codelapse-replay .status-badge.recording {
+  color: var(--error-color);
+  border: 1px solid currentColor;
 }
 
-.status-badge.paused {
-  background-color: rgba(204, 167, 0, 0.2);
+.codelapse-replay .status-badge.paused {
   color: var(--warning-color);
-  border: 1px solid rgba(204, 167, 0, 0.4);
+  border: 1px solid currentColor;
 }
 
-.status-badge.idle {
-  background-color: var(--bg-card);
+.codelapse-replay .status-badge.idle {
   color: var(--text-muted);
   border: 1px solid var(--border-color);
 }
 
-.pulse-dot {
+.codelapse-replay .pulse-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -118,138 +138,145 @@ body {
 }
 
 @keyframes pulse {
-  0% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1); }
+  0% { opacity: 1; }
+  50% { opacity: 0.35; }
+  100% { opacity: 1; }
 }
 
-.header-actions {
+@media (prefers-reduced-motion: reduce) {
+  .codelapse-replay .pulse-dot { animation: none; }
+}
+
+.codelapse-replay .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-.btn {
+/* Buttons follow VS Code's primary and secondary button colours. */
+.codelapse-replay .btn {
   background-color: var(--accent-color);
-  color: var(--vscode-button-foreground, #fff);
-  border: none;
-  padding: 6px 14px;
+  color: var(--accent-fg);
+  border: 1px solid transparent;
+  padding: 4px 12px;
+  min-height: 28px;
+  font-family: inherit;
   font-size: 13px;
   font-weight: 500;
   border-radius: 4px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  transition: background-color 0.15s ease;
+  white-space: nowrap;
+  transition: background-color 0.12s ease;
 }
 
-.btn:hover {
+.codelapse-replay .btn:hover {
   background-color: var(--accent-hover);
 }
 
-.btn-secondary {
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
+.codelapse-replay .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.btn-secondary:hover {
-  background-color: var(--bg-card-hover);
+.codelapse-replay .btn-secondary {
+  background-color: var(--secondary-bg);
+  color: var(--secondary-fg);
 }
 
-/* Metrics Row */
-.metrics-row {
+.codelapse-replay .btn-secondary:hover {
+  background-color: var(--secondary-hover);
+}
+
+.codelapse-replay .session-select {
+  max-width: 260px;
+}
+
+/* Metrics */
+.codelapse-replay .metrics-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
 }
 
-.metric-card {
+.codelapse-replay .metric-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 16px;
+  border-radius: var(--radius);
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  gap: 4px;
 }
 
-.metric-card:hover {
-  border-color: var(--accent-color);
-  transform: translateY(-1px);
-}
-
-.metric-label {
+.codelapse-replay .metric-label {
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-.metric-value {
-  font-size: 24px;
-  font-weight: 700;
+.codelapse-replay .metric-value {
+  font-size: 22px;
+  font-weight: 600;
   color: var(--text-primary);
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
 }
 
-.metric-subtext {
+.codelapse-replay .metric-subtext {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 2px;
 }
 
-.positive {
+.codelapse-replay .positive {
   color: var(--success-color);
 }
 
-.negative {
+.codelapse-replay .negative {
   color: var(--error-color);
 }
 
-/* Section Card */
-.section-card {
+/* Sections */
+.codelapse-replay .section-card {
   background-color: var(--bg-card);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 20px;
+  border-radius: var(--radius);
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.section-header {
+.codelapse-replay .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.section-title {
-  font-size: 16px;
+.codelapse-replay .section-title {
+  font-size: 14px;
   font-weight: 600;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin: 0 0 2px;
 }
 
-.section-subtitle {
+.codelapse-replay .section-subtitle {
   font-size: 12px;
   color: var(--text-muted);
 }
 
 /* 24-Bucket Activity Chart */
-.chart-wrapper {
+.codelapse-replay .chart-wrapper {
   position: relative;
   padding: 16px 0 8px 0;
 }
 
-.bars-container {
+.codelapse-replay .bars-container {
   display: flex;
   align-items: flex-end;
   gap: 4px;
@@ -259,7 +286,7 @@ body {
   position: relative;
 }
 
-.bar-column {
+.codelapse-replay .bar-column {
   flex: 1;
   height: 100%;
   display: flex;
@@ -270,7 +297,7 @@ body {
   cursor: pointer;
 }
 
-.bar-fill {
+.codelapse-replay .bar-fill {
   width: 100%;
   min-height: 4px;
   background-color: var(--accent-color);
@@ -279,17 +306,17 @@ body {
   position: relative;
 }
 
-.bar-column:hover .bar-fill {
+.codelapse-replay .bar-column:hover .bar-fill {
   background-color: var(--diff-add-fg);
   filter: brightness(1.2);
 }
 
-.bar-column.active .bar-fill {
+.codelapse-replay .bar-column.active .bar-fill {
   background-color: var(--diff-add-fg);
   outline: 2px solid var(--accent-color);
 }
 
-.run-marker {
+.codelapse-replay .run-marker {
   position: absolute;
   top: -10px;
   width: 7px;
@@ -297,21 +324,21 @@ body {
   border-radius: 50%;
 }
 
-.run-marker.pass {
+.codelapse-replay .run-marker.pass {
   background-color: var(--success-color);
   box-shadow: 0 0 6px rgba(78, 201, 176, 0.8);
 }
 
-.run-marker.fail {
+.codelapse-replay .run-marker.fail {
   background-color: var(--error-color);
   box-shadow: 0 0 6px rgba(241, 76, 76, 0.8);
 }
 
-.run-marker.unknown {
+.codelapse-replay .run-marker.unknown {
   background-color: var(--text-muted);
 }
 
-.timeline-axis {
+.codelapse-replay .timeline-axis {
   display: flex;
   justify-content: space-between;
   margin-top: 6px;
@@ -320,7 +347,7 @@ body {
 }
 
 /* Tooltip & Mini Diff */
-.activity-tooltip {
+.codelapse-replay .activity-tooltip {
   position: absolute;
   bottom: calc(100% + 12px);
   left: 50%;
@@ -338,7 +365,7 @@ body {
   gap: 8px;
 }
 
-.tooltip-header {
+.codelapse-replay .tooltip-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -346,13 +373,13 @@ body {
   padding-bottom: 6px;
 }
 
-.tooltip-title {
+.codelapse-replay .tooltip-title {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.tooltip-badge {
+.codelapse-replay .tooltip-badge {
   font-size: 10px;
   background-color: var(--bg-card);
   padding: 2px 6px;
@@ -360,7 +387,7 @@ body {
   color: var(--text-muted);
 }
 
-.tooltip-stats {
+.codelapse-replay .tooltip-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
@@ -368,12 +395,12 @@ body {
   color: var(--text-muted);
 }
 
-.mini-diff-box {
+.codelapse-replay .mini-diff-box {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
   padding: 6px 8px;
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', monospace;
+  font-family: var(--font-code);
   font-size: 11px;
   display: flex;
   flex-direction: column;
@@ -382,7 +409,7 @@ body {
   overflow: hidden;
 }
 
-.diff-line {
+.codelapse-replay .diff-line {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -390,27 +417,27 @@ body {
   border-radius: 2px;
 }
 
-.diff-line.add {
+.codelapse-replay .diff-line.add {
   background-color: var(--diff-add-bg);
   color: var(--diff-add-fg);
 }
 
-.diff-line.del {
+.codelapse-replay .diff-line.del {
   background-color: var(--diff-del-bg);
   color: var(--diff-del-fg);
 }
 
-.diff-line.info {
+.codelapse-replay .diff-line.info {
   color: var(--text-muted);
   font-style: italic;
 }
 
 /* Timelapse Player */
-.timelapse-card {
+.codelapse-replay .timelapse-card {
   gap: 12px;
 }
 
-.speed-selector {
+.codelapse-replay .speed-selector {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -420,13 +447,13 @@ body {
   padding: 2px 4px;
 }
 
-.speed-label {
+.codelapse-replay .speed-label {
   font-size: 11px;
   color: var(--text-muted);
   padding: 0 4px;
 }
 
-.btn-speed {
+.codelapse-replay .btn-speed {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -438,18 +465,18 @@ body {
   transition: all 0.15s ease;
 }
 
-.btn-speed.active {
+.codelapse-replay .btn-speed.active {
   background-color: var(--accent-color);
   color: #fff;
 }
 
-.btn-speed:hover:not(.active) {
+.codelapse-replay .btn-speed:hover:not(.active) {
   background-color: var(--bg-card-hover);
   color: var(--text-primary);
 }
 
 /* File Tabs Bar */
-.file-tabs-bar {
+.codelapse-replay .file-tabs-bar {
   display: flex;
   gap: 4px;
   overflow-x: auto;
@@ -457,7 +484,7 @@ body {
   padding-bottom: 4px;
 }
 
-.file-tab {
+.codelapse-replay .file-tab {
   background-color: var(--bg-primary);
   color: var(--text-muted);
   border: 1px solid var(--border-color);
@@ -472,20 +499,20 @@ body {
   white-space: nowrap;
 }
 
-.file-tab.active {
+.codelapse-replay .file-tab.active {
   background-color: var(--bg-card);
   color: var(--text-primary);
   border-bottom-color: var(--bg-card);
   font-weight: 500;
 }
 
-.file-tab:hover:not(.active) {
+.codelapse-replay .file-tab:hover:not(.active) {
   background-color: var(--bg-card-hover);
   color: var(--text-primary);
 }
 
 /* Code Viewer & Editor */
-.code-viewer-container {
+.codelapse-replay .code-viewer-container {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -494,7 +521,7 @@ body {
   flex-direction: column;
 }
 
-.code-editor-header {
+.codelapse-replay .code-editor-header {
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   padding: 6px 12px;
@@ -504,18 +531,18 @@ body {
   font-size: 11px;
 }
 
-.editor-file-path {
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+.codelapse-replay .editor-file-path {
+  font-family: var(--font-code);
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.editor-snapshot-meta {
+.codelapse-replay .editor-snapshot-meta {
   color: var(--text-muted);
 }
 
-.code-editor-body {
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, 'Ubuntu Mono', monospace;
+.codelapse-replay .code-editor-body {
+  font-family: var(--font-code);
   font-size: 12px;
   line-height: 1.6;
   max-height: 380px;
@@ -525,17 +552,17 @@ body {
   position: relative;
 }
 
-.code-line {
+.codelapse-replay .code-line {
   display: flex;
   padding: 0 8px;
   min-height: 20px;
 }
 
-.code-line.active-line {
+.codelapse-replay .code-line.active-line {
   background-color: rgba(255, 255, 255, 0.04);
 }
 
-.line-number {
+.codelapse-replay .line-number {
   width: 40px;
   text-align: right;
   padding-right: 14px;
@@ -545,14 +572,14 @@ body {
   flex-shrink: 0;
 }
 
-.line-content {
+.codelapse-replay .line-content {
   flex: 1;
   white-space: pre-wrap;
   word-break: break-all;
 }
 
 /* Blinking Cursor & Selection */
-.editor-cursor {
+.codelapse-replay .editor-cursor {
   display: inline-block;
   width: 2px;
   height: 14px;
@@ -568,30 +595,29 @@ body {
 }
 
 /* Like a real editor, the caret stays solid while text is being typed */
-.code-editor-body.is-typing .editor-cursor {
+.codelapse-replay .code-editor-body.is-typing .editor-cursor {
   animation: none;
 }
 
-.typing-indicator {
+.codelapse-replay .typing-indicator {
   color: var(--success-color);
   margin-right: 8px;
   animation: pulse 1.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .editor-cursor,
-  .typing-indicator {
+  .codelapse-replay .editor-cursor, .codelapse-replay .typing-indicator {
     animation: none;
   }
 }
 
-.editor-selection {
+.codelapse-replay .editor-selection {
   background-color: var(--vscode-editor-selectionBackground, rgba(38, 79, 120, 0.7));
   border-radius: 2px;
   padding: 1px 0;
 }
 
-.empty-player-state {
+.codelapse-replay .empty-player-state {
   padding: 32px;
   text-align: center;
   color: var(--text-muted);
@@ -599,7 +625,7 @@ body {
 }
 
 /* Timelapse Controls & Scrubber */
-.timelapse-controls {
+.codelapse-replay .timelapse-controls {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -609,23 +635,22 @@ body {
   padding: 8px 12px;
 }
 
-.playback-button-group {
+.codelapse-replay .playback-button-group {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.btn-icon {
+.codelapse-replay .btn-icon {
   padding: 4px 8px;
   font-size: 12px;
 }
 
-.btn-play {
-  min-width: 85px;
-  justify-content: center;
+.codelapse-replay .btn-play {
+  min-width: 72px;
 }
 
-.slider-track-container {
+.codelapse-replay .slider-track-container {
   flex: 1;
   min-width: 120px;
   position: relative;
@@ -633,17 +658,17 @@ body {
   align-items: center;
 }
 
-.timelapse-slider {
+.codelapse-replay .timelapse-slider {
   width: 100%;
   height: 6px;
   -webkit-appearance: none;
-  background-color: var(--bg-card);
+  background-color: var(--vscode-scrollbarSlider-background, var(--border-color));
   border-radius: 3px;
   outline: none;
   cursor: pointer;
 }
 
-.timelapse-slider::-webkit-slider-thumb {
+.codelapse-replay .timelapse-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px;
   height: 14px;
@@ -651,10 +676,9 @@ body {
   background-color: var(--vscode-button-foreground, #fff);
   border: 2px solid var(--accent-color);
   cursor: pointer;
-  box-shadow: 0 0 4px rgba(0, 0, 0, 0.4);
 }
 
-.timeline-run-badge {
+.codelapse-replay .timeline-run-badge {
   position: absolute;
   top: -7px;
   transform: translateX(-50%);
@@ -673,24 +697,24 @@ body {
   z-index: 10;
 }
 
-.timeline-run-badge:hover {
+.codelapse-replay .timeline-run-badge:hover {
   transform: translateX(-50%) scale(1.3);
 }
 
-.timeline-run-badge.pass {
+.codelapse-replay .timeline-run-badge.pass {
   background-color: var(--success-color);
 }
 
-.timeline-run-badge.fail {
+.codelapse-replay .timeline-run-badge.fail {
   background-color: var(--error-color);
 }
 
-.timeline-run-badge.unknown {
+.codelapse-replay .timeline-run-badge.unknown {
   background-color: var(--text-muted);
 }
 
-.time-display {
-  font-family: 'SF Mono', Monaco, monospace;
+.codelapse-replay .time-display {
+  font-family: var(--font-code);
   font-size: 11px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -699,15 +723,15 @@ body {
 /* Narrow panels: give the scrubber its own full-width row instead of letting
    the buttons and time display squeeze it to nothing. */
 @media (max-width: 560px) {
-  .timelapse-controls {
+  .codelapse-replay .timelapse-controls {
     flex-wrap: wrap;
   }
 
-  .time-display {
+  .codelapse-replay .time-display {
     margin-left: auto;
   }
 
-  .slider-track-container {
+  .codelapse-replay .slider-track-container {
     order: 3;
     flex-basis: 100%;
     min-height: 28px;
@@ -715,7 +739,7 @@ body {
 }
 
 /* Run Details Banner */
-.run-details-banner {
+.codelapse-replay .run-details-banner {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -725,22 +749,22 @@ body {
   gap: 6px;
 }
 
-.run-details-header {
+.codelapse-replay .run-details-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.run-status-tag {
+.codelapse-replay .run-status-tag {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
 }
 
-.run-command-text {
+.codelapse-replay .run-command-text {
   font-size: 12px;
-  font-family: monospace;
+  font-family: var(--font-code);
   color: var(--text-muted);
   flex: 1;
   margin: 0 10px;
@@ -749,7 +773,7 @@ body {
   white-space: nowrap;
 }
 
-.btn-close-banner {
+.codelapse-replay .btn-close-banner {
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -757,11 +781,11 @@ body {
   font-size: 12px;
 }
 
-.btn-close-banner:hover {
+.codelapse-replay .btn-close-banner:hover {
   color: var(--text-primary);
 }
 
-.run-output-box {
+.codelapse-replay .run-output-box {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 4px;
@@ -775,143 +799,144 @@ body {
 }
 
 /* Prism Syntax Highlighting Overrides */
-.token.comment, .token.prolog, .token.doctype, .token.cdata { color: #6a9955; }
-.token.punctuation { color: #d4d4d4; }
-.token.property, .token.tag, .token.boolean, .token.number, .token.constant, .token.symbol { color: #b5cea8; }
-.token.selector, .token.attr-name, .token.string, .token.char, .token.builtin { color: #ce9178; }
+.codelapse-replay .token.comment, .codelapse-replay .token.prolog, .codelapse-replay .token.doctype, .codelapse-replay .token.cdata { color: #6a9955; }
+.codelapse-replay .token.punctuation { color: #d4d4d4; }
+.codelapse-replay .token.property, .codelapse-replay .token.tag, .codelapse-replay .token.boolean, .codelapse-replay .token.number, .codelapse-replay .token.constant, .codelapse-replay .token.symbol { color: #b5cea8; }
+.codelapse-replay .token.selector, .codelapse-replay .token.attr-name, .codelapse-replay .token.string, .codelapse-replay .token.char, .codelapse-replay .token.builtin { color: #ce9178; }
 /* ---------------- File navigation graph ---------------- */
-.code-line.typed-highlight {
+.codelapse-replay .code-line.typed-highlight {
   background-color: var(--diff-add-bg);
   box-shadow: inset 3px 0 0 var(--success-color);
 }
 
-.flow-canvas {
-  overflow-x: auto;
-}
-
-.flow-canvas svg {
-  display: block;
-  width: 100%;
-  min-width: 520px;
-  height: auto;
-}
-
-.flow-group-box {
-  fill: none;
-  stroke: var(--border-color);
-  stroke-dasharray: 4 4;
-}
-
-.flow-group-label {
-  fill: var(--text-muted);
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
-  font-size: 11px;
-}
-
-.flow-node {
-  cursor: pointer;
-  transition: opacity 0.3s;
-}
-
-.flow-node rect {
-  stroke: var(--border-color);
-  stroke-width: 1;
-  transition: stroke 0.2s, stroke-width 0.2s;
-}
-
-.flow-node.g0 rect { fill: rgba(14, 99, 156, 0.22); }
-.flow-node.g1 rect { fill: rgba(78, 201, 176, 0.16); }
-.flow-node.g2 rect { fill: rgba(204, 167, 0, 0.16); }
-
-.flow-node text {
-  fill: var(--text-primary);
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+/* File journey: one row per file, time left to right */
+.codelapse-replay .journey-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
   font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+.codelapse-replay .journey-summary b { color: var(--text-primary); font-weight: 600; }
+.codelapse-replay .journey-card code, .codelapse-replay .journey-detail code { font-family: var(--font-code); font-size: 0.95em; }
+
+.codelapse-replay .journey-grid {
+  display: grid;
+  grid-template-columns: minmax(110px, max-content) 1fr;
+  column-gap: 12px;
+}
+.codelapse-replay .journey-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: var(--font-code);
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.codelapse-replay .journey-label.current { color: var(--text-primary); font-weight: 600; }
+.codelapse-replay .journey-name { overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+.codelapse-replay .journey-share { font-family: var(--font-ui); font-size: 11px; opacity: 0.8; }
+
+.codelapse-replay .journey-track { position: relative; }
+.codelapse-replay .journey-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.codelapse-replay .journey-row:first-child { border-top: 1px solid var(--border-color); }
+
+.codelapse-replay .journey-visit {
+  position: absolute;
+  padding: 0;
+  border-radius: 3px;
+  border: 1.5px solid var(--accent-color);
+  background: var(--accent-color);
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.codelapse-replay .journey-visit.read-only { background: transparent; border-style: dashed; border-color: var(--text-muted); }
+.codelapse-replay .journey-visit.later { opacity: 0.3; }
+.codelapse-replay .journey-visit:hover { filter: brightness(1.2); }
+.codelapse-replay .journey-visit.current { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--accent-hover); }
+.codelapse-replay .journey-visit.selected { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 3.5px var(--warning-color); }
+.codelapse-replay .journey-visit:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
+
+.codelapse-replay .journey-switch {
+  position: absolute;
+  width: 0;
+  border-left: 1px solid var(--text-muted);
+  opacity: 0.55;
+  pointer-events: none;
+}
+.codelapse-replay .journey-switch.later { opacity: 0.15; }
+
+.codelapse-replay .journey-playhead {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 0;
+  border-left: 2px solid var(--text-primary);
+  opacity: 0.7;
   pointer-events: none;
 }
 
-.flow-node.unseen { opacity: 0.35; }
-.flow-node:hover rect { stroke: var(--text-muted); }
-.flow-node.selected rect { stroke: var(--warning-color); stroke-width: 2; }
-.flow-node.current rect { stroke: var(--accent-hover); stroke-width: 2.5; }
-
-.flow-edge {
-  fill: none;
-  stroke: var(--text-muted);
-  opacity: 0.22;
-  transition: opacity 0.3s, stroke 0.2s;
-}
-.flow-edge.done { opacity: 0.85; }
-.flow-edge.selected { stroke: var(--warning-color); opacity: 1; }
-
-.flow-arrowhead.muted { fill: var(--text-muted); opacity: 0.22; }
-.flow-arrowhead.done { fill: var(--text-muted); opacity: 0.85; }
-.flow-arrowhead.selected { fill: var(--warning-color); }
-
-.flow-edge-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 14;
-  cursor: pointer;
-  pointer-events: stroke;
-}
-
-.flow-dot { fill: var(--warning-color); }
-
-.flow-strip {
+.codelapse-replay .journey-axis {
   display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  padding: 10px 0 4px;
-}
-
-.flow-chip {
-  flex-shrink: 0;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace;
+  justify-content: space-between;
+  margin-top: 6px;
   font-size: 11px;
-  padding: 3px 8px;
-  white-space: nowrap;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }
-.flow-chip:hover { color: var(--text-primary); }
-.flow-chip.read-only { border-style: dashed; }
-.flow-chip.current { border-color: var(--accent-hover); color: var(--text-primary); background: var(--bg-card-hover); }
-.flow-chip-time { opacity: 0.7; margin-left: 4px; }
 
-.flow-panel {
-  margin-top: 10px;
+.codelapse-replay .journey-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.codelapse-replay .journey-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.codelapse-replay .journey-key { display: inline-block; width: 18px; height: 10px; border-radius: 2px; }
+.codelapse-replay .journey-key.edited { background: var(--accent-color); }
+.codelapse-replay .journey-key.read-only { border: 1.5px dashed var(--text-muted); }
+.codelapse-replay .journey-key.switch { width: 0; height: 12px; border-left: 1px solid var(--text-muted); border-radius: 0; }
+
+.codelapse-replay .journey-detail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 14px;
   padding: 10px 12px;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background: var(--bg-primary);
+  border-radius: var(--radius);
+  background: var(--bg-secondary);
   font-size: 12px;
-  line-height: 1.6;
 }
-.flow-hint { color: var(--text-muted); }
-.flow-panel-title { font-weight: 600; margin-bottom: 6px; }
-.flow-panel-meta { font-weight: 400; color: var(--text-muted); }
-.flow-occurrences { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-.flow-panel-body { color: var(--text-primary); margin-bottom: 8px; }
-.flow-panel code { font-family: 'SF Mono', Monaco, Menlo, Consolas, monospace; }
+.codelapse-replay .journey-detail-text { line-height: 1.6; }
+.codelapse-replay .journey-detail-actions { display: flex; gap: 6px; }
 
 /* ---------------- Empty state ---------------- */
-.empty-recording-state {
+.codelapse-replay .empty-recording-state {
   align-items: center;
   text-align: center;
   padding: 48px 24px;
   gap: 8px;
 }
 
-.empty-recording-state h2 {
+.codelapse-replay .empty-recording-state h2 {
   margin: 0;
   font-size: 16px;
 }
 
-.empty-recording-state p {
+.codelapse-replay .empty-recording-state p {
   margin: 0;
   color: var(--text-muted);
   font-size: 13px;

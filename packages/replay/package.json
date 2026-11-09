@@ -1,0 +1,16 @@
+{
+  "name": "@codelapse/replay",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The CodeLapse replay: timelapse player, metrics, activity chart and file journey, shared by the VS Code report and the instructor site.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "license": "MIT",
+  "dependencies": {
+    "@codelapse/core": "0.0.0",
+    "prismjs": "^1.30.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  }
+}

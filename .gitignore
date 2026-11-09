@@ -9,3 +9,4 @@ apps/web/data
 apps/web/next-env.d.ts
 *.tsbuildinfo
 .env*.local
+apps/web/data-archive-*

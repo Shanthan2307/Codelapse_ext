@@ -8,9 +8,21 @@ import { decodeBundle } from '@codelapse/core/node';
 import {
   COUNT_VOWELS,
   HEADER,
-  MAIN_FULL,
   MAIN_REVERSE_ONLY,
-  RENAMED_SOLUTION,
+  PASTED_SOLUTION,
+  ONLINE_SOLUTION,
+  RENAMED_PASTED_SOLUTION,
+  WEAK_HEADER,
+  WEAK_REVERSE,
+  WEAK_COUNT_VOWELS,
+  WEAK_MAIN_REVERSE_ONLY,
+  WEAK_COUNT_LINE,
+  WEAK_SOLUTION,
+  POINTER_REVERSE,
+  POINTER_COUNT_VOWELS,
+  POINTER_MAIN,
+  POINTER_SOLUTION,
+  EDITED_SOLUTION,
   REVERSE_LOOP,
   REVERSE_RECURSIVE,
   SOLUTION
@@ -208,33 +220,33 @@ describe('Scripted test recordings', () => {
 
   it('pasted-solution', async () => {
     const w = await startScenario('pasted-solution');
-    await w.paste(0, SOLUTION);
+    await w.paste(0, ONLINE_SOLUTION);
     const results = [await w.build()];
     const analytics = await finish(
       w,
       {
         name: 'pasted-solution',
         scripted: true,
-        description: 'Inserts the whole finished solution in one edit, then builds once.',
+        description: 'Inserts a whole solution from elsewhere in one edit, then builds once. It is not the one the copied pair shares.',
         runs: ['pass'],
-        traits: { bulkInsert: true, copiedWith: 'copied-pair-a' }
+        traits: { bulkInsert: true }
       },
       results
     );
-    assert.strictEqual(analytics.bulkInsertedChars, SOLUTION.length);
+    assert.strictEqual(analytics.bulkInsertedChars, ONLINE_SOLUTION.length);
     assert.strictEqual(analytics.typedChars, 0);
   });
 
   it('copied-pair-a', async () => {
     const w = await startScenario('copied-pair-a');
-    await w.paste(0, SOLUTION);
+    await w.paste(0, PASTED_SOLUTION);
     const results = [await w.build()];
     await finish(
       w,
       {
         name: 'copied-pair-a',
         scripted: true,
-        description: 'Pastes the same solution as pasted-solution and copied-pair-b.',
+        description: 'Pastes the same solution as copied-pair-b.',
         runs: ['pass'],
         traits: { bulkInsert: true, copiedWith: 'copied-pair-b' }
       },
@@ -244,7 +256,7 @@ describe('Scripted test recordings', () => {
 
   it('copied-pair-b', async () => {
     const w = await startScenario('copied-pair-b');
-    await w.paste(0, RENAMED_SOLUTION);
+    await w.paste(0, RENAMED_PASTED_SOLUTION);
     const results = [await w.build()];
     await finish(
       w,
@@ -264,26 +276,26 @@ describe('Scripted test recordings', () => {
     const slow = { charMs: 20 };
     const results: RunResult[] = [];
     // Two mistakes: a missing semicolon and a misspelt variable.
-    const firstTry = REVERSE_LOOP.replace('strlen(s);', 'strlen(s)').replace('i < len / 2', 'i < lenght / 2');
-    await w.type(HEADER + firstTry + MAIN_REVERSE_ONLY, slow);
+    const firstTry = WEAK_REVERSE.replace('int left = 0;', 'int left = 0').replace('while (left < right)', 'while (left < rigth)');
+    await w.type(WEAK_HEADER + firstTry + WEAK_MAIN_REVERSE_ONLY, slow);
     results.push(await w.build());
-    await w.typeAt(w.offsetOf('strlen(s)') + 'strlen(s)'.length, ';', slow);
+    await w.typeAt(w.offsetOf('int left = 0') + 'int left = 0'.length, ';', slow);
     results.push(await w.build());
 
     // Gives up on the loop: deletes it and writes it again, forgetting a parenthesis.
-    const loopStart = w.offsetOf('    for (');
+    const loopStart = w.offsetOf('    while (');
     const loopEnd = w.offsetOf('    }\n', loopStart) + '    }\n'.length;
     await w.delete(loopStart, loopEnd);
-    const loop = REVERSE_LOOP.slice(REVERSE_LOOP.indexOf('    for ('), REVERSE_LOOP.indexOf('    }\n') + '    }\n'.length);
-    await w.typeAt(loopStart, loop.replace('i++)', 'i++'), slow);
+    const loop = WEAK_REVERSE.slice(WEAK_REVERSE.indexOf('    while ('), WEAK_REVERSE.indexOf('    }\n') + '    }\n'.length);
+    await w.typeAt(loopStart, loop.replace('while (left < right)', 'while (left < right'), slow);
     results.push(await w.build());
-    await w.typeAt(w.offsetOf('i++') + 'i++'.length, ')', slow);
+    await w.typeAt(w.offsetOf('left < right') + 'left < right'.length, ')', slow);
     results.push(await w.build());
 
-    await w.typeAt(w.offsetOf('int main'), COUNT_VOWELS, slow);
-    await w.typeAt(w.offsetOf('    return 0;'), '    printf("%d\\n", count_vowels("codelapse"));\n', slow);
+    await w.typeAt(w.offsetOf('int main'), WEAK_COUNT_VOWELS, slow);
+    await w.typeAt(w.offsetOf('    return 0;'), WEAK_COUNT_LINE, slow);
     results.push(await w.build());
-    assert.strictEqual(w.text, SOLUTION);
+    assert.strictEqual(w.text, WEAK_SOLUTION);
 
     const analytics = await finish(
       w,
@@ -291,7 +303,7 @@ describe('Scripted test recordings', () => {
         name: 'weak-but-honest',
         scripted: true,
         description:
-          'Types slowly with real mistakes: missing semicolon, misspelt variable, then deletes and rewrites the loop with a missing parenthesis. Three failed builds before it passes.',
+          'Types its own two-index while loop slowly with real mistakes: missing semicolon, misspelt variable, then deletes and rewrites the loop with a missing parenthesis. Three failed builds before it passes.',
         runs: ['fail', 'fail', 'fail', 'pass', 'pass'],
         traits: { repeatedFailures: true, rewroteLoop: true, bulkInsert: false }
       },
@@ -303,15 +315,15 @@ describe('Scripted test recordings', () => {
   it('abandoned-approach', async () => {
     const w = await startScenario('abandoned-approach');
     const results: RunResult[] = [];
-    await w.type(HEADER + REVERSE_RECURSIVE + COUNT_VOWELS + MAIN_FULL);
+    await w.type(WEAK_HEADER + REVERSE_RECURSIVE + POINTER_COUNT_VOWELS + POINTER_MAIN);
     results.push(await w.build());
     // Keeps the recursive version for a while before replacing it.
     await sleep(10000);
     const start = w.offsetOf('void reverse_range');
     await w.delete(start, start + REVERSE_RECURSIVE.length);
-    await w.typeAt(start, REVERSE_LOOP);
+    await w.typeAt(start, POINTER_REVERSE);
     results.push(await w.build());
-    assert.strictEqual(w.text, SOLUTION);
+    assert.strictEqual(w.text, POINTER_SOLUTION);
 
     await finish(
       w,
@@ -319,7 +331,7 @@ describe('Scripted test recordings', () => {
         name: 'abandoned-approach',
         scripted: true,
         description:
-          'Writes a working recursive reverse(), keeps it about 10 seconds, deletes it and writes the loop version.',
+          'Writes a working recursive reverse(), keeps it about 10 seconds, deletes it and writes a two-pointer loop instead.',
         runs: ['pass', 'pass'],
         traits: { abandonedApproach: 'recursive reverse_range()', keptForSeconds: '10', bulkInsert: false }
       },
@@ -329,7 +341,7 @@ describe('Scripted test recordings', () => {
 
   it('edited-after-recording', async () => {
     const w = await startScenario('edited-after-recording');
-    await w.type(SOLUTION);
+    await w.type(EDITED_SOLUTION);
     const results = [await w.build()];
     const file = path.join(w.folder.fsPath, 'reverse.c');
     await finish(
@@ -350,6 +362,6 @@ describe('Scripted test recordings', () => {
         )
     );
     const submitted = fs.readFileSync(path.join(outDir, 'edited-after-recording', 'submission', 'reverse.c'), 'utf-8');
-    assert.ok(submitted.includes('research') && submitted !== SOLUTION);
+    assert.ok(submitted.includes('research') && submitted !== EDITED_SOLUTION);
   });
 });

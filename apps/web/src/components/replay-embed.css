@@ -1,0 +1,27 @@
+/* The replay inside the instructor site, and links that open it. */
+.replay-embed {
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.replay-embed .codelapse-container {
+  max-width: none;
+  padding: 18px;
+}
+
+.replay-sessions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.watch-link {
+  white-space: nowrap;
+  font-size: 0.9em;
+}
+
+.watch-link::before {
+  content: '▶ ';
+  font-size: 0.8em;
+}
