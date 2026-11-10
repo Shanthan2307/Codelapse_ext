@@ -11,7 +11,7 @@ import { OpenDetailsOnHash } from '@/components/OpenDetailsOnHash';
 import { WatchMomentLink, replayHref } from '@/components/ReplayLink';
 import { AnswerEvaluationView, HighlightedAnswer, LevelCounts } from '@/components/AnswerReview';
 import { RatingPanel } from '@/components/RatingPanel';
-import { getFeedback } from '@/lib/research/feedback';
+import { emptyFeedback, getFeedback } from '@/lib/research/feedback';
 import type { AnswerEvaluation, EvaluationSet } from '@/lib/evaluation/types';
 import type { FileCheck, Moment } from '@/lib/types';
 
@@ -51,7 +51,9 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   const evaluation = answers ? await getEvaluation(submission.id) : null;
   const momentsById = new Map(submission.moments.map((m) => [m.id, m]));
   const closed = Date.now() > submission.questionsCloseAt;
-  const feedback = answers && questionSet?.status === 'ready' ? await getFeedback(submission.id) : null;
+  // No ratings saved yet still shows the card, empty, so the instructor can start rating.
+  const feedback =
+    answers && questionSet?.status === 'ready' ? ((await getFeedback(submission.id)) ?? emptyFeedback()) : null;
   const reviewLevels = new Map(
     (evaluation?.status === 'ready' ? evaluation.evaluations : []).map((e) => [e.questionId, e.level])
   );

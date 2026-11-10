@@ -135,6 +135,10 @@ try {
   await page('/instructor/compare', ['Student A']);
   await page(`/instructor/compare/${ids[0]}/${ids[1]}`, ['reverse.c']);
   await page(`/instructor/submissions/${ids[0]}/replay`);
+  if (answered.status === 201) {
+    // Before any rating is saved, the ratings card must already be there to rate with.
+    await page(`/instructor/submissions/${ids[0]}`, ['Your ratings']);
+  }
   const feedback = await fetch(`${base}/api/submissions/${ids[0]}/feedback`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json' },
