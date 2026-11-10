@@ -28,12 +28,15 @@ export function validateEvaluation(
   const problems: string[] = [];
   const quoteProblems: string[] = [];
   const answerText = new Map(answers.answers.map((a) => [a.questionId, a.text]));
-  const byId = new Map(output.evaluations.map((e) => [e.question_id, e]));
+  // Some models repeat a review of the same question; the first one counts, copies are dropped.
+  const byId = new Map<string, EvaluatorOutput['evaluations'][number]>();
+  for (const e of output.evaluations) {
+    if (!byId.has(e.question_id)) byId.set(e.question_id, e);
+  }
 
   const expected = questions.questions.map((q) => q.id);
   const unexpected = output.evaluations.map((e) => e.question_id).filter((id) => !expected.includes(id));
   if (unexpected.length > 0) problems.push(`Unknown question ids: ${unexpected.join(', ')}.`);
-  if (byId.size !== output.evaluations.length) problems.push('A question was reviewed more than once.');
 
   const evaluations: AnswerEvaluation[] = [];
   expected.forEach((id, i) => {
@@ -60,6 +63,10 @@ export function validateEvaluation(
       consistency: clamp(e.consistency),
       reasoning: clamp(e.reasoning)
     };
+    const total = clamp(e.specificity) + clamp(e.consistency) + clamp(e.reasoning);
+    if (e.addresses_question && total >= 7 && evidenceQuotes.length === 0) {
+      problems.push(`The review of ${id} rates it strong but quotes nothing from the answer to support that; quote the parts that show understanding, or lower the scores.`);
+    }
     evaluations.push({
       questionId: id,
       addressesQuestion: e.addresses_question,

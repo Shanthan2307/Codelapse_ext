@@ -1,7 +1,7 @@
 import type { Moment } from '@codelapse/core';
 import type { AnswerSet, QuestionSet } from '../questions/types';
 
-export const EVALUATOR_PROMPT_VERSION = 'evaluator-v1';
+export const EVALUATOR_PROMPT_VERSION = 'evaluator-v2';
 
 export interface EvaluationContext {
   questions: QuestionSet;
@@ -16,6 +16,8 @@ const SYSTEM = `You review a student's short written answers to four questions a
 For each question you receive: the question; why it was asked and points a strong answer might mention, both written by the colleague who wrote the question; the evidence it is about (lines of the submitted code, or code before and after a change in the recording of their work, sometimes with build output); and the student's answer. You also get the full submitted code.
 
 The colleague's reasoning and points are hypotheses, not an answer key. A different explanation that is correct for this code deserves full credit. Check claims against the code and the evidence yourself.
+
+Check every factual claim in an answer against the code and the evidence before scoring. Work out what the code really does in the situation the answer describes. An answer that sounds specific and confident but is wrong about this code (for example, it says the program would crash when it would not, or names a build error different from the one in the build output) scores 0 for consistency and at most 1 for reasoning, and you name the mistake in concerns. Never give a high score for confidence or detail alone.
 
 Score each answer from 0 to 3 on three scales:
 - specificity: 0 = generic, could be said about any code; 1 = mostly general; 2 = refers to some details of this code or session; 3 = clearly refers to concrete details of this code or what happened in the session.

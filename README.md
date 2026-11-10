@@ -235,19 +235,23 @@ Each instructor detail page has **Watch replay**, and every decision moment and 
 
 For the five-tester pilot, the instructor detail page has a **Your ratings** card: agree or disagree with each review, give your own level, mark useful questions and add notes. The instructor list has a **Research export** card with CSV and JSON downloads, in which names are replaced by participant codes and answer text is left out unless asked for. [docs/RESEARCH_PILOT.md](docs/RESEARCH_PILOT.md) has the session plan, what each column means and how to compare process and code questions.
 
+**Research database:** `npm run research:db` builds one SQLite file in `research/` with everything from the pilot: assignments, recordings and code, replay checks, decision moments, questions, answers, AI reviews, your ratings, and every AI request and reply. Students appear as participant codes unless you add `--names`; add `--include-archives` to include earlier runs. Open it with DB Browser for SQLite, Python or R. The tables are described in [docs/RESEARCH_PILOT.md](docs/RESEARCH_PILOT.md#the-research-database). The file holds student code and answers, so keep it private.
+
 ### Choosing the AI
 
 The question writer and the answer reviewer use the same provider, set in `apps/web/.env.local`:
 
 | Provider | Key | Default model | Change the model with |
 |---|---|---|---|
-| **Featherless** (open-source models) | `FEATHERLESS_API_KEY` | `deepseek-ai/DeepSeek-V3-0324` | `CODELAPSE_FEATHERLESS_MODEL` |
+| **Featherless** (open-source models) | `FEATHERLESS_API_KEY` | questions: `deepseek-ai/DeepSeek-V3-0324`; review: `openai/gpt-oss-120b` | `CODELAPSE_FEATHERLESS_MODEL`, `CODELAPSE_FEATHERLESS_REVIEW_MODEL` |
 | **OpenAI** | `OPENAI_API_KEY` | `gpt-5.5` | `CODELAPSE_OPENAI_MODEL` |
 | **Anthropic** (Claude) | `ANTHROPIC_API_KEY` | `claude-opus-5-5` | `CODELAPSE_QUESTION_MODEL`, `CODELAPSE_EVALUATOR_MODEL` |
 
 `CODELAPSE_AI_PROVIDER=featherless` (or `openai`, `anthropic`) picks one. Without it, the first provider with a key is used, in the order above. The site needs a restart after changing these.
 
-Every provider returns JSON in the same shape, and the site checks every reply the same way: questions must cite real moments and lines, review quotes must appear in the answer, and a malformed reply is retried. Featherless does not always enforce the requested JSON shape, so its replies are parsed and checked by the site, with one extra try. DeepSeek V3 is the default there because it followed the shape reliably in testing; other models may not.
+Every provider returns JSON in the same shape, and the site checks every reply the same way: questions must cite real moments and lines, review quotes must appear in the answer, and a malformed reply is retried. Featherless does not always enforce the requested JSON shape, so its replies are parsed and checked by the site, with one extra try. DeepSeek V3 writes the questions there because it followed the shape reliably in testing. The review uses a different model, gpt-oss-120b, so no model marks its own questions: in testing, DeepSeek V3 rated a confidently wrong answer as strong, while gpt-oss-120b caught the mistake.
+
+**Guards against made-up content.** The site rejects, and asks again for, any question that cites a moment or code lines that don't exist, mentions a function or variable that appears nowhere in the student's code or recording, or mentions a time later than the whole recording. Any review quote must appear word for word in the student's answer, and a "strong" review must quote the parts of the answer that support it. The reviewer is told to check every claim in an answer against the code, so a confident but wrong answer scores low.
 
 To add another provider, such as a model served locally with Ollama or vLLM, write classes that implement `QuestionModel` (`apps/web/src/lib/questions/model.ts`) and `EvaluatorModel` (`apps/web/src/lib/evaluation/model.ts`), and return them from `createQuestionModel()` and `createEvaluatorModel()`. Servers with an OpenAI-compatible API can reuse the Featherless code with a different address. Compare a new model with the current one on the same submissions before relying on it; the prompts and replies stored in each `questions.json` and `evaluation.json` are a starting dataset for that.
 

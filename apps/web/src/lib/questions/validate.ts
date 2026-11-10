@@ -31,12 +31,18 @@ export function validateQuestions(
   const usedMoments = new Set<string>();
   const usedRanges: string[] = [];
   const texts = new Set<string>();
+  // Everything the questions may refer to: the code and the recorded excerpts.
+  const knownText = [
+    ...context.code.map((f) => f.content),
+    ...context.record.moments.flatMap((m) => [m.before ?? '', m.after ?? '', m.summary, m.functionName ?? ''])
+  ].join('\n');
   const questions = output.questions.map((q, i): GeneratedQuestion => {
     const label = `Question ${i + 1}`;
     const text = q.question.trim();
     if (!text) problems.push(`${label} is empty.`);
     if (text.length > MAX_QUESTION_CHARS) problems.push(`${label} is too long; keep it under 60 words.`);
     if (texts.has(text.toLowerCase())) problems.push(`${label} repeats another question.`);
+    problems.push(...groundingProblems(label, text, knownText, context.record.recording.recordedMs));
     texts.add(text.toLowerCase());
     if (/\bmoment\b|\bm-\w+-s\d|-t\d{3,}/i.test(text)) {
       problems.push(`${label} mentions a moment id or "moment"; refer to what happened instead.`);
@@ -98,4 +104,32 @@ function momentExcerpts(moment: Moment): QuestionExcerpt[] {
   if (moment.before) excerpts.push({ label: `Before${where}`, code: moment.before });
   if (moment.after) excerpts.push({ label: `After${where}`, code: moment.after });
   return excerpts;
+}
+
+/**
+ * Catches questions that refer to things the student never wrote or times that
+ * never happened: code names that appear nowhere in the code or the recording,
+ * and a time later than the whole recording.
+ */
+export function groundingProblems(label: string, text: string, knownText: string, recordedMs: number): string[] {
+  const problems: string[] = [];
+  const names = new Set<string>();
+  // Names written like code: with an underscore, called as in `name(` (no space), or in backticks.
+  // Prose such as "indices (i and j)" is not a name.
+  for (const match of text.matchAll(/`([^`]+)`|\b([A-Za-z]\w*_\w*)\b|\b([A-Za-z_]\w*)\(/g)) {
+    const name = (match[1] ?? match[2] ?? match[3]).trim().replace(/\(\)$/, '');
+    if (/^[A-Za-z_]\w*$/.test(name)) names.add(name);
+  }
+  for (const name of names) {
+    if (!new RegExp(`\\b${name}\\b`).test(knownText)) {
+      problems.push(`${label} mentions "${name}", which is not in the student's code or recording; ask only about what is there.`);
+    }
+  }
+  const recordedMinutes = Math.ceil(recordedMs / 60000);
+  for (const match of text.matchAll(/(\d+)\s*(?:minutes?|mins?)\b/gi)) {
+    if (Number(match[1]) > recordedMinutes) {
+      problems.push(`${label} mentions ${match[1]} minutes, but the whole recording is about ${recordedMinutes} minute(s); check the times given.`);
+    }
+  }
+  return problems;
 }

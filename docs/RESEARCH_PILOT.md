@@ -108,6 +108,62 @@ Count rated answers by `evaluator_level` (rows) and `instructor_level` (columns)
 
 Agreement is the diagonal divided by the total. Also count `instructor_agreement`: many `too-high` ratings mean the reviewer is generous; many `too-low` ratings mean it is harsh. Read the notes on every disagreement: they are more useful than the numbers at this size.
 
+## The research database
+
+The site keeps each submission as files in `apps/web/data/submissions/<id>/`. For analysis, one command gathers all of it into a single SQLite database file:
+
+```bash
+npm run research:db
+```
+
+This writes `research/codelapse-research-<date>.sqlite` (git ignores `research/`). Open it with [DB Browser for SQLite](https://sqlitebrowser.org), Python (`sqlite3`, pandas), R (`RSQLite`) or the `sqlite3` command. Rebuild it any time; it is a snapshot and never changes the site's data.
+
+| Option | Effect |
+|---|---|
+| `--out <file>` | Write somewhere else. |
+| `--include-archives` | Also read earlier runs kept by `npm run demo:reset` (`apps/web/data-archive-*`). Each submission records which run it came from. |
+| `--names` | Include student names. Without it, students appear only as participant codes, the same ones as in the CSV export. |
+
+Example: `npm run research:db -- --include-archives --out research/pilot.sqlite`
+
+The file holds students' code and answers even without names, so keep it private and share it only as your consent terms allow.
+
+### Tables
+
+Times are ISO 8601 (UTC) unless the column ends in `_ms`. Every table except `meta`, `assignments` and `participants` is keyed by `submission_id`.
+
+| Table | One row per | Columns |
+|---|---|---|
+| `meta` | setting | `key`, `value`: `schema_version`, `created_at`, `source_runs`, `salt_source` (where the participant-code salt came from; never the salt), `includes_names`, `app_version`, `participant_ids` (how codes are made) |
+| `assignments` | assignment | `id`, `course_id`, `title`, `description`, `points`, `due_at` |
+| `participants` | student | `participant_id` (P + 8 hex digits), `name` (only with `--names`, otherwise empty) |
+| `submissions` | submission | `submission_id`, `participant_id`, `assignment_id`, `submitted_at`, `questions_close_at`, `source_run` (`current` or the archive folder), `replay_verdict` (`consistent`/`inconsistent`), `session_count`, `recorded_ms`, `typed_chars`, `bulk_inserted_chars`, `pre_existing_chars`, `runs_passed`, `runs_failed`, `runs_unknown`, `extension_version`, `bundle_sha256` |
+| `recordings` | submission | `submission_id`, `bundle`: the uploaded `.codelapse` file itself, so nothing is lost |
+| `files` | submitted file | `submission_id`, `name`, `recorded_path` (its path in the recording), `size`, `sha256`, `content` (the code) |
+| `replay_checks` | file checked | `submission_id`, `path`, `status` (`match`, `whitespace-only`, `differs`, `not-recorded`, `not-submitted`), `reason`, `typed_chars`, `bulk_inserted_chars`, `pre_existing_chars` |
+| `sessions` | recorded session | `submission_id`, `session_id`, `started_at`, `ended_at`, `snapshots`, `runs` |
+| `runs` | build or run | `submission_id`, `session_id`, `at_ms` (time into the session), `command`, `success` (1, 0, or empty when unknown), `duration_ms`, `output` |
+| `moments` | decision moment | `submission_id`, `moment_id`, `kind`, `session_id`, `at_ms`, `file`, `function_name`, `summary`, `before`, `after` (code excerpts), `score` |
+| `question_sets` | submission with questions | `submission_id`, `status` (`pending`/`ready`/`failed`), `error`, `provider`, `model`, `prompt_version`, `started_at`, `finished_at`, `notes_for_instructor` |
+| `questions` | question | `submission_id`, `question_id`, `position` (1–4), `type` (`process`/`code`), `concept`, `text`, `moment_id` (process questions), `code_file`, `code_start`, `code_end` (code questions), `rationale` and `strong_answer_points` (JSON list) from the question writer, `generator_provider`, `generator_model`, `prompt_version` |
+| `answers` | answer | `submission_id`, `question_id`, `text`, `chars`, `words`, `submitted_at` |
+| `review_summaries` | reviewed submission | `submission_id`, `status`, `summary`, `notes`, `error`, `strong`, `partial`, `limited` (answer counts) |
+| `reviews` | reviewed answer | `submission_id`, `question_id`, `addresses_question` (1/0), `specificity`, `consistency`, `reasoning` (0–3 each), `total` (0–9), `level` (`strong`/`partial`/`limited`), `evidence_quotes` and `concerns` (JSON lists), `explanation`, `reviewer_provider`, `reviewer_model`, `prompt_version` |
+| `instructor_ratings` | rated question | `submission_id`, `question_id`, `agreement` (`agree`/`too-high`/`too-low`), `own_level`, `answer_note`, `question_useful` (1, 0 or empty), `question_note` |
+| `instructor_overall` | rated submission | `submission_id`, `note`, `follow_up` (1/0), `updated_at` |
+| `ai_calls` | AI request | `submission_id`, `role` (`questions`/`review`), `attempt`, `at`, `provider`, `model`, `system_prompt`, `user_prompt`, `output` (JSON reply), `validation_errors` (JSON list), `input_tokens`, `output_tokens`: the dataset for comparing or fine-tuning models |
+| `injection_signals` | flagged line | `submission_id`, `source` (`code`/`answers`), `file`, `line`, `text`: text that addressed an AI or grader |
+
+### Views
+
+| View | Shows |
+|---|---|
+| `v_answer_reviews` | Each question with its answer, the review's scores and level, and your rating, side by side. |
+| `v_process_vs_code` | For process and code questions: reviewed answers, average total score, strong/partial/limited counts, and how many you marked useful (Table 1 above). |
+| `v_reviewer_agreement` | Review level against your own level and agreement, with counts (Table 2 above). |
+
+For example, `SELECT * FROM v_process_vs_code;` answers the first research question directly.
+
 ## Data handling
 
 - **Where data lives:** everything is in `apps/web/data` on the machine running the site (or `CODELAPSE_DATA_DIR`): the uploaded code, recordings, questions, answers, reviews and your ratings. Git ignores this folder.
