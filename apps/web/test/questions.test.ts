@@ -6,6 +6,7 @@ import { processSubmission } from '../src/lib/processSubmission';
 import { findAssignment } from '../src/lib/course';
 import { generateQuestions } from '../src/lib/questions/generate';
 import { buildPrompt, planQuestions, sessionTime } from '../src/lib/questions/prompt';
+import { groundingProblems } from '../src/lib/questions/validate';
 import { detectInjectionSignals } from '../src/lib/questions/injection';
 import { AnswerError, acceptAnswers, studentView } from '../src/lib/questions/answers';
 import { ClaudeQuestionModel, QuestionModel, QuestionModelError } from '../src/lib/questions/model';
@@ -144,6 +145,16 @@ describe('The generator prompt', () => {
     const context = contextFor('honest-incremental');
     assert.ok(context.record.moments.some((m) => m.kind === 'fix-after-failed-run'));
     assert.match(buildPrompt(context).user, /build output:\n[\s\S]*error/);
+  });
+
+  it('rejects questions about code names or times that are not in the work', () => {
+    const code = 'void reverse(char *s) {}\nint count_vowels(const char *s) { return strchr("a", *s) != 0; }';
+    assert.deepStrictEqual(groundingProblems('Q', 'Why does count_vowels call strchr()?', code, 120_000), []);
+    assert.match(groundingProblems('Q', 'Why did you write is_palindrome()?', code, 120_000).join(), /is_palindrome/);
+    assert.match(groundingProblems('Q', 'What did `swap_pair` do?', code, 120_000).join(), /swap_pair/);
+    assert.match(groundingProblems('Q', 'What happened 40 minutes into your session?', code, 62_000).join(), /40 minutes/);
+    assert.deepStrictEqual(groundingProblems('Q', 'What happened about 1 minute into your session?', code, 62_000), []);
+    assert.deepStrictEqual(groundingProblems('Q', 'Why compare the indices (i and j) like that?', code, 62_000), [], 'prose in brackets is not a call');
   });
 
   it('spells out times so a model cannot read seconds as minutes', () => {

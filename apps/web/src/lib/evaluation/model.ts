@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { describeApiError } from '../ai/claudeErrors';
 import { createOpenAIClient, openAIModelName, parseWithOpenAI } from '../ai/openai';
-import { createFeatherlessClient, featherlessModelName, parseWithFeatherless } from '../ai/featherless';
+import { createFeatherlessClient, featherlessReviewModelName, parseWithFeatherless } from '../ai/featherless';
 import type OpenAI from 'openai';
 import { EvaluatorOutput, EvaluatorOutputSchema } from './schema';
 
@@ -78,14 +78,14 @@ export class OpenAIEvaluatorModel implements EvaluatorModel {
   }
 }
 
-/** An open-source model served by Featherless (DeepSeek V3 by default). */
+/** An open-source model served by Featherless (gpt-oss-120b by default, unlike the question writer). */
 export class FeatherlessEvaluatorModel implements EvaluatorModel {
   readonly provider = 'featherless';
   readonly model: string;
   private readonly client: OpenAI;
 
   constructor(options: { model?: string; client?: OpenAI } = {}) {
-    this.model = options.model ?? featherlessModelName();
+    this.model = options.model ?? featherlessReviewModelName();
     this.client = options.client ?? createFeatherlessClient();
   }
 

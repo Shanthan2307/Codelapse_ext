@@ -165,3 +165,15 @@ describe('Answer evaluation', () => {
     assert.strictEqual(levelFor(false, 9), 'limited', 'an answer to a different question is limited evidence');
   });
 });
+
+describe('Repeated reviews', () => {
+  it('keeps the first review of a question and drops repeats', async () => {
+    const ctx = await context();
+    const repeated = review();
+    repeated.evaluations.push({ ...repeated.evaluations[3], specificity: 0, consistency: 0, reasoning: 0 });
+    const set = await evaluateAnswers(ctx, scripted([repeated]));
+    assert.strictEqual(set.status, 'ready', set.error);
+    assert.strictEqual(set.evaluations.length, 4);
+    assert.strictEqual(set.evaluations[3].scores.specificity, 3, 'the first review counts');
+  });
+});

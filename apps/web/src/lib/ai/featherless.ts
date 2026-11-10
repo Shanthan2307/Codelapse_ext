@@ -16,6 +16,18 @@ export function featherlessModelName(): string {
   return process.env.CODELAPSE_FEATHERLESS_MODEL || DEFAULT_FEATHERLESS_MODEL;
 }
 
+/**
+ * The answer reviewer is a different model from the question writer, so one
+ * model never marks its own questions. gpt-oss-120b was chosen after testing:
+ * it caught a confidently wrong answer that DeepSeek V3 rated as strong.
+ * CODELAPSE_FEATHERLESS_REVIEW_MODEL overrides it.
+ */
+export const DEFAULT_FEATHERLESS_REVIEW_MODEL = 'openai/gpt-oss-120b';
+
+export function featherlessReviewModelName(): string {
+  return process.env.CODELAPSE_FEATHERLESS_REVIEW_MODEL || DEFAULT_FEATHERLESS_REVIEW_MODEL;
+}
+
 export function createFeatherlessClient(): OpenAI {
   return new OpenAI({
     baseURL: FEATHERLESS_BASE_URL,

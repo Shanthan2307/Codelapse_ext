@@ -164,6 +164,14 @@ try {
 
   const stored = fs.readdirSync(path.join(dataDir, 'submissions'));
   if (stored.length !== SUBMISSIONS.length) fail(`expected ${SUBMISSIONS.length} stored submissions, found ${stored.length}`);
+  // Let every submission's questions finish before the data folder is removed.
+  for (const id of ids) {
+    for (let i = 0; i < 240; i++) {
+      const status = (await (await fetch(`${base}/api/submissions/${id}/questions`)).json()).status;
+      if (status !== 'pending') break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
   console.log('Smoke test passed.');
 } finally {
   server.kill();
