@@ -108,6 +108,24 @@ try {
   if (answered.status !== expected) fail(`answers with questions ${questions.status}: expected ${expected}, got ${answered.status}`);
   console.log(`ok  questions ${questions.status}; answers answered ${answered.status}`);
 
+  // With answers in, the review runs in the background: wait for it, so it
+  // finishes before this test removes its data folder, and check it worked.
+  if (answered.status === 201) {
+    const reviewFile = path.join(dataDir, 'submissions', ids[0], 'evaluation.json');
+    let review = null;
+    for (let i = 0; i < 240; i++) {
+      try {
+        review = JSON.parse(fs.readFileSync(reviewFile, 'utf-8'));
+      } catch {
+        review = null;
+      }
+      if (review && review.status !== 'pending') break;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!review || review.status !== 'ready') fail(`the answer review ended as ${review?.status ?? 'missing'}: ${review?.error ?? ''}`);
+    console.log(`ok  answers reviewed (${review.model}): ${review.evaluations.map((e) => e.level).join(', ')}`);
+  }
+
   // With answers, the review runs next; without them, retrying a review is refused.
   const retry = await fetch(`${base}/api/submissions/${ids[1]}/evaluation`, { method: 'POST' });
   if (retry.status !== 409) fail(`reviewing a submission with no answers should be refused, got ${retry.status}`);

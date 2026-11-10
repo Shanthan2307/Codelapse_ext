@@ -1,6 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { describeApiError } from '../ai/claudeErrors';
+import { createOpenAIClient, openAIModelName, parseWithOpenAI } from '../ai/openai';
+import { createFeatherlessClient, featherlessModelName, parseWithFeatherless } from '../ai/featherless';
+import type OpenAI from 'openai';
 import { EvaluatorOutput, EvaluatorOutputSchema } from './schema';
 
 /** The model that reviews answers. Another provider only needs another implementation. */
@@ -56,5 +59,37 @@ export class ClaudeEvaluatorModel implements EvaluatorModel {
       output: response.parsed_output,
       usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens }
     };
+  }
+}
+
+/** An OpenAI model (GPT) as the answer reviewer, with structured output. */
+export class OpenAIEvaluatorModel implements EvaluatorModel {
+  readonly provider = 'openai';
+  readonly model: string;
+  private readonly client: OpenAI;
+
+  constructor(options: { model?: string; client?: OpenAI } = {}) {
+    this.model = options.model ?? openAIModelName();
+    this.client = options.client ?? createOpenAIClient();
+  }
+
+  evaluate(prompt: { system: string; user: string }) {
+    return parseWithOpenAI(this.client, this.model, EvaluatorOutputSchema, 'answer_review', prompt, (message) => new EvaluatorModelError(message));
+  }
+}
+
+/** An open-source model served by Featherless (DeepSeek V3 by default). */
+export class FeatherlessEvaluatorModel implements EvaluatorModel {
+  readonly provider = 'featherless';
+  readonly model: string;
+  private readonly client: OpenAI;
+
+  constructor(options: { model?: string; client?: OpenAI } = {}) {
+    this.model = options.model ?? featherlessModelName();
+    this.client = options.client ?? createFeatherlessClient();
+  }
+
+  evaluate(prompt: { system: string; user: string }) {
+    return parseWithFeatherless(this.client, this.model, EvaluatorOutputSchema, 'answer_review', prompt, (message) => new EvaluatorModelError(message));
   }
 }

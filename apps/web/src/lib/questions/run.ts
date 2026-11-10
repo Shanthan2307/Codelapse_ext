@@ -1,13 +1,16 @@
 import { findAssignment } from '../course';
 import { getQuestionSet, getSubmission, readAllSubmittedCode, saveQuestionSet } from '../store';
 import { generateQuestions } from './generate';
-import { ClaudeQuestionModel, QuestionModel } from './model';
+import { ClaudeQuestionModel, FeatherlessQuestionModel, OpenAIQuestionModel, QuestionModel } from './model';
+import { aiProvider } from '../ai/provider';
 import { PROMPT_VERSION } from './prompt';
 import type { QuestionSet } from './types';
 
-/** The model used for new questions. Replace this to use another provider. */
+/** The model used for new questions: Featherless, OpenAI or Claude, see aiProvider(). */
 export function createQuestionModel(): QuestionModel {
-  return new ClaudeQuestionModel();
+  const provider = aiProvider();
+  if (provider === 'featherless') return new FeatherlessQuestionModel();
+  return provider === 'openai' ? new OpenAIQuestionModel() : new ClaudeQuestionModel();
 }
 
 /** Marks a submission's questions as being prepared, so its page can say so straight away. */

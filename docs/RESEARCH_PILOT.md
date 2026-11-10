@@ -19,7 +19,7 @@ Five students is a small number. Treat the results as a check that the method wo
 
 ## Before the session
 
-- **Consent.** Record each student's consent outside CodeLapse (a signed form or an email). The site has no consent step. Students have already agreed to their code being sent to Claude; repeat that in the consent text.
+- **Consent.** Record each student's consent outside CodeLapse (a signed form or an email). The site has no consent step. Students agreed to their code being sent to Claude (Anthropic). The site now uses Featherless by default, a different company, so ask them to agree to that provider too, and name it in the consent text.
 - **Tell students what is collected:** typing in the chosen folder, builds run as Tasks or in the terminal, switches between files, the uploaded code, the recording and their four answers. Not collected: other folders, absolute file paths, anything outside VS Code.
 - **Set up** as in [RUNNING_THE_DEMO.md](RUNNING_THE_DEMO.md): build the `.vsix`, check that `apps/web/.env.local` holds an API key with credit, and edit the five names in `apps/web/src/lib/course.ts`.
 - **Start from empty data.** Run `npm run demo:reset` (it moves old submissions into an archive folder, it never deletes them), then `npm run demo`.
@@ -113,8 +113,8 @@ Agreement is the diagonal divided by the total. Also count `instructor_agreement
 - **Where data lives:** everything is in `apps/web/data` on the machine running the site (or `CODELAPSE_DATA_DIR`): the uploaded code, recordings, questions, answers, reviews and your ratings. Git ignores this folder.
 - **Pseudonymisation:** exports use participant codes made from a salted hash of each student id. The salt is `CODELAPSE_RESEARCH_SALT` if set, otherwise a random value saved in `research-salt.txt` in the data folder on the first export. Anyone with that salt and the class list can recompute the codes, so keep the file private and don't share it with the exports. Exports never contain names, student ids or code; answer text only when asked for.
 - **Deleting:** `npm run demo:reset` moves the data into `apps/web/data-archive-<date-time>`. Delete that folder yourself when the data is no longer needed under your consent terms.
-- **Data sent to Anthropic:** to write questions and review answers, the site sends each student's code, the decision moments from their recording (short code excerpts and build output) and their answers to the Anthropic API. Names are not sent.
-- **No sign-in:** anyone who can reach the site can open the instructor pages and the export. Run it only on a trusted network, and stop it after the session.
+- **Data sent to the AI provider:** to write questions and review answers, the site sends each student's code, the decision moments from their recording (short code excerpts and build output) and their answers to the configured provider (Featherless by default; see **Choosing the AI** in the README). Names are not sent. Mention the provider in your consent form.
+- **Instructor password:** the instructor pages and the export are behind the instructor password that `npm run demo` prints. Students have no sign-in, so run the site only on a trusted network, and stop it after the session.
 
 ## Known limitations
 
