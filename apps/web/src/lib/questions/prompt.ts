@@ -48,15 +48,17 @@ function numbered(content: string): string {
     .join('\n');
 }
 
-function mmss(ms: number): string {
+/** "1 min 05 s": spelled out, because some models read "1:05" as hours and minutes. */
+export function sessionTime(ms: number): string {
   const seconds = Math.max(0, Math.round(ms / 1000));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  const minutes = Math.floor(seconds / 60);
+  return minutes > 0 ? `${minutes} min ${String(seconds % 60).padStart(2, '0')} s` : `${seconds} s`;
 }
 
 function describeMoment(m: Moment): string {
   const lines = [
     `<moment id="${m.id}" kind="${m.kind}">`,
-    `when: ${mmss(m.at)} into session ${m.sessionIndex + 1}`,
+    `when: ${sessionTime(m.at)} into session ${m.sessionIndex + 1}`,
     m.filePath ? `file: ${m.filePath}${m.functionName ? `, function ${m.functionName}` : ''}` : '',
     `summary: ${m.summary}`
   ];

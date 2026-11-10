@@ -5,7 +5,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 import { processSubmission } from '../src/lib/processSubmission';
 import { findAssignment } from '../src/lib/course';
 import { generateQuestions } from '../src/lib/questions/generate';
-import { buildPrompt, planQuestions } from '../src/lib/questions/prompt';
+import { buildPrompt, planQuestions, sessionTime } from '../src/lib/questions/prompt';
 import { detectInjectionSignals } from '../src/lib/questions/injection';
 import { AnswerError, acceptAnswers, studentView } from '../src/lib/questions/answers';
 import { ClaudeQuestionModel, QuestionModel, QuestionModelError } from '../src/lib/questions/model';
@@ -144,6 +144,13 @@ describe('The generator prompt', () => {
     const context = contextFor('honest-incremental');
     assert.ok(context.record.moments.some((m) => m.kind === 'fix-after-failed-run'));
     assert.match(buildPrompt(context).user, /build output:\n[\s\S]*error/);
+  });
+
+  it('spells out times so a model cannot read seconds as minutes', () => {
+    assert.strictEqual(sessionTime(40_000), '40 s');
+    assert.strictEqual(sessionTime(65_000), '1 min 05 s');
+    assert.match(buildPrompt(contextFor('honest-incremental')).user, /when: (\d+ min \d{2} s|\d+ s) into session 1/);
+    assert.doesNotMatch(buildPrompt(contextFor('honest-incremental')).user, /when: \d+:\d{2}/);
   });
 
   it('notices text in the code that addresses an AI or grader', () => {
