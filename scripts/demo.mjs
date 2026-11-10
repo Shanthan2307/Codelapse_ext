@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Starts the submission website for a test session: builds it, checks for the
-// Anthropic API key, makes sure the instructor pages have a password, prints
+// Starts the submission website for a test session: builds it, checks for an
+// AI key (Featherless, OpenAI or Anthropic), makes sure the instructor pages have a password, prints
 // the addresses to give testers, then serves it to the local network on port 3100.
 //
 //   npm run demo               build, then start
@@ -60,10 +60,13 @@ if (!process.argv.includes('--no-build') || !fs.existsSync(path.join(webDir, '.n
 
 // 2. Check the key, without printing it, and make sure the instructor pages are locked.
 const password = instructorPassword();
-if (!setting('ANTHROPIC_API_KEY')) {
+const AI_KEYS = { featherless: 'FEATHERLESS_API_KEY', openai: 'OPENAI_API_KEY', anthropic: 'ANTHROPIC_API_KEY' };
+const chosenProvider = setting('CODELAPSE_AI_PROVIDER')?.toLowerCase();
+const provider = AI_KEYS[chosenProvider] ? chosenProvider : Object.keys(AI_KEYS).find((p) => setting(AI_KEYS[p])) ?? 'anthropic';
+if (!setting(AI_KEYS[provider])) {
   console.warn(
-    'Warning: no ANTHROPIC_API_KEY found (in the environment or apps/web/.env.local).\n' +
-      'Uploads will work, but questions will show as failed until a key with credit is set.\n'
+    `Warning: no ${AI_KEYS[provider]} found (in the environment or apps/web/.env.local).\n` +
+      'Uploads will work, but questions will show as failed until a working AI key is set.\n'
   );
 }
 
@@ -81,6 +84,7 @@ if (addresses.length === 0) {
   console.log('Instructor view (on this computer use localhost):');
   for (const address of addresses) console.log(`  http://${address}:${port}/instructor`);
 }
+console.log(`AI provider: ${provider}`);
 console.log(`Instructor password: ${password}   (any user name; saved in apps/web/.env.local)`);
 console.log(`Submissions are saved in: ${dataDir}`);
 console.log('Students pick their name from a list, so run this only on a network you trust. Stop with Ctrl+C.\n');

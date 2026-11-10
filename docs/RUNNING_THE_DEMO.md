@@ -20,20 +20,20 @@ npm run package
 
 This writes `codelapse-0.1.0.vsix` to the repository root. The same file is attached to the [pilot release on GitHub](https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot), so testers can download it there. If you change the extension, rebuild it and attach the new file to a new release.
 
-### Set the Anthropic API key
+### Set the AI key
 
-The website uses Claude to write the questions and review the answers. Put the key in `apps/web/.env.local` (git ignores this file):
+The website uses an AI model to write the questions and review the answers. By default it uses open-source models through Featherless; put the key in `apps/web/.env.local` (git ignores this file):
 
 ```bash
-echo 'ANTHROPIC_API_KEY=sk-ant-...' > apps/web/.env.local
+echo 'FEATHERLESS_API_KEY=rc_...' >> apps/web/.env.local
 chmod 600 apps/web/.env.local
 ```
 
-The account needs credit. Without a working key, uploads still succeed, but each submission's questions show as failed; you can click **Try again** on the instructor page once the key works.
+OpenAI and Claude also work: see **Choosing the AI** in the README. Without a working key, uploads still succeed, but each submission's questions show as failed; you can click **Try again** on the instructor page once the key works.
 
 ### Check the key works
 
-Before the session, upload one scripted recording yourself (see **Try it yourself first** below) and confirm the questions appear within a minute. If the instructor page says the account has no credit, add credits in the Anthropic Console, then click **Try again**.
+Before the session, upload one scripted recording yourself (see **Try it yourself first** below) and confirm the questions appear within a minute. If the instructor page says the account has no credit or the concurrency limit was reached, fix that in the provider's dashboard (or wait a minute), then click **Try again**.
 
 ### Set up the course
 

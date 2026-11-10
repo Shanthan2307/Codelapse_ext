@@ -1,13 +1,16 @@
 import { findAssignment } from '../course';
 import { getAnswers, getEvaluation, getQuestionSet, getSubmission, readAllSubmittedCode, saveEvaluation } from '../store';
 import { evaluateAnswers } from './evaluate';
-import { ClaudeEvaluatorModel, EvaluatorModel } from './model';
+import { ClaudeEvaluatorModel, EvaluatorModel, FeatherlessEvaluatorModel, OpenAIEvaluatorModel } from './model';
+import { aiProvider } from '../ai/provider';
 import { EVALUATOR_PROMPT_VERSION } from './prompt';
 import type { EvaluationSet } from './types';
 
-/** The model used to review answers. Replace this to use another provider. */
+/** The model used to review answers: Featherless, OpenAI or Claude, see aiProvider(). */
 export function createEvaluatorModel(): EvaluatorModel {
-  return new ClaudeEvaluatorModel();
+  const provider = aiProvider();
+  if (provider === 'featherless') return new FeatherlessEvaluatorModel();
+  return provider === 'openai' ? new OpenAIEvaluatorModel() : new ClaudeEvaluatorModel();
 }
 
 function emptySet(status: EvaluationSet['status'], extra: Partial<EvaluationSet> = {}): EvaluationSet {

@@ -2,6 +2,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { GeneratorOutput, GeneratorOutputSchema } from './schema';
 import { describeApiError } from '../ai/claudeErrors';
+import { createOpenAIClient, openAIModelName, parseWithOpenAI } from '../ai/openai';
+import { createFeatherlessClient, featherlessModelName, parseWithFeatherless } from '../ai/featherless';
+import type OpenAI from 'openai';
 
 /**
  * The model that writes questions. Everything else in this folder is
@@ -67,5 +70,37 @@ export class ClaudeQuestionModel implements QuestionModel {
       output: response.parsed_output,
       usage: { inputTokens: response.usage.input_tokens, outputTokens: response.usage.output_tokens }
     };
+  }
+}
+
+/** An OpenAI model (GPT) as the question writer, with structured output. */
+export class OpenAIQuestionModel implements QuestionModel {
+  readonly provider = 'openai';
+  readonly model: string;
+  private readonly client: OpenAI;
+
+  constructor(options: { model?: string; client?: OpenAI } = {}) {
+    this.model = options.model ?? openAIModelName();
+    this.client = options.client ?? createOpenAIClient();
+  }
+
+  generate(prompt: { system: string; user: string }) {
+    return parseWithOpenAI(this.client, this.model, GeneratorOutputSchema, 'feedback_questions', prompt, (message) => new QuestionModelError(message));
+  }
+}
+
+/** An open-source model served by Featherless (DeepSeek V3 by default). */
+export class FeatherlessQuestionModel implements QuestionModel {
+  readonly provider = 'featherless';
+  readonly model: string;
+  private readonly client: OpenAI;
+
+  constructor(options: { model?: string; client?: OpenAI } = {}) {
+    this.model = options.model ?? featherlessModelName();
+    this.client = options.client ?? createFeatherlessClient();
+  }
+
+  generate(prompt: { system: string; user: string }) {
+    return parseWithFeatherless(this.client, this.model, GeneratorOutputSchema, 'feedback_questions', prompt, (message) => new QuestionModelError(message));
   }
 }
