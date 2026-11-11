@@ -1,0 +1,15 @@
+{
+  "name": "python-honest",
+  "scripted": true,
+  "description": "Python: types reverse() with a loop counting down, forgets the colon on the for line (SyntaxError), fixes it, then adds count_vowels().",
+  "runs": [
+    "fail",
+    "pass",
+    "pass"
+  ],
+  "traits": {
+    "language": "python",
+    "fixAfterFailedBuild": true,
+    "bulkInsert": false
+  }
+}

@@ -23,6 +23,11 @@ import {
   POINTER_MAIN,
   POINTER_SOLUTION,
   EDITED_SOLUTION,
+  PY_REVERSE,
+  PY_COUNT_VOWELS,
+  PY_MAIN_REVERSE_ONLY,
+  PY_COUNT_LINE,
+  PY_SOLUTION,
   REVERSE_LOOP,
   REVERSE_RECURSIVE,
   SOLUTION
@@ -61,7 +66,9 @@ interface TypeOptions {
 class Writer {
   constructor(
     private readonly editor: vscode.TextEditor,
-    readonly folder: vscode.Uri
+    readonly folder: vscode.Uri,
+    readonly fileName: string = 'reverse.c',
+    private readonly runCommand: string = BUILD_COMMAND
   ) {}
 
   get text(): string {
@@ -109,7 +116,7 @@ class Writer {
     await sleep(LINE_PAUSE_MS);
   }
 
-  /** Saves, then builds and runs with gcc as a VS Code task. */
+  /** Saves, then builds and runs (gcc, or python3 for Python) as a VS Code task. */
   async build(): Promise<RunResult> {
     await this.editor.document.save();
     const task = new vscode.Task(
@@ -117,7 +124,7 @@ class Writer {
       vscode.workspace.workspaceFolders![0],
       'build',
       'codelapse-fixtures',
-      new vscode.ShellExecution(BUILD_COMMAND, { cwd: this.folder.fsPath }),
+      new vscode.ShellExecution(this.runCommand, { cwd: this.folder.fsPath }),
       []
     );
     const ended = new Promise<number | undefined>((resolve) => {
@@ -135,14 +142,14 @@ class Writer {
   }
 }
 
-async function startScenario(name: string): Promise<Writer> {
+async function startScenario(name: string, fileName = 'reverse.c', runCommand = BUILD_COMMAND): Promise<Writer> {
   await vscode.commands.executeCommand('workbench.action.closeAllEditors');
   const folder = vscode.Uri.file(path.join(workspace, name));
   await vscode.commands.executeCommand('codelapse.selectFolder', folder);
-  const doc = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(folder, 'reverse.c'));
+  const doc = await vscode.workspace.openTextDocument(vscode.Uri.joinPath(folder, fileName));
   const editor = await vscode.window.showTextDocument(doc);
   await sleep(LINE_PAUSE_MS);
-  return new Writer(editor, folder);
+  return new Writer(editor, folder, fileName, runCommand);
 }
 
 /**
@@ -160,7 +167,7 @@ async function finish(writer: Writer, expected: Expected, results: RunResult[], 
   });
   assert.ok(written, 'bundle exported');
   afterExport?.();
-  fs.copyFileSync(path.join(writer.folder.fsPath, 'reverse.c'), path.join(target, 'submission', 'reverse.c'));
+  fs.copyFileSync(path.join(writer.folder.fsPath, writer.fileName), path.join(target, 'submission', writer.fileName));
   fs.writeFileSync(path.join(target, 'expected.json'), JSON.stringify(expected, null, 2) + '\n');
 
   assert.deepStrictEqual(results, expected.runs, 'builds behaved as scripted');
@@ -363,5 +370,34 @@ describe('Scripted test recordings', () => {
     );
     const submitted = fs.readFileSync(path.join(outDir, 'edited-after-recording', 'submission', 'reverse.c'), 'utf-8');
     assert.ok(submitted.includes('research') && submitted !== EDITED_SOLUTION);
+  });
+
+  it('python-honest', async () => {
+    const w = await startScenario('python-honest', 'reverse.py', 'python3 reverse.py');
+    const results: RunResult[] = [];
+    // Forgets the colon at the end of the for line: Python stops with a SyntaxError.
+    const forLine = 'for i in range(len(text) - 1, -1, -1):';
+    await w.type(PY_REVERSE.replace(forLine, forLine.slice(0, -1)) + PY_MAIN_REVERSE_ONLY);
+    results.push(await w.build());
+    await w.typeAt(w.offsetOf(forLine.slice(0, -1)) + forLine.length - 1, ':');
+    results.push(await w.build());
+    await w.typeAt(w.offsetOf('if __name__'), PY_COUNT_VOWELS);
+    await w.typeAt(w.text.length, PY_COUNT_LINE);
+    results.push(await w.build());
+    assert.strictEqual(w.text, PY_SOLUTION);
+
+    const analytics = await finish(
+      w,
+      {
+        name: 'python-honest',
+        scripted: true,
+        description:
+          'Python: types reverse() with a loop counting down, forgets the colon on the for line (SyntaxError), fixes it, then adds count_vowels().',
+        runs: ['fail', 'pass', 'pass'],
+        traits: { language: 'python', fixAfterFailedBuild: true, bulkInsert: false }
+      },
+      results
+    );
+    assert.strictEqual(analytics.bulkInsertedChars, 0);
   });
 });

@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { DragEvent, FormEvent, useEffect, useId, useState } from 'react';
 import type { Student } from '@/lib/course';
+import { CODE_FILE_ACCEPT, CODE_FILE_HELP, isAllowedCodeFile, type Language } from '@/lib/course';
 
 /** Mirrors the server's limits, so problems show up before the upload starts. */
 const MAX_RECORDING_BYTES = 25 * 1024 * 1024;
 const MAX_CODE_FILE_BYTES = 512 * 1024;
-const CODE_FILE = /^(?:[\w.-]+\.(?:c|h)|Makefile|makefile)$/;
 const NAME_KEY = 'codelapse-student';
 
 export interface PreviousSubmission {
@@ -19,6 +19,8 @@ export interface PreviousSubmission {
 interface SubmitPanelProps {
   assignmentId: string;
   students: Student[];
+  /** The assignment's language: decides which code files are accepted. */
+  language: Language;
   expectedFiles: string[];
   /** Each student's latest submission, so a returning tester can find it again. */
   previous?: Record<string, PreviousSubmission>;
@@ -31,7 +33,8 @@ function formatSize(bytes: number): string {
 }
 
 /** Problems that stop the upload, worded for the student. */
-function blockingProblems(studentId: string, recording: File | null, code: File[]): string[] {
+function blockingProblems(studentId: string, recording: File | null, code: File[], language: Language): string[] {
+  const help = CODE_FILE_HELP[language];
   const problems: string[] = [];
   if (!studentId) problems.push('Choose your name.');
   if (!recording) {
@@ -41,10 +44,10 @@ function blockingProblems(studentId: string, recording: File | null, code: File[
   } else if (recording.size > MAX_RECORDING_BYTES) {
     problems.push('The recording is larger than 25 MB.');
   }
-  if (code.length === 0) problems.push('Add your code (.c or .h files).');
+  if (code.length === 0) problems.push(language === 'c' ? 'Add your code (.c or .h files).' : 'Add your code (.py files).');
   for (const file of code) {
-    if (!CODE_FILE.test(file.name)) {
-      problems.push(`"${file.name}" is not a C source file. Upload .c and .h files (or a Makefile).`);
+    if (!isAllowedCodeFile(language, file.name)) {
+      problems.push(`"${file.name}" is not ${help.kind}. ${help.upload}`);
     } else if (file.size > MAX_CODE_FILE_BYTES) {
       problems.push(`"${file.name}" is larger than 512 KB.`);
     }
@@ -53,7 +56,7 @@ function blockingProblems(studentId: string, recording: File | null, code: File[
 }
 
 /** The submission form: who is submitting, the .codelapse recording and the code. */
-export function SubmitPanel({ assignmentId, students, expectedFiles, previous = {} }: SubmitPanelProps) {
+export function SubmitPanel({ assignmentId, language, students, expectedFiles, previous = {} }: SubmitPanelProps) {
   const router = useRouter();
   const [studentId, setStudentId] = useState('');
   const [recording, setRecording] = useState<File | null>(null);
@@ -89,7 +92,7 @@ export function SubmitPanel({ assignmentId, students, expectedFiles, previous = 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    const found = blockingProblems(studentId, recording, code);
+    const found = blockingProblems(studentId, recording, code, language);
     setProblems(found);
     if (found.length > 0 || !recording) {
       return;
@@ -154,8 +157,8 @@ export function SubmitPanel({ assignmentId, students, expectedFiles, previous = 
 
           <DropZone
             label="Code files"
-            help={`Drop ${expectedFiles.join(', ')} here, or click to choose. You can add several .c and .h files.`}
-            accept=".c,.h"
+            help={`Drop ${expectedFiles.join(', ')} here, or click to choose. You can add several ${language === 'c' ? '.c and .h' : '.py'} files.`}
+            accept={CODE_FILE_ACCEPT[language]}
             multiple
             files={code}
             onFiles={addCode}

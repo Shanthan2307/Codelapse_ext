@@ -1,6 +1,8 @@
 # CodeLapse tester guide
 
-Thank you for testing CodeLapse. You'll write one small C program in VS Code while CodeLapse records how you work, then upload it to a demo course website and answer four short questions about it.
+Thank you for testing CodeLapse. You'll write one small program in VS Code, in **C or Python** (your instructor tells you which), while CodeLapse records how you work. Then you upload it to a demo course website and answer four short questions about it.
+
+**Read the assignment brief first.** The course website has a PDF for each language with the full assignment, worked examples, hints and a checklist: open the assignment page and click **Download the assignment brief (PDF)**.
 
 **Time needed:** about 45–60 minutes for the program, plus up to an hour for the questions.
 
@@ -25,13 +27,14 @@ The recording stays on your computer until you export it and upload it yourself.
 You need:
 
 - **VS Code 1.93 or newer.** Check with **Code → About Visual Studio Code** (Mac) or **Help → About** (Windows).
-- **A C compiler.** Open a terminal and run:
+- **For C: a C compiler.** Open a terminal and run:
 
   ```bash
   gcc --version
   ```
 
   If you see a version number, you're set (on a Mac this may say "clang"; that's fine). If not: on a Mac, run `xcode-select --install`; on Windows, ask your instructor which compiler to install.
+- **For Python: Python 3.10 or newer.** Run `python3 --version` (on Windows, `python --version`). If it's missing, install it from [python.org](https://www.python.org/downloads/).
 - **A normal terminal shell** in VS Code: bash, zsh or PowerShell (the defaults on Mac, Linux and Windows). CodeLapse can't see builds in other shells.
 
 ## 2. Install CodeLapse
@@ -60,18 +63,26 @@ To see the walkthrough again, open the Command Palette (**`Cmd+Shift+P` / `Ctrl+
 
 ## 4. Write the program
 
-Create a file called `reverse.c` in your folder and write a program that does this:
+The full assignment, with examples and hints, is in the PDF brief for your language. In short:
+
+**C:** create `reverse.c`.
 
 > Implement `void reverse(char *s)`, which reverses a string **in place** (no second string), and `int count_vowels(const char *s)`, which returns the number of vowels in a string. Your `main` function should call both and print the results. It must compile without warnings using `gcc -Wall`.
-
-Work the way you normally would. Build and run it often in the VS Code terminal (**Terminal → New Terminal**):
 
 ```bash
 gcc -Wall -o reverse reverse.c
 ./reverse
 ```
 
-Every build is recorded with whether it worked, so don't worry about errors along the way. Save your file (**`Cmd+S` / `Ctrl+S`**) when you're done.
+**Python:** create `reverse.py`.
+
+> Implement `def reverse(text: str) -> str`, which returns the string reversed **without** slicing (`[::-1]`), `reversed()` or any helper that reverses for you: use a loop. Implement `def count_vowels(text: str) -> int`, which counts vowels in either case. Under `if __name__ == "__main__":`, call both and print the results.
+
+```bash
+python3 reverse.py
+```
+
+Work the way you normally would, and run your program often in the VS Code terminal (**Terminal → New Terminal**). Every build and run is recorded with whether it worked, so don't worry about errors along the way. Save your file (**`Cmd+S` / `Ctrl+S`**) when you're done.
 
 ## 5. Export your recording
 
@@ -83,9 +94,9 @@ Every build is recorded with whether it worked, so don't worry about errors alon
 
 ## 6. Submit and answer the questions
 
-1. On the assignment page, click **Submit Assignment**.
+1. Make sure you're on the assignment for **your language**: "Assignment 3 (C)" or "Assignment 3 (Python)". The course page lists both.
 2. Pick your name from the list. (The demo has no sign-in; please pick your own name.)
-3. Add your `.codelapse` file and your `reverse.c`. You can drag them onto the page.
+3. Add your `.codelapse` file and your code file (`reverse.c` or `reverse.py`). You can drag them onto the page.
 4. Click **Submit Assignment**.
 5. Your four questions appear on the next page after a short wait. Two are about decisions you made while working, two are about your code.
 6. **You have one hour from submitting** to answer. Write a few sentences each, in your own words. A timer shows the time left, and your draft is kept if you refresh the page.
@@ -104,8 +115,8 @@ That's it. Thank you!
 | "The recording could not be read: … Export it again with "CodeLapse: Export Assignment Bundle"." | The file is damaged or isn't a CodeLapse bundle. Export it again and upload the new file. |
 | "The recording has no sessions in it." | Nothing was recorded in that folder. Check you chose the right folder in step 3. |
 | "The .codelapse file is larger than 25 MB." | Tell your instructor. |
-| "Attach your code (.c or .h files)." | Add your `reverse.c`. |
-| "… is not a C source file. Upload .c and .h files (or a Makefile)." | Upload only your `.c` and `.h` files, not the compiled program or other files. |
+| "Attach your code …" | Add your `reverse.c` or `reverse.py`. |
+| "… is not a C source file …" or "… is not a Python file …" | You may be on the other language's assignment page, or have added the wrong file. Upload only your code file (`.c`/`.h` for C, `.py` for Python), not the compiled program or other files. |
 | "… is larger than 512 KB." or "… was attached twice." | Remove the extra or wrong file and try again. |
 | "Your questions could not be prepared." | Nothing to do: your instructor has been told, and your submission was received. |
 | "The time to answer has ended." | The hour has passed. Your submission still counts; tell your instructor if something went wrong. |

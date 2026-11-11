@@ -158,6 +158,22 @@ try {
   console.log('ok  instructor pages and research data need the password');
 
   await page('/courses/cs101/assignments/a3-reverse', ['Reverse a String']);
+  await page('/courses/cs101/assignments/a3-reverse-py', ['Reverse a String', 'reverse.py', 'Python']);
+  await page('/courses/cs101', ['(C)', '(Python)']);
+  await page('/instructor?assignment=a3-reverse-py', ['Python']);
+
+  // The PDF briefs, once they have been written into public/assignments.
+  for (const file of ['assignment-3-c-reverse-a-string.pdf', 'assignment-3-python-reverse-a-string.pdf']) {
+    if (!fs.existsSync(path.join(webDir, 'public', 'assignments', file))) {
+      console.log(`--  skipped /assignments/${file}: not written yet`);
+      continue;
+    }
+    const pdf = await fetch(`${base}/assignments/${file}`);
+    if (pdf.status !== 200 || !/application\/pdf/.test(pdf.headers.get('content-type') ?? '')) {
+      fail(`/assignments/${file} answered ${pdf.status} ${pdf.headers.get('content-type')}`);
+    }
+    console.log(`ok  GET /assignments/${file}`);
+  }
   await page(`/submissions/${ids[0]}`, ['reverse.c']);
   await page('/instructor', ['Student A', 'Student E']);
   for (const id of ids) await page(`/instructor/submissions/${id}`, ['reverse.c']);
