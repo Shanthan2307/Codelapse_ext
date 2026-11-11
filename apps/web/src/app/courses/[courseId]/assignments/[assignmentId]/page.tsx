@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { PreviousSubmission, SubmitPanel } from '@/components/SubmitPanel';
 import { formatDateTime } from '@/components/format';
-import { COURSE, findAssignment } from '@/lib/course';
+import { COURSE, LANGUAGE_LABELS, findAssignment } from '@/lib/course';
 import { latestSubmissions } from '@/lib/store';
 
 export const dynamic = 'force-dynamic';
@@ -32,7 +32,19 @@ export default async function AssignmentPage({
       crumbs={[{ label: 'Assignments', href: `/courses/${COURSE.id}#assignments` }, { label: assignment.title }]}
     >
       <h1>{assignment.title}</h1>
+      <div className="brief-banner">
+        <a className="button button-primary" href={assignment.briefPdf} target="_blank" rel="noopener">
+          Download the assignment brief (PDF)
+        </a>
+        <span className="muted">The full task, with requirements, examples and hints. Read it before you start.</span>
+      </div>
       <dl className="facts">
+        <div>
+          <dt>Language</dt>
+          <dd>
+            <span className={`lang-badge lang-${assignment.language}`}>{LANGUAGE_LABELS[assignment.language]}</span>
+          </dd>
+        </div>
         <div>
           <dt>Due</dt>
           <dd>{formatDateTime(assignment.dueAt)}</dd>
@@ -51,6 +63,17 @@ export default async function AssignmentPage({
         <div>
           <h2>How to submit</h2>
           <ol className="steps">
+            <li>
+              <div>
+                <strong>Read the brief</strong>
+                <span>
+                  <a href={assignment.briefPdf} target="_blank" rel="noopener">
+                    Open the assignment brief (PDF)
+                  </a>{' '}
+                  for the full task, examples and hints.
+                </span>
+              </div>
+            </li>
             <li>
               <div>
                 <strong>Record your work in VS Code</strong>
@@ -90,6 +113,7 @@ export default async function AssignmentPage({
         <div className="submit-slot">
           <SubmitPanel
             assignmentId={assignment.id}
+            language={assignment.language}
             students={COURSE.students}
             expectedFiles={assignment.expectedFiles}
             previous={previous}

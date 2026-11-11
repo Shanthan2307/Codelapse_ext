@@ -22,7 +22,7 @@ import { participantId } from './pseudonym';
  * node:sqlite, which the website never imports.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** The few node:sqlite calls used here; typed locally because @types/node predates the module. */
 interface Statement {
@@ -66,7 +66,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 
 CREATE TABLE assignments (
-  id TEXT PRIMARY KEY, course_id TEXT, title TEXT, description TEXT, points INTEGER, due_at TEXT
+  id TEXT PRIMARY KEY, course_id TEXT, title TEXT, language TEXT, description TEXT, points INTEGER, due_at TEXT
 );
 
 CREATE TABLE participants (participant_id TEXT PRIMARY KEY, name TEXT);
@@ -298,10 +298,10 @@ function writeMeta(db: Database, options: BuildOptions): void {
 
 function writeAssignments(db: Database): void {
   const insert = db.prepare(
-    'INSERT INTO assignments (id, course_id, title, description, points, due_at) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO assignments (id, course_id, title, language, description, points, due_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   for (const a of COURSE.assignments) {
-    insert.run(a.id, COURSE.id, a.title, a.description.join('\n\n'), a.points, a.dueAt);
+    insert.run(a.id, COURSE.id, a.title, a.language, a.description.join('\n\n'), a.points, a.dueAt);
   }
 }
 

@@ -135,7 +135,7 @@ Times are ISO 8601 (UTC) unless the column ends in `_ms`. Every table except `me
 | Table | One row per | Columns |
 |---|---|---|
 | `meta` | setting | `key`, `value`: `schema_version`, `created_at`, `source_runs`, `salt_source` (where the participant-code salt came from; never the salt), `includes_names`, `app_version`, `participant_ids` (how codes are made) |
-| `assignments` | assignment | `id`, `course_id`, `title`, `description`, `points`, `due_at` |
+| `assignments` | assignment | `id`, `course_id`, `title`, `language` (`c` or `python`), `description`, `points`, `due_at` |
 | `participants` | student | `participant_id` (P + 8 hex digits), `name` (only with `--names`, otherwise empty) |
 | `submissions` | submission | `submission_id`, `participant_id`, `assignment_id`, `submitted_at`, `questions_close_at`, `source_run` (`current` or the archive folder), `replay_verdict` (`consistent`/`inconsistent`), `session_count`, `recorded_ms`, `typed_chars`, `bulk_inserted_chars`, `pre_existing_chars`, `runs_passed`, `runs_failed`, `runs_unknown`, `extension_version`, `bundle_sha256` |
 | `recordings` | submission | `submission_id`, `bundle`: the uploaded `.codelapse` file itself, so nothing is lost |

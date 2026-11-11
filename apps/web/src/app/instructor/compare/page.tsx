@@ -1,21 +1,23 @@
 import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { CompareMatrix, SIGNAL_HELP, SIGNAL_LABELS, SignalChips, agreementText, pairHref, pct } from '@/components/CompareParts';
-import { COURSE } from '@/lib/course';
+import { selectedAssignment } from '@/lib/course';
 import { SIGNALS, buildCohort } from '@/lib/cohort';
+import { AssignmentTabs, withAssignment } from '@/components/AssignmentTabs';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ComparePage() {
-  const assignment = COURSE.assignments[0];
+export default async function ComparePage({ searchParams }: { searchParams: Promise<{ assignment?: string | string[] }> }) {
+  const assignment = selectedAssignment((await searchParams).assignment);
   const cohort = await buildCohort(assignment.id);
 
   return (
     <CourseShell
       active="instructor"
-      crumbs={[{ label: 'Instructor view', href: '/instructor' }, { label: 'Compare students' }]}
+      crumbs={[{ label: 'Instructor view', href: withAssignment('/instructor', assignment.id) }, { label: 'Compare students' }]}
     >
       <h1>Compare students: {assignment.title}</h1>
+      <AssignmentTabs basePath="/instructor/compare" current={assignment} />
       <p className="lead">
         These signals show where two submissions resemble each other more than usual. Similar work can have innocent
         causes: shared starter code, the assignment&apos;s wording, lecture examples, or working together where
@@ -35,7 +37,7 @@ export default async function ComparePage() {
               edit, and similar answer wording. Everyone solved the same assignment, so similar code alone is common;
               pairs where several kinds agree stand out. Select a cell to compare the two side by side.
             </p>
-            <CompareMatrix cohort={cohort} />
+            <CompareMatrix cohort={cohort} assignmentId={assignment.id} />
             <div className="compare-baseline">
               {cohort.stats.hasBaseline ? (
                 <>
@@ -64,7 +66,7 @@ export default async function ComparePage() {
               {cohort.pairs.map((pair) => (
                 <li key={`${pair.a.submissionId}-${pair.b.submissionId}`} className="pair-item">
                   <div className="pair-head">
-                    <Link href={pairHref(pair)} className="pair-names">
+                    <Link href={pairHref(pair, assignment.id)} className="pair-names">
                       {pair.a.name} and {pair.b.name}
                     </Link>
                     <span className="pair-strongest">{agreementText(pair)}</span>

@@ -36,8 +36,8 @@ export function shade(value: number | null): number {
   return 1;
 }
 
-export function pairHref(pair: PairComparison): string {
-  return `/instructor/compare/${pair.a.submissionId}/${pair.b.submissionId}`;
+export function pairHref(pair: PairComparison, assignmentId: string): string {
+  return `/instructor/compare/${pair.a.submissionId}/${pair.b.submissionId}?assignment=${encodeURIComponent(assignmentId)}`;
 }
 
 /**
@@ -45,7 +45,7 @@ export function pairHref(pair: PairComparison): string {
  * for the pair (code, the same inserted block, answer wording), so pairs where
  * several agree stand out even when everyone's code is alike; it opens the pair.
  */
-export function CompareMatrix({ cohort }: { cohort: Cohort }) {
+export function CompareMatrix({ cohort, assignmentId }: { cohort: Cohort; assignmentId: string }) {
   const find = (x: string, y: string) =>
     cohort.pairs.find(
       (p) => (p.a.submissionId === x && p.b.submissionId === y) || (p.a.submissionId === y && p.b.submissionId === x)
@@ -78,7 +78,7 @@ export function CompareMatrix({ cohort }: { cohort: Cohort }) {
                 return (
                   <td key={col.submissionId} className={`compare-cell agree-${agreeing}`}>
                     <Link
-                      href={`/instructor/compare/${row.submissionId}/${col.submissionId}`}
+                      href={`/instructor/compare/${row.submissionId}/${col.submissionId}?assignment=${encodeURIComponent(assignmentId)}`}
                       aria-label={`${row.name} and ${col.name}: ${agreementText(pair)}`}
                       title={agreementText(pair)}
                     >

@@ -173,7 +173,8 @@
     "web:smoke": "npm run smoke -w @codelapse/web",
     "demo": "node scripts/demo.mjs",
     "demo:reset": "node scripts/reset-demo-data.mjs",
-    "research:db": "ts-node -P tsconfig.json apps/web/scripts/build-research-db.ts"
+    "research:db": "ts-node -P tsconfig.json apps/web/scripts/build-research-db.ts",
+    "assignments:pdf": "node apps/web/scripts/build-assignment-pdfs.mjs"
   },
   "dependencies": {
     "prismjs": "^1.30.0",

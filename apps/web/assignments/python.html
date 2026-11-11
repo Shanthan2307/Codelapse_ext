@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 3 (Python): Reverse a String</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Assignment 3 (Python): Reverse a String</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026</p>
+
+<dl class="meta">
+  <div><dt>Language</dt><dd>Python 3.10+ (standard library only)</dd></div>
+  <div><dt>File to write</dt><dd><code>reverse.py</code></dd></div>
+  <div><dt>Due</dt><dd>Nov 20, 2026, 11:59 PM</dd></div>
+  <div><dt>Points</dt><dd>20 (demo course)</dd></div>
+  <div><dt>You submit</dt><dd><code>reverse.py</code> + your <code>.codelapse</code> recording</dd></div>
+  <div><dt>Time</dt><dd>About 45–60 minutes, then up to 1 hour for 4 short questions</dd></div>
+</dl>
+
+<h2>1. Overview</h2>
+<p>You will write a small Python program with two functions: one that returns a string reversed, and one that counts its vowels. Python could reverse a string for you in one line, so this assignment asks you <b>not</b> to use that shortcut and to build the reversed string yourself with a loop. That way you practise the ideas the shortcut hides: indexing, loops that count down, and the fact that Python strings cannot be changed in place.</p>
+<p>You will write it in VS Code while the <b>CodeLapse</b> extension records how you work. When you submit, you will answer four short questions about your own work and your own code.</p>
+
+<h3>What you will practise</h3>
+<ul>
+  <li>Indexing into a string (<code>text[i]</code>), <code>len</code>, and loops with <code>for</code> and <code>range</code>.</li>
+  <li>Why strings are <b>immutable</b>, and how to build a new string (or a list of characters) instead.</li>
+  <li>Writing functions that <b>return</b> a value, and running code only when the file is run as a program.</li>
+  <li>Testing your own code on ordinary and unusual inputs.</li>
+</ul>
+
+<h2>2. What to build</h2>
+<p>Write everything in one file, <code>reverse.py</code>. Use only plain Python (no imports are needed).</p>
+
+<div class="spec">
+<h3><code>def reverse(text: str) -&gt; str</code></h3>
+<ul>
+  <li><b>Returns a new string</b> with the characters of <code>text</code> in reverse order. It must not print anything.</li>
+  <li>Must build the result <b>with a loop</b> of your own: for example by going through the string from the end, or by swapping characters in a list.</li>
+  <li>Must work for any string, including the empty string <code>""</code> and a string of one character.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def count_vowels(text: str) -&gt; int</code></h3>
+<ul>
+  <li>Returns how many vowels the string contains. The vowels are <code>a e i o u</code>, in <b>either case</b> (<code>A E I O U</code> count too).</li>
+  <li><code>y</code> is <b>not</b> a vowel for this assignment. Spaces, digits and punctuation are not vowels.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3>Running it as a program</h3>
+<ul>
+  <li>At the bottom, under <code>if __name__ == "__main__":</code>, put a test word in a variable (for example <code>"codelapse"</code>), call both functions on it, and print the reversed word and the vowel count.</li>
+</ul>
+</div>
+
+<div class="callout warn">
+  <span class="callout-title">Not allowed in <code>reverse</code></span>
+  Slicing that reverses (<code>text[::-1]</code> or any slice with a negative step), <code>reversed()</code>, <code>list.reverse()</code>, <code>sorted()</code> tricks, recursion instead of a loop, or any import or library that reverses for you. Allowed: <code>for</code> and <code>while</code> loops, <code>range</code>, <code>len</code>, indexing like <code>text[i]</code>, lists, <code>append</code>, and <code>"".join(...)</code> on a list you built yourself.
+</div>
+
+<h2>3. Examples</h2>
+<p>Every row was checked by running a correct solution. The quotes only show where the string starts and ends.</p>
+<table>
+  <thead><tr><th>Input</th><th><code>reverse(...)</code> returns</th><th class="num"><code>count_vowels</code></th><th>Why it is a useful test</th></tr></thead>
+  <tbody>
+    <tr><td><code>"codelapse"</code></td><td><code>"espaledoc"</code></td><td class="num">4</td><td>The normal case (odd length: 9)</td></tr>
+    <tr><td><code>""</code></td><td><code>""</code></td><td class="num">0</td><td>Empty string: the loop must not fail</td></tr>
+    <tr><td><code>"a"</code></td><td><code>"a"</code></td><td class="num">1</td><td>One character: stays the same</td></tr>
+    <tr><td><code>"ab"</code></td><td><code>"ba"</code></td><td class="num">1</td><td>Shortest even length</td></tr>
+    <tr><td><code>"abc"</code></td><td><code>"cba"</code></td><td class="num">1</td><td>Short odd length</td></tr>
+    <tr><td><code>"racecar"</code></td><td><code>"racecar"</code></td><td class="num">3</td><td>A palindrome reads the same reversed</td></tr>
+    <tr><td><code>"a b"</code></td><td><code>"b a"</code></td><td class="num">1</td><td>Spaces are characters too</td></tr>
+    <tr><td><code>"Hello, World!"</code></td><td><code>"!dlroW ,olleH"</code></td><td class="num">3</td><td>Punctuation, a space, and capitals</td></tr>
+    <tr><td><code>"Programming"</code></td><td><code>"gnimmargorP"</code></td><td class="num">3</td><td>A capital letter moves to the end</td></tr>
+    <tr><td><code>"AEIOU aeiou"</code></td><td><code>"uoiea UOIEA"</code></td><td class="num">10</td><td>Upper- and lower-case vowels both count</td></tr>
+    <tr><td><code>"rhythm"</code></td><td><code>"mhtyhr"</code></td><td class="num">0</td><td><code>y</code> is not a vowel</td></tr>
+  </tbody>
+</table>
+
+<h3>Example run</h3>
+<pre><code>$ python3 reverse.py
+Original: codelapse
+Reversed: espaledoc
+Vowels: 4</code></pre>
+<p>The exact wording of the output is up to you, but it must show the reversed word and the vowel count. Because <code>reverse</code> returns a new string, the original variable still holds the original word afterwards.</p>
+
+<h2>4. A plan that works</h2>
+<ol class="keep">
+  <li>Create the folder, open it in VS Code and start CodeLapse (section 8). Create <code>reverse.py</code>.</li>
+  <li>Write the <code>if __name__ == "__main__":</code> block so it only prints your test word. Run it, so you know your setup works.</li>
+  <li>Write <code>reverse</code>. Print <code>reverse(word)</code> and run.</li>
+  <li>Try the examples above, by changing the test word or by printing several results.</li>
+  <li>Write <code>count_vowels</code>. Print its result and check it against the table.</li>
+  <li>Add a few <code>assert</code> checks (section 6), run once more, and save the file.</li>
+</ol>
+
+<h2>5. Hints</h2>
+<p class="muted">Read one hint at a time and try it yourself before moving on to the next. They start general and get more specific.</p>
+<ol class="hints">
+  <li><span class="hint-level">Getting started</span><br>
+    A string is a sequence: <code>text[0]</code> is the first character and <code>text[len(text) - 1]</code> is the last. Indexing past the end raises <code>IndexError</code>.</li>
+  <li><span class="hint-level">Strings can't be changed</span><br>
+    Python strings are <b>immutable</b>: <code>text[0] = "x"</code> is an error. So <code>reverse</code> cannot change <code>text</code>; it has to <b>build a new string</b> and return it. Two common ways: start from an empty string and add characters to it, or turn the text into a list of characters, rearrange the list, then join it back with <code>"".join(...)</code>.</li>
+  <li><span class="hint-level">Which order to visit the characters</span><br>
+    If you visit the characters from the <b>last to the first</b>, adding each one to the end of your result gives the reversed string. Alternatively, visit them first to last and put each new character at the <b>front</b> of your result. Try both on paper with <code>"abc"</code>.</li>
+  <li><span class="hint-level">Counting down with range</span><br>
+    <code>range(start, stop, step)</code> can count down when <code>step</code> is negative, for example <code>range(5, 0, -1)</code> gives 5, 4, 3, 2, 1. The <code>stop</code> value is never included. Work out which <code>start</code> and <code>stop</code> make the last index you visit be <code>0</code>, and check it with <code>"ab"</code> and <code>""</code>.</li>
+  <li><span class="hint-level">The list-and-swap way</span><br>
+    Like in C: put the characters in a list, keep one index at the start and one at the end, swap, and move both towards the middle. Stop at the middle; going further swaps everything back.</li>
+  <li><span class="hint-level">Counting vowels</span><br>
+    Go through the characters and count the ones that are vowels. <code>ch in "aeiou"</code> is <code>True</code> when <code>ch</code> is one of those letters (a set such as <code>{"a", "e", "i", "o", "u"}</code> works too). To include capitals, compare a lower-case version of each character: <code>ch.lower()</code> (or lower-case the whole text once).</li>
+  <li><span class="hint-level">Return, don't print</span><br>
+    Both functions should <code>return</code> their result. The printing belongs in the <code>if __name__ == "__main__":</code> block. A function that prints and returns <code>None</code> looks right on screen but fails as soon as anything else uses it.</li>
+</ol>
+
+<h2>6. Test your program</h2>
+<ul>
+  <li>Run <code>python3 reverse.py</code> in the VS Code terminal after every change (on Windows the command may be <code>py reverse.py</code> or <code>python reverse.py</code>).</li>
+  <li>Compare with the table, and try the edge cases by changing the test word.</li>
+  <li>Let Python check for you with <code>assert</code> lines in the <code>__main__</code> block. An <code>assert</code> stays silent when the condition is true and stops with an <code>AssertionError</code> when it is false:</li>
+</ul>
+<pre><code>assert reverse("ab") == "ba"
+assert count_vowels("rhythm") == 0</code></pre>
+
+<h3>Self-check before you submit</h3>
+<ul class="checklist">
+  <li>Runs with <code>python3 reverse.py</code> without errors.</li>
+  <li><code>reverse</code> uses a loop of your own: no <code>[::-1]</code>, no <code>reversed()</code>, no <code>.reverse()</code>.</li>
+  <li>Correct for <code>""</code>, <code>"a"</code>, <code>"ab"</code>, <code>"abc"</code> and <code>"Hello, World!"</code>.</li>
+  <li><code>count_vowels</code> counts capital vowels and does not count <code>y</code>.</li>
+  <li>Both functions <b>return</b> their result, with the names and parameters exactly as specified.</li>
+  <li>The printing happens under <code>if __name__ == "__main__":</code>.</li>
+  <li>You can explain, in your own words, how your loop visits the characters and why it starts and stops where it does.</li>
+</ul>
+
+<h2>7. Common mistakes</h2>
+<table>
+  <thead><tr><th style="width:36%">Mistake</th><th>What happens, and the fix</th></tr></thead>
+  <tbody>
+    <tr><td>Using <code>[::-1]</code> or <code>reversed()</code></td><td>It works, but it is not allowed here: the point is to write the loop yourself.</td></tr>
+    <tr><td>Off by one in <code>range</code></td><td>The first character goes missing, or an <code>IndexError</code> appears. Remember <code>stop</code> is excluded; test with <code>"ab"</code>.</td></tr>
+    <tr><td>Trying to change the string</td><td><code>text[i] = ...</code> raises <code>TypeError</code>. Build a new string or use a list.</td></tr>
+    <tr><td>Printing instead of returning</td><td>The function returns <code>None</code>. Use <code>return</code>, and print in the <code>__main__</code> block.</td></tr>
+    <tr><td>Forgetting capital vowels, or counting <code>y</code></td><td><code>"AEIOU aeiou"</code> must give 10 and <code>"rhythm"</code> must give 0.</td></tr>
+    <tr><td>Indentation errors</td><td>Python reports <code>IndentationError</code>. Indent every block by the same amount (VS Code uses 4 spaces).</td></tr>
+    <tr><td>Running a different file</td><td>Make sure the terminal is in your assignment folder and you run <code>reverse.py</code>.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Working with CodeLapse</h2>
+<p>CodeLapse records how your program grows, so the questions can be about <i>your</i> work. Set it up before you start writing. The full tester guide (installation and troubleshooting) is in <code>docs/TESTER_GUIDE.md</code> of the CodeLapse repository.</p>
+<ol>
+  <li><b>Check your tools.</b> VS Code 1.93 or newer, and Python 3.10 or newer: <code>python3 --version</code> in a terminal (on Windows <code>py --version</code>) should print a version.</li>
+  <li><b>Install CodeLapse.</b> Download <code>codelapse-0.1.0.vsix</code> from<br><span class="small">https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot</span><br>In VS Code: <b>Extensions</b> → <b><code>···</code></b> → <b>Install from VSIX…</b> and pick the file. A short walkthrough opens.</li>
+  <li><b>Choose your folder.</b> Create an empty folder (for example <code>reverse-assignment</code>), open it with <b>File → Open Folder…</b>, then click <b>CodeLapse: Choose folder</b> in the status bar and pick it. The status bar now shows the folder name with a record icon. Only this folder is recorded.</li>
+  <li><b>Write and run in VS Code.</b> Create <code>reverse.py</code>, and run it in the VS Code terminal (<b>Terminal → New Terminal</b>, bash, zsh or PowerShell) with <code>python3 reverse.py</code>. Runs in a separate terminal app are not recorded. Errors along the way are fine and normal.</li>
+  <li><b>Export.</b> Open the Command Palette (<kbd>Cmd+Shift+P</kbd> / <kbd>Ctrl+Shift+P</kbd>) and run <b>CodeLapse: Export Assignment Bundle (.codelapse)</b>. Save the <code>.codelapse</code> file.</li>
+  <li><b>Submit.</b> Click <b>Open Submission Page</b> in the message that appears (or run <b>CodeLapse: Open Submission Page</b>). The first time, VS Code asks for the address your instructor gives you: make sure it is the address of the <b>Python</b> assignment. On the page, pick your name, add the <code>.codelapse</code> file and <code>reverse.py</code>, and click <b>Submit Assignment</b>.</li>
+</ol>
+
+<h2>9. The four questions</h2>
+<p>Right after you submit, the page shows <b>four short questions about your own work</b>: two about things you did while working (for example an error you fixed, or something you rewrote), and two about specific lines of your code. Every student gets different questions.</p>
+<ul>
+  <li><b>You have one hour from submitting</b> to answer, and you can submit your answers <b>once</b>. A timer shows the time left; your draft is kept if you refresh the page.</li>
+  <li>Write a few sentences each, <b>in your own words</b>. Spelling and grammar do not matter.</li>
+  <li>Explain <b>why</b>, not just what: why the loop starts and stops where it does, why you chose that approach, what an error message told you.</li>
+  <li>Be specific: mention the actual line, variable, error or change. "It works" says much less than "the loop starts at the last index because …".</li>
+  <li>If you are not sure, say what you think and why. An honest partial answer is better than a vague one.</li>
+</ul>
+
+<h2>10. Working honestly, and what is recorded</h2>
+<p>Write the code yourself, and please turn off AI coding assistants (such as GitHub Copilot) for this assignment. Mistakes, errors and rewrites are completely normal; they are part of how programs get written.</p>
+<p><b>CodeLapse records</b> only the folder you choose: what you type, when you switch files, and the programs you run in the VS Code terminal with their output. It does not record other folders, websites, other apps or your file paths and username. Nothing leaves your computer until you export and upload it yourself.</p>
+<p><b>Your instructor sees</b> your code, your answers, a summary of your recording (how long you worked, how much was typed or added in larger pieces such as pastes, how your runs went), and a short review of how well your answers explain your code. None of this is a grade or an accusation: it describes how the work happened, and your instructor decides what it means. If you are unsure whether something is allowed, ask your instructor.</p>
+
+<h2>11. If something goes wrong</h2>
+<table>
+  <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>python3: command not found</code></td><td>Install Python 3 from python.org. On Windows, try <code>py</code> or <code>python</code> instead of <code>python3</code>.</td></tr>
+    <tr><td>Status bar says <b>CodeLapse: Choose folder</b> or <b>Not recording</b></td><td>Click it and choose your assignment folder.</td></tr>
+    <tr><td>Runs don't seem to be recorded</td><td>Run your program in the VS Code terminal (bash, zsh or PowerShell), not a separate Terminal app.</td></tr>
+    <tr><td>"Choose who you are before submitting."</td><td>Pick your name at the top of the form.</td></tr>
+    <tr><td>"Attach your .codelapse recording."</td><td>Add the <code>.codelapse</code> file you exported.</td></tr>
+    <tr><td>"The recording has no sessions in it."</td><td>Nothing was recorded in that folder. Check you chose the right folder.</td></tr>
+    <tr><td>The page says a file is not allowed</td><td>Upload only <code>reverse.py</code>, not other files.</td></tr>
+    <tr><td>"Your questions could not be prepared."</td><td>Nothing to do: your submission was received and your instructor has been told.</td></tr>
+  </tbody>
+</table>
+<p class="muted small">Anything else: ask your instructor. Good luck, and have fun with it.</p>
+
+</body>
+</html>

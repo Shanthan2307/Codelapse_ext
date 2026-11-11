@@ -31,7 +31,7 @@ const momentsOf = (name: string): Moment[] => extractMoments(load(name).sessions
 const kinds = (moments: Moment[]): Set<MomentKind> => new Set(moments.map((m) => m.kind));
 
 describe('Analysis of the scripted recordings', () => {
-  const consistent = ['honest-incremental', 'pasted-solution', 'copied-pair-a', 'copied-pair-b', 'weak-but-honest', 'abandoned-approach'];
+  const consistent = ['honest-incremental', 'pasted-solution', 'copied-pair-a', 'copied-pair-b', 'weak-but-honest', 'abandoned-approach', 'python-honest'];
 
   for (const name of consistent) {
     it(`${name}: the recording ends at the submitted code`, () => {
@@ -62,6 +62,12 @@ describe('Analysis of the scripted recordings', () => {
       assert.ok(moments.some((m) => m.kind === 'function-written' && m.functionName === 'reverse'));
     });
   }
+
+  it('python-honest: finds the fix after the failed Python run, and no bulk insert', () => {
+    const found = kinds(momentsOf('python-honest'));
+    assert.ok(found.has('fix-after-failed-run'), [...found].join(', '));
+    assert.ok(!found.has('bulk-insert'));
+  });
 
   it('weak-but-honest: finds the repeated failed builds and the fix', () => {
     const found = kinds(momentsOf('weak-but-honest'));

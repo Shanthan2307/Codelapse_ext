@@ -277,3 +277,33 @@ int main(void) {
     return 0;
 }
 `;
+
+// ---- Python: python-honest writes its own solution and runs it with python3 ----
+
+export const PY_REVERSE = `def reverse(text: str) -> str:
+    result = ""
+    for i in range(len(text) - 1, -1, -1):
+        result += text[i]
+    return result
+
+
+`;
+
+export const PY_COUNT_VOWELS = `def count_vowels(text: str) -> int:
+    count = 0
+    for ch in text.lower():
+        if ch in "aeiou":
+            count += 1
+    return count
+
+
+`;
+
+export const PY_MAIN_REVERSE_ONLY = `if __name__ == "__main__":
+    word = "codelapse"
+    print(reverse(word))
+`;
+
+export const PY_COUNT_LINE = '    print(count_vowels(word))\n';
+
+export const PY_SOLUTION = PY_REVERSE + PY_COUNT_VOWELS + PY_MAIN_REVERSE_ONLY + PY_COUNT_LINE;

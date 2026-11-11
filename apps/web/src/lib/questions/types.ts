@@ -1,4 +1,5 @@
 import type { SubmissionRecord } from '../types';
+import type { Language } from '../course';
 
 export type QuestionType = 'process' | 'code';
 
@@ -86,6 +87,8 @@ export interface QuestionContext {
   record: SubmissionRecord;
   assignmentTitle: string;
   assignmentDescription: string[];
+  /** Language the assignment is written in; C when not given. */
+  language?: Language;
   /** Submitted code, by file name. */
   code: { name: string; content: string }[];
 }
