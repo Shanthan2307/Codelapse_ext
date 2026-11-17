@@ -10,7 +10,11 @@ const nextConfig = {
   // Don't write an AGENTS.md into the app folder on every start.
   agentRules: false,
   turbopack: { root: path.join(here, '../..') },
-  outputFileTracingRoot: path.join(here, '../..')
+  outputFileTracingRoot: path.join(here, '../..'),
+  // Student data and secrets must never be bundled into a deployment (Vercel).
+  outputFileTracingExcludes: {
+    '*': ['./data/**', './data-*/**', './.env*', '../../research/**', '../../fixtures/**']
+  }
 };
 
 export default nextConfig;

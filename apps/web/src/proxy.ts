@@ -23,7 +23,10 @@ export function proxy(request: NextRequest): NextResponse {
   });
 }
 
-/** Instructor-only: everything under /instructor, research data, ratings, and re-running the AI. */
+/**
+ * Instructor-only: everything under /instructor, research data, ratings, and re-running the AI.
+ * Students use GET and POST /code-check (to open hints), which stay open.
+ */
 export function needsInstructor(request: Pick<NextRequest, 'method' | 'nextUrl'>): boolean {
   const path = request.nextUrl.pathname;
   if (path === '/instructor' || path.startsWith('/instructor/') || path.startsWith('/api/research/')) {
@@ -33,7 +36,7 @@ export function needsInstructor(request: Pick<NextRequest, 'method' | 'nextUrl'>
   if (/^\/api\/submissions\/[^/]+\/questions$/.test(path)) {
     return request.method !== 'GET';
   }
-  return /^\/api\/submissions\/[^/]+\/(feedback|evaluation)$/.test(path);
+  return /^\/api\/submissions\/[^/]+\/(feedback|evaluation|code-check\/retry)$/.test(path);
 }
 
 /** The password from a Basic authorization header, or null. */
@@ -51,5 +54,5 @@ export function suppliedPassword(header: string | null): string | null {
 }
 
 export const config = {
-  matcher: ['/instructor', '/instructor/:path*', '/api/research/:path*', '/api/submissions/:id/:action']
+  matcher: ['/instructor', '/instructor/:path*', '/api/research/:path*', '/api/submissions/:id/:action', '/api/submissions/:id/code-check/retry']
 };

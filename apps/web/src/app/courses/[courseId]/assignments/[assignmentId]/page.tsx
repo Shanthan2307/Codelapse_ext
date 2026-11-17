@@ -19,11 +19,16 @@ export default async function AssignmentPage({
   }
 
   // The demo has no sign-in, so the form looks up the remembered name in this list.
-  const previous: Record<string, PreviousSubmission> = Object.fromEntries(
-    (await latestSubmissions(assignment.id)).map((s) => [
-      s.studentId,
-      { id: s.id, submittedAt: formatDateTime(s.submittedAt) }
-    ])
+  // Keyed by assignment, then student, so switching the program on the form still finds it.
+  const previous: Record<string, Record<string, PreviousSubmission>> = Object.fromEntries(
+    await Promise.all(
+      COURSE.assignments.map(async (a) => [
+        a.id,
+        Object.fromEntries(
+          (await latestSubmissions(a.id)).map((s) => [s.studentId, { id: s.id, submittedAt: formatDateTime(s.submittedAt) }])
+        )
+      ])
+    )
   );
 
   return (
@@ -113,9 +118,12 @@ export default async function AssignmentPage({
         <div className="submit-slot">
           <SubmitPanel
             assignmentId={assignment.id}
-            language={assignment.language}
-            students={COURSE.students}
-            expectedFiles={assignment.expectedFiles}
+            assignments={COURSE.assignments.map((a) => ({
+              id: a.id,
+              title: a.title,
+              language: a.language,
+              expectedFiles: a.expectedFiles
+            }))}
             previous={previous}
           />
         </div>

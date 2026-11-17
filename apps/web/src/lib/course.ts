@@ -88,6 +88,31 @@ export function findStudent(studentId: string): Student | undefined {
   return COURSE.students.find((s) => s.id === studentId);
 }
 
+export const MAX_NAME_LENGTH = 80;
+
+/** Tidies a typed name: trimmed, single spaces, at most MAX_NAME_LENGTH characters. */
+export function cleanName(name: string): string {
+  return name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME_LENGTH);
+}
+
+/**
+ * A stable id for a tester who typed their name, so the same name always maps
+ * to the same student (their latest submission, the research pseudonym).
+ */
+export function testerId(name: string): string {
+  const slug = cleanName(name)
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug ? `tester-${slug}` : '';
+}
+
+/** The name to show for a submission: the typed name, the roster name, or the id. */
+export function displayName(record: { studentId: string; studentName?: string }): string {
+  return record.studentName || findStudent(record.studentId)?.name || record.studentId;
+}
+
 export const LANGUAGE_LABELS: Record<Language, string> = { c: 'C', python: 'Python' };
 
 /** Which code files a student may upload for each language. */

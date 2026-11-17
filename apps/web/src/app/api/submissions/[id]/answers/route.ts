@@ -4,6 +4,8 @@ import { AnswerError, acceptAnswers } from '@/lib/questions/answers';
 import { markEvaluationPending, runEvaluation } from '@/lib/evaluation/run';
 
 export const runtime = 'nodejs';
+// AI work runs after the reply; on Vercel it must finish within this many seconds.
+export const maxDuration = 300;
 
 type Params = { params: Promise<{ id: string }> };
 

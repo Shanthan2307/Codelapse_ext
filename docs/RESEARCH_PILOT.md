@@ -151,7 +151,9 @@ Times are ISO 8601 (UTC) unless the column ends in `_ms`. Every table except `me
 | `reviews` | reviewed answer | `submission_id`, `question_id`, `addresses_question` (1/0), `specificity`, `consistency`, `reasoning` (0–3 each), `total` (0–9), `level` (`strong`/`partial`/`limited`), `evidence_quotes` and `concerns` (JSON lists), `explanation`, `reviewer_provider`, `reviewer_model`, `prompt_version` |
 | `instructor_ratings` | rated question | `submission_id`, `question_id`, `agreement` (`agree`/`too-high`/`too-low`), `own_level`, `answer_note`, `question_useful` (1, 0 or empty), `question_note` |
 | `instructor_overall` | rated submission | `submission_id`, `note`, `follow_up` (1/0), `updated_at` |
-| `ai_calls` | AI request | `submission_id`, `role` (`questions`/`review`), `attempt`, `at`, `provider`, `model`, `system_prompt`, `user_prompt`, `output` (JSON reply), `validation_errors` (JSON list), `input_tokens`, `output_tokens`: the dataset for comparing or fine-tuning models |
+| `code_checks` | checked submission | `submission_id`, `status`, `works` (reviewer's verdict), `issue_count`, `error_count`, `provider`, `model`, `prompt_version`, `summary`, `notes`, `traces` (JSON inputs traced by hand) |
+| `code_issues` | problem found in the code | `submission_id`, `issue_id`, `severity`, `concept`, `title`, `code_file`/`code_start`/`code_end`, `what_happens`, `hints` (JSON), `explanation` (instructor only), `hint_count`, `hints_opened`, `hint_opened_at` (JSON), `reflection` (what the student wrote), `reflection_words`, `reflection_at` |
+| `ai_calls` | AI request | `submission_id`, `role` (`questions`/`review`/`code-check`), `attempt`, `at`, `provider`, `model`, `system_prompt`, `user_prompt`, `output` (JSON reply), `validation_errors` (JSON list), `input_tokens`, `output_tokens`: the dataset for comparing or fine-tuning models |
 | `injection_signals` | flagged line | `submission_id`, `source` (`code`/`answers`), `file`, `line`, `text`: text that addressed an AI or grader |
 
 ### Views
@@ -163,6 +165,46 @@ Times are ISO 8601 (UTC) unless the column ends in `_ms`. Every table except `me
 | `v_reviewer_agreement` | Review level against your own level and agreement, with counts (Table 2 above). |
 
 For example, `SELECT * FROM v_process_vs_code;` answers the first research question directly.
+
+## Hosting on Vercel with Supabase
+
+`npm run demo` serves the site from the instructor's laptop, which only works while the laptop is on and only on networks that let devices reach each other. For a link that works anywhere, host the site on **Vercel** and keep all data in **Supabase**: Postgres holds every submission and record, and a private Storage bucket holds the recordings and code. The instructor view on Vercel reads Supabase directly, so it always shows everything; nothing needs syncing.
+
+The pilot's hosted site is **https://codelapse-pilot.vercel.app** (Vercel project `codelapse-pilot`, Supabase project `codelapse-pilot`, ref `busdnmcstrtjgnftypbf`, US East).
+
+The site picks its storage from `CODELAPSE_STORAGE`: `supabase` on Vercel, unset (the local `apps/web/data` folder) for `npm run demo`, development and tests.
+
+### One-time setup
+
+1. **Supabase**: create a project. In the SQL editor, run `apps/web/supabase/schema.sql`. It creates the tables, the private `codelapse` bucket and the research views; running it again is safe. In **Project Settings → API keys**, copy the project URL and a **secret** key (or the legacy `service_role` key). The secret key bypasses all access rules: keep it on the server only and never share it.
+2. **Earlier pilot data**: put `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in `apps/web/.env.local`, then run `npm run data:migrate` (add `-- --include-archives` for earlier runs). It copies every local submission and the research salt, so participant codes stay the same; running it again skips what is already there.
+3. **Vercel**: import the repository and set **Root Directory** to `apps/web`, with "Include files outside the root directory" on (the site uses `packages/core` and `packages/replay`). Add these environment variables:
+
+| Variable | Value |
+| --- | --- |
+| `CODELAPSE_STORAGE` | `supabase` |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | from step 1 |
+| `CODELAPSE_INSTRUCTOR_PASSWORD` | the instructor password (e.g. the one in `apps/web/.env.local`) |
+| `CODELAPSE_AI_PROVIDER` and its key (`FEATHERLESS_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) | as for `npm run demo` |
+
+   Do not set `CODELAPSE_RESEARCH_SALT` there: the salt lives in Supabase's `settings` table, where the research views use it too.
+4. Give testers `https://<your-project>.vercel.app/courses/cs101/assignments/a3-reverse` (or `a3-reverse-py`). The instructor view is `/instructor`.
+
+### How it works on a hosted site
+
+- **Uploads**: Vercel accepts requests up to about 4.5 MB, so the browser sends the recording and code straight to the Supabase bucket with one-off signed links (`POST /api/uploads`), then submits only their names. Files may be up to 25 MB, as before.
+- **AI steps** (questions, code check, answer review) run after the reply, within Vercel's 300-second limit. Each AI request gives up after 2 minutes. A step still "preparing" after 10 minutes is shown as failed, with the usual **Try again** button.
+
+### Research data online
+
+The Supabase **Table Editor** and **SQL Editor** show the live data. Raw tables: `submissions`, `submission_docs` (one row per submission and record: questions, answers, evaluation, code_check, hint_progress, feedback) and `settings`. Views with the same columns as the research database: `v_submissions` (with participant codes), `v_questions`, `v_answers`, `v_reviews`, `v_review_summaries`, `v_code_checks`, `v_code_issues`, `v_instructor_ratings` and `v_answer_reviews`. The public (anon) key can read none of it.
+
+For a SQLite file of everything, run `npm run research:db -- --from supabase`. To keep a full local copy, run `npm run data:pull -- --out <folder>`; that folder holds student code and answers, so keep it private.
+
+### Before testers use it
+
+- Free Supabase projects pause after a week with no activity; restore them from the dashboard.
+- Student code, recordings and answers are now stored by Vercel and Supabase (and still sent to the AI provider). Make sure testers' consent covers this.
 
 ## Data handling
 

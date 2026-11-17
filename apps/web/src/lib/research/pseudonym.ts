@@ -1,7 +1,5 @@
 import { createHash, randomBytes } from 'crypto';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { dataDir } from '../store';
+import { backend } from '../storage';
 
 /**
  * Participant codes for research exports: "P" plus the first 8 hex digits of
@@ -15,26 +13,18 @@ export function participantId(salt: string, studentId: string): string {
 
 /**
  * The salt: CODELAPSE_RESEARCH_SALT if set, otherwise a random one kept in
- * <data>/research-salt.txt (created on first use). Keep that file private:
+ * the storage's research-salt setting (created on first use: research-salt.txt
+ * in the local data folder, or the settings table in Supabase). Keep that file private:
  * anyone with it and the roster can recompute the codes.
  */
 export async function researchSalt(): Promise<string> {
   const fromEnv = process.env.CODELAPSE_RESEARCH_SALT;
   if (fromEnv) return fromEnv;
-  const file = path.join(dataDir(), 'research-salt.txt');
-  try {
-    const saved = (await fs.readFile(file, 'utf-8')).trim();
-    if (saved) return saved;
-  } catch {
-    // Not created yet.
-  }
-  const salt = randomBytes(16).toString('hex');
-  await fs.mkdir(dataDir(), { recursive: true });
-  try {
-    await fs.writeFile(file, `${salt}\n`, { flag: 'wx', mode: 0o600 });
-    return salt;
-  } catch {
-    // Another request created it first: use theirs.
-    return (await fs.readFile(file, 'utf-8')).trim();
-  }
+  const saved = await backend().getSetting(SALT_SETTING);
+  if (saved) return saved;
+  // If another request saved one first, setSettingOnce returns theirs.
+  return backend().setSettingOnce(SALT_SETTING, randomBytes(16).toString('hex'));
 }
+
+/** Stored as research-salt.txt in the local data folder, or a row in Supabase's settings table. */
+export const SALT_SETTING = 'research-salt';

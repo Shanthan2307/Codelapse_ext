@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDuration, formatShortDateTime, plural } from '@/components/format';
-import { COURSE, selectedAssignment } from '@/lib/course';
+import { COURSE, displayName, selectedAssignment } from '@/lib/course';
 import { getAnswers, getEvaluation, getQuestionSet, latestSubmissions } from '@/lib/store';
 import { agreeingSignalNames, buildCohort } from '@/lib/cohort';
 import { AssignmentTabs, withAssignment } from '@/components/AssignmentTabs';
@@ -49,10 +49,19 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
       }
     }
   }
+  // Roster students first (shown even before they submit), then anyone who typed their own name.
+  const rosterIds = new Set(COURSE.students.map((s) => s.id));
+  const rows = [
+    ...COURSE.students.filter((s) => byStudent.has(s.id)).map((s) => ({ id: s.id, name: s.name })),
+    ...latest
+      .filter((s) => !rosterIds.has(s.studentId))
+      .map((s) => ({ id: s.studentId, name: displayName(s) }))
+      .sort((x, y) => x.name.localeCompare(y.name))
+  ];
   const now = Date.now();
   const states = [...questionState.values()];
   const overview = [
-    { value: `${latest.length} of ${COURSE.students.length}`, label: 'students submitted' },
+    { value: latest.length, label: latest.length === 1 ? 'tester submitted' : 'testers submitted' },
     { value: latest.filter((s) => s.replay.verdict !== 'consistent').length, label: 'recording checks need a look' },
     { value: states.filter((q) => q.answers).length, label: 'answered their questions' },
     { value: states.filter((q) => q.evaluation?.status === 'ready').length, label: 'answer sets reviewed' }
@@ -100,19 +109,17 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
             </tr>
           </thead>
           <tbody>
-            {COURSE.students.map((student) => {
+            {rows.length === 0 && (
+              <tr className="row-empty">
+                <td colSpan={9} className="muted">
+                  No submissions yet.
+                </td>
+              </tr>
+            )}
+            {rows.map((student) => {
               const s = byStudent.get(student.id);
               if (!s) {
-                return (
-                  <tr key={student.id} className="row-empty">
-                    <th scope="row" className="nowrap">
-                      {student.name}
-                    </th>
-                    <td colSpan={8} className="muted">
-                      Not submitted
-                    </td>
-                  </tr>
-                );
+                return null;
               }
               const needsLook = s.replay.files.filter(
                 (f) => f.status === 'differs' || f.status === 'not-recorded'

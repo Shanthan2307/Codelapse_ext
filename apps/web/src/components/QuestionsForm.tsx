@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudentQuestion } from '@/lib/questions/types';
 import { formatDateTime } from './format';
+import { CodeExcerpts } from './CodeExcerpts';
 
 export type QuestionsStatus = 'pending' | 'ready' | 'failed';
 
@@ -170,7 +171,7 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
           {state.questions.map((q) => (
             <li key={q.id} className="question">
               <p className="question-text">{q.text}</p>
-              <Excerpts question={q} />
+              <CodeExcerpts excerpts={q.excerpts} />
               <p className="answer-label">Your answer</p>
               <p className="answer-readonly">{byId.get(q.id) ?? ''}</p>
             </li>
@@ -227,7 +228,7 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
                   <label htmlFor={`answer-${q.id}`} className="question-text">
                     {q.text}
                   </label>
-                  <Excerpts question={q} />
+                  <CodeExcerpts excerpts={q.excerpts} />
                   <textarea
                     id={`answer-${q.id}`}
                     className="answer-input"
@@ -310,19 +311,5 @@ function StatusSteps({ status, answered, closed }: { status: QuestionsStatus; an
         {answers.text}
       </li>
     </ol>
-  );
-}
-
-function Excerpts({ question }: { question: StudentQuestion }) {
-  if (question.excerpts.length === 0) return null;
-  return (
-    <div className={question.excerpts.length > 1 ? 'excerpts excerpts-pair' : 'excerpts'}>
-      {question.excerpts.map((excerpt) => (
-        <div key={excerpt.label}>
-          <p className="code-name">{excerpt.label}</p>
-          <pre>{excerpt.code || '(empty)'}</pre>
-        </div>
-      ))}
-    </div>
   );
 }

@@ -7,6 +7,10 @@ export type QuestionType = 'process' | 'code';
 export interface QuestionExcerpt {
   label: string;
   code: string;
+  /** File line number of the excerpt's first line, when it is a slice of a submitted file. */
+  startLine?: number;
+  /** The file lines the question is about (inclusive), highlighted among the context lines around them. */
+  focus?: { start: number; end: number };
 }
 
 export interface CodeRef {

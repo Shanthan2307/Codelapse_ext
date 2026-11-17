@@ -5,6 +5,8 @@ import type { GeneratedQuestion, QuestionContext, QuestionExcerpt } from './type
 
 const MAX_QUESTION_CHARS = 600;
 const MAX_EXCERPT_LINES = 20;
+/** Lines shown above and below the cited lines, so the student can see where they are. */
+const EXCERPT_CONTEXT_LINES = 2;
 
 /**
  * Checks the rules the JSON schema cannot: the right mix of question types,
@@ -69,13 +71,7 @@ export function validateQuestions(
         const key = `${ref.file}:${ref.start_line}-${ref.end_line}`;
         if (usedRanges.includes(key)) problems.push(`${label} asks about the same lines as another question.`);
         usedRanges.push(key);
-        const end = Math.min(ref.end_line, ref.start_line + MAX_EXCERPT_LINES - 1);
-        excerpts = [
-          {
-            label: `${ref.file}, lines ${ref.start_line}-${ref.end_line}`,
-            code: lines.slice(ref.start_line - 1, end).join('\n')
-          }
-        ];
+        excerpts = [codeExcerpt(ref.file, lines, ref.start_line, ref.end_line)];
       }
     }
 
@@ -96,6 +92,22 @@ export function validateQuestions(
   });
 
   return { questions, problems };
+}
+
+/**
+ * The cited lines with a little code around them, so the student can find
+ * them; the cited lines themselves are marked as the focus.
+ */
+export function codeExcerpt(file: string, lines: string[], startLine: number, endLine: number): QuestionExcerpt {
+  const focusEnd = Math.min(endLine, startLine + MAX_EXCERPT_LINES - 1);
+  const from = Math.max(1, startLine - EXCERPT_CONTEXT_LINES);
+  const to = Math.min(lines.length, focusEnd + EXCERPT_CONTEXT_LINES);
+  return {
+    label: startLine === endLine ? `${file}, line ${startLine}` : `${file}, lines ${startLine}-${endLine}`,
+    code: lines.slice(from - 1, to).join('\n'),
+    startLine: from,
+    focus: { start: startLine, end: focusEnd }
+  };
 }
 
 function momentExcerpts(moment: Moment): QuestionExcerpt[] {

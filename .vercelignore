@@ -1,0 +1,13 @@
+# Never upload student data, secrets or build leftovers to Vercel.
+# Patterns start with / so they only match at the repository root
+# (an unanchored "research/" would also drop apps/web/src/lib/research).
+.env*
+/apps/web/data
+/apps/web/data-*
+/research
+/*.vsix
+*.sqlite
+/out
+/dist
+/apps/web/.next
+/fixtures/recordings

@@ -50,7 +50,7 @@ Or, from a terminal:
 code --install-extension codelapse-0.1.0.vsix
 ```
 
-**Your instructor will give you a website address** for the submission page, such as `http://192.168.1.23:3100/courses/cs101/assignments/a3-reverse`. VS Code asks for it the first time you open the submission page, and remembers it. To change it later, open **Settings** (**`Cmd+,` / `Ctrl+,`**) and search for **CodeLapse: Submission Url**.
+**Your instructor will give you a website address** for the submission page, such as `https://<site-name>.vercel.app/courses/cs101/assignments/a3-reverse` (or, for a session on one Wi-Fi network, `http://192.168.1.23:3100/courses/cs101/assignments/a3-reverse`). VS Code asks for it the first time you open the submission page, and remembers it. To change it later, open **Settings** (**`Cmd+,` / `Ctrl+,`**) and search for **CodeLapse: Submission Url**.
 
 ## 3. Start recording
 
@@ -94,8 +94,8 @@ Work the way you normally would, and run your program often in the VS Code termi
 
 ## 6. Submit and answer the questions
 
-1. Make sure you're on the assignment for **your language**: "Assignment 3 (C)" or "Assignment 3 (Python)". The course page lists both.
-2. Pick your name from the list. (The demo has no sign-in; please pick your own name.)
+1. Type your name in **Your name**. (The demo has no sign-in; use the same name every time.)
+2. Under **Which program did you complete?**, choose **C** (`reverse.c`) or **Python** (`reverse.py`).
 3. Add your `.codelapse` file and your code file (`reverse.c` or `reverse.py`). You can drag them onto the page.
 4. Click **Submit Assignment**.
 5. Your four questions appear on the next page after a short wait. Two are about decisions you made while working, two are about your code.
@@ -110,13 +110,13 @@ That's it. Thank you!
 |---|---|
 | The status bar says **CodeLapse: Choose folder** or **Not recording** | Click it and choose your assignment folder. |
 | Your builds don't seem to be recorded | Make sure you build in the VS Code terminal (not a separate Terminal app), and that the terminal is bash, zsh or PowerShell. Building with **Terminal → Run Task…** is also recorded. |
-| "Choose who you are before submitting." | Pick your name in the list at the top of the form. |
+| "Enter your name." | Type your name in the box at the top of the form. |
 | "Attach your .codelapse recording." | Add the `.codelapse` file you exported in step 5. |
 | "The recording could not be read: … Export it again with "CodeLapse: Export Assignment Bundle"." | The file is damaged or isn't a CodeLapse bundle. Export it again and upload the new file. |
 | "The recording has no sessions in it." | Nothing was recorded in that folder. Check you chose the right folder in step 3. |
 | "The .codelapse file is larger than 25 MB." | Tell your instructor. |
 | "Attach your code …" | Add your `reverse.c` or `reverse.py`. |
-| "… is not a C source file …" or "… is not a Python file …" | You may be on the other language's assignment page, or have added the wrong file. Upload only your code file (`.c`/`.h` for C, `.py` for Python), not the compiled program or other files. |
+| "… is not a C source file …" or "… is not a Python file …" | Check **Which program did you complete?** matches your language, and that you added the right file. Upload only your code file (`.c`/`.h` for C, `.py` for Python), not the compiled program or other files. |
 | "… is larger than 512 KB." or "… was attached twice." | Remove the extra or wrong file and try again. |
 | "Your questions could not be prepared." | Nothing to do: your instructor has been told, and your submission was received. |
 | "The time to answer has ended." | The hour has passed. Your submission still counts; tell your instructor if something went wrong. |

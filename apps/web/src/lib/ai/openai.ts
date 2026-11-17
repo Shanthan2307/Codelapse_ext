@@ -1,3 +1,4 @@
+import { AI_REQUEST_TIMEOUT_MS } from './timeouts';
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
@@ -11,7 +12,7 @@ export function openAIModelName(): string {
 
 export function createOpenAIClient(): OpenAI {
   // Reads OPENAI_API_KEY from the environment (apps/web/.env.local for the site).
-  return new OpenAI({ timeout: 5 * 60 * 1000 });
+  return new OpenAI({ timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1 });
 }
 
 /**

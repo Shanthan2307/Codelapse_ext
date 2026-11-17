@@ -1,64 +1,44 @@
-import { promises as fs } from 'fs';
-import path from 'path';
 import { SubmissionRecord } from './types';
 import { UploadedFile } from './processSubmission';
 import type { AnswerSet, QuestionSet } from './questions/types';
 import type { EvaluationSet } from './evaluation/types';
+import type { CodeCheck, HintProgress } from './codecheck/types';
+import { backend } from './storage';
+import { SAFE_ID } from './storage/types';
+import { STALLED_AFTER_MS } from './ai/timeouts';
 
 /**
- * Submissions are kept as plain files, one folder each, so they are easy to
- * inspect and back up during the demo:
+ * Everything the site stores, by submission. Where it lives is decided by
+ * lib/storage: the local data folder (npm run demo) or Supabase (the hosted
+ * site). The layout is the same either way:
  *
- *   <data>/submissions/<id>/submission.json
- *   <data>/submissions/<id>/recording.codelapse
- *   <data>/submissions/<id>/code/<file>
- *
- * The folder is CODELAPSE_DATA_DIR, or apps/web/data by default. It holds
- * student code and recordings, and is ignored by git.
+ *   submission                   the SubmissionRecord
+ *   submissions/<id>/recording.codelapse, submissions/<id>/code/<file>
+ *   records: questions, answers, evaluation, code_check, hint_progress, feedback
  */
-export function dataDir(): string {
-  return process.env.CODELAPSE_DATA_DIR ?? path.join(process.cwd(), 'data');
-}
+export { dataDir } from './storage/local';
 
-const submissionsDir = () => path.join(dataDir(), 'submissions');
-const SAFE_ID = /^[a-z0-9-]+$/;
+const filePath = (id: string, name: string) => `submissions/${id}/${name}`;
+/** Browsers send a bare name; never trust a path in it. */
+const baseName = (name: string) => name.split(/[\\/]/).pop() ?? '';
 
-export async function saveSubmission(
-  record: SubmissionRecord,
-  bundle: UploadedFile,
-  codeFiles: UploadedFile[]
-): Promise<void> {
-  const dir = path.join(submissionsDir(), record.id);
-  await fs.mkdir(path.join(dir, 'code'), { recursive: true });
-  await fs.writeFile(path.join(dir, 'recording.codelapse'), bundle.bytes);
+export async function saveSubmission(record: SubmissionRecord, bundle: UploadedFile, codeFiles: UploadedFile[]): Promise<void> {
+  if (!SAFE_ID.test(record.id)) throw new Error(`Unsafe submission id: ${record.id}`);
+  await backend().putFile(filePath(record.id, 'recording.codelapse'), bundle.bytes);
   for (const file of codeFiles) {
-    await fs.writeFile(path.join(dir, 'code', path.basename(file.name)), file.bytes);
+    await backend().putFile(filePath(record.id, `code/${baseName(file.name)}`), file.bytes);
   }
-  // Written last, so a folder without it is an unfinished upload and is skipped.
-  await fs.writeFile(path.join(dir, 'submission.json'), JSON.stringify(record, null, 2));
+  // Saved last, so a submission without it is an unfinished upload and is skipped.
+  await backend().saveSubmission(record);
 }
 
-export async function getSubmission(id: string): Promise<SubmissionRecord | null> {
-  if (!SAFE_ID.test(id)) {
-    return null;
-  }
-  try {
-    return JSON.parse(await fs.readFile(path.join(submissionsDir(), id, 'submission.json'), 'utf-8'));
-  } catch {
-    return null;
-  }
+export function getSubmission(id: string): Promise<SubmissionRecord | null> {
+  return SAFE_ID.test(id) ? backend().getSubmission(id) : Promise.resolve(null);
 }
 
 /** Every finished submission, newest first. */
-export async function listSubmissions(): Promise<SubmissionRecord[]> {
-  let ids: string[];
-  try {
-    ids = await fs.readdir(submissionsDir());
-  } catch {
-    return [];
-  }
-  const records = await Promise.all(ids.map((id) => getSubmission(id)));
-  return records.filter((r): r is SubmissionRecord => r !== null).sort((a, b) => b.submittedAt - a.submittedAt);
+export function listSubmissions(): Promise<SubmissionRecord[]> {
+  return backend().listSubmissions();
 }
 
 /** Each student's latest submission for an assignment. */
@@ -74,85 +54,99 @@ export async function latestSubmissions(assignmentId: string): Promise<Submissio
 
 /** The submitted code, for the instructor's view. */
 export async function readSubmittedCode(id: string, name: string): Promise<string | null> {
-  if (!SAFE_ID.test(id)) {
-    return null;
-  }
-  try {
-    return await fs.readFile(path.join(submissionsDir(), id, 'code', path.basename(name)), 'utf-8');
-  } catch {
-    return null;
-  }
+  if (!SAFE_ID.test(id) || !baseName(name)) return null;
+  const bytes = await backend().getFile(filePath(id, `code/${baseName(name)}`));
+  return bytes ? new TextDecoder().decode(bytes) : null;
 }
 
-// ---- Questions and answers (Phase 4) ----
-//   <data>/submissions/<id>/questions.json  shared record of the generator, read by the evaluator
-//   <data>/submissions/<id>/answers.json    the student's answers, written once
-
-export async function saveQuestionSet(id: string, set: QuestionSet): Promise<void> {
-  if (!SAFE_ID.test(id)) {
-    throw new Error(`Unsafe submission id: ${id}`);
-  }
-  const file = path.join(submissionsDir(), id, 'questions.json');
-  // Write then rename, so a reader never sees half a file.
-  await fs.writeFile(`${file}.tmp`, JSON.stringify(set, null, 2));
-  await fs.rename(`${file}.tmp`, file);
-}
-
-export async function getQuestionSet(id: string): Promise<QuestionSet | null> {
-  return readJson<QuestionSet>(id, 'questions.json');
-}
-
-/** Saves answers once; returns false if answers already exist. */
-export async function saveAnswers(id: string, answers: AnswerSet): Promise<boolean> {
-  if (!SAFE_ID.test(id)) {
-    return false;
-  }
-  try {
-    await fs.writeFile(path.join(submissionsDir(), id, 'answers.json'), JSON.stringify(answers, null, 2), { flag: 'wx' });
-    return true;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'EEXIST') {
-      return false;
-    }
-    throw err;
-  }
-}
-
-export async function getAnswers(id: string): Promise<AnswerSet | null> {
-  return readJson<AnswerSet>(id, 'answers.json');
-}
-
-// ---- Answer evaluation (Phase 5) ----
-//   <data>/submissions/<id>/evaluation.json  the evaluator's review, for instructors only
-
-export async function saveEvaluation(id: string, set: EvaluationSet): Promise<void> {
-  if (!SAFE_ID.test(id)) {
-    throw new Error(`Unsafe submission id: ${id}`);
-  }
-  const file = path.join(submissionsDir(), id, 'evaluation.json');
-  await fs.writeFile(`${file}.tmp`, JSON.stringify(set, null, 2));
-  await fs.rename(`${file}.tmp`, file);
-}
-
-export async function getEvaluation(id: string): Promise<EvaluationSet | null> {
-  return readJson<EvaluationSet>(id, 'evaluation.json');
+/** The stored .codelapse recording, for the replay. */
+export function readRecording(id: string): Promise<Uint8Array | null> {
+  return SAFE_ID.test(id) ? backend().getFile(filePath(id, 'recording.codelapse')) : Promise.resolve(null);
 }
 
 /** The submitted code files, for the question generator. */
 export async function readAllSubmittedCode(record: SubmissionRecord): Promise<{ name: string; content: string }[]> {
-  const files = await Promise.all(
+  return Promise.all(
     record.files.map(async (f) => ({ name: f.name, content: (await readSubmittedCode(record.id, f.name)) ?? '' }))
   );
-  return files;
 }
 
-async function readJson<T>(id: string, name: string): Promise<T | null> {
-  if (!SAFE_ID.test(id)) {
-    return null;
+async function readDoc<T>(id: string, kind: Parameters<ReturnType<typeof backend>['getDoc']>[1]): Promise<T | null> {
+  if (!SAFE_ID.test(id)) return null;
+  return (await backend().getDoc<T>(id, kind))?.data ?? null;
+}
+
+/**
+ * An AI step still "pending" long after it started was cut off before it
+ * could save its result (on a hosted site, by the function time limit). It is
+ * shown as failed, so the instructor gets the usual "Try again" button.
+ */
+export function markStalled<T extends { status: string; startedAt: number; error?: string }>(doc: T | null, now = Date.now()): T | null {
+  if (doc?.status !== 'pending' || now - doc.startedAt < STALLED_AFTER_MS) return doc;
+  return { ...doc, status: 'failed', error: 'This stopped before finishing, probably because the server hit its time limit. Try again.' };
+}
+
+// ---- Questions and answers ----
+
+export function saveQuestionSet(id: string, set: QuestionSet): Promise<void> {
+  return backend().putDoc(id, 'questions', set);
+}
+
+export async function getQuestionSet(id: string): Promise<QuestionSet | null> {
+  return markStalled(await readDoc<QuestionSet>(id, 'questions'));
+}
+
+/** Saves answers once; returns false if answers already exist. */
+export function saveAnswers(id: string, answers: AnswerSet): Promise<boolean> {
+  return SAFE_ID.test(id) ? backend().insertDocOnce(id, 'answers', answers) : Promise.resolve(false);
+}
+
+export function getAnswers(id: string): Promise<AnswerSet | null> {
+  return readDoc<AnswerSet>(id, 'answers');
+}
+
+// ---- Answer evaluation: for instructors only ----
+
+export function saveEvaluation(id: string, set: EvaluationSet): Promise<void> {
+  return backend().putDoc(id, 'evaluation', set);
+}
+
+export async function getEvaluation(id: string): Promise<EvaluationSet | null> {
+  return markStalled(await readDoc<EvaluationSet>(id, 'evaluation'));
+}
+
+// ---- Code check (made at submission) and the student's use of its hints ----
+
+export function saveCodeCheck(id: string, check: CodeCheck): Promise<void> {
+  return backend().putDoc(id, 'code_check', check);
+}
+
+export async function getCodeCheck(id: string): Promise<CodeCheck | null> {
+  return markStalled(await readDoc<CodeCheck>(id, 'code_check'));
+}
+
+export function saveHintProgress(id: string, progress: HintProgress): Promise<void> {
+  return backend().putDoc(id, 'hint_progress', progress);
+}
+
+export function getHintProgress(id: string): Promise<HintProgress | null> {
+  return readDoc<HintProgress>(id, 'hint_progress');
+}
+
+/**
+ * Changes the hint progress safely when two requests (or two server
+ * instances) arrive at once: reads it, applies `change`, and writes only if
+ * nobody else wrote in between, trying again a few times.
+ */
+export async function updateHintProgress(
+  id: string,
+  change: (current: HintProgress | null) => HintProgress
+): Promise<HintProgress> {
+  if (!SAFE_ID.test(id)) throw new Error(`Unsafe submission id: ${id}`);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const current = await backend().getDoc<HintProgress>(id, 'hint_progress');
+    const next = change(current?.data ?? null);
+    if (await backend().updateDocIfVersion(id, 'hint_progress', next, current?.version ?? null)) return next;
   }
-  try {
-    return JSON.parse(await fs.readFile(path.join(submissionsDir(), id, name), 'utf-8')) as T;
-  } catch {
-    return null;
-  }
+  throw new Error('The hint progress kept changing; try again.');
 }

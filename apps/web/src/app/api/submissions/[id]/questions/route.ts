@@ -4,6 +4,8 @@ import { studentView } from '@/lib/questions/answers';
 import { markQuestionsPending, runQuestionGeneration } from '@/lib/questions/run';
 
 export const runtime = 'nodejs';
+// AI work runs after the reply; on Vercel it must finish within this many seconds.
+export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
