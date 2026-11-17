@@ -1,4 +1,5 @@
 import * as assert from 'assert';
+import { COURSE } from '../src/lib/course';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -6,7 +7,7 @@ import { decodeBundle } from '@codelapse/core/node';
 import { processSubmission } from '../src/lib/processSubmission';
 import { saveAnswers, saveEvaluation, saveQuestionSet, saveSubmission } from '../src/lib/store';
 import { saveFeedback } from '../src/lib/research/feedback';
-import { buildResearchDatabase, openDatabase } from '../src/lib/research/database';
+import { buildResearchDatabase, openDatabase, SCHEMA_VERSION } from '../src/lib/research/database';
 import type { QuestionSet } from '../src/lib/questions/types';
 import type { EvaluationSet } from '../src/lib/evaluation/types';
 
@@ -104,7 +105,7 @@ describe('Research database', () => {
     const counts = await build();
     assert.strictEqual(counts.submissions, 2);
     assert.strictEqual(counts.participants, 2);
-    assert.strictEqual(counts.assignments, 1);
+    assert.strictEqual(counts.assignments, COURSE.assignments.length, 'both the C and the Python assignment');
     assert.strictEqual(counts.files, 2);
     assert.strictEqual(counts.recordings, 2);
     assert.strictEqual(counts.sessions, 2);
@@ -130,7 +131,7 @@ describe('Research database', () => {
       assert.strictEqual(decodeBundle(blob).folderName, 'honest-incremental');
       const meta = Object.fromEntries(db.prepare('SELECT key, value FROM meta').all().map((r) => [r.key, r.value]));
       assert.strictEqual(meta.includes_names, 'no');
-      assert.strictEqual(meta.schema_version, '1');
+      assert.strictEqual(meta.schema_version, String(SCHEMA_VERSION));
       assert.ok(!JSON.stringify(meta).includes(SALT), 'the salt itself is never stored');
     } finally {
       db.close();

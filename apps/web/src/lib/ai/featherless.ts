@@ -1,3 +1,4 @@
+import { AI_REQUEST_TIMEOUT_MS } from './timeouts';
 import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
@@ -32,7 +33,7 @@ export function createFeatherlessClient(): OpenAI {
   return new OpenAI({
     baseURL: FEATHERLESS_BASE_URL,
     apiKey: process.env.FEATHERLESS_API_KEY,
-    timeout: 5 * 60 * 1000
+    timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1
   });
 }
 

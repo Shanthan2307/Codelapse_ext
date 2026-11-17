@@ -1,5 +1,5 @@
 import { InsertedBlock, bulkInsertedBlocks, compareCode, compareInsertedBlocks, compareText } from '@codelapse/core';
-import { findStudent } from './course';
+import { displayName } from './course';
 import { readSessions } from './recording';
 import { getAnswers, getQuestionSet, latestSubmissions, readAllSubmittedCode } from './store';
 import type { SubmissionRecord } from './types';
@@ -167,7 +167,7 @@ async function loadMaterial(record: SubmissionRecord): Promise<Material> {
   ]);
   const questionText = new Map((questions?.questions ?? []).map((q) => [q.id, q.text]));
   return {
-    student: { studentId: record.studentId, name: findStudent(record.studentId)?.name ?? record.studentId, submissionId: record.id },
+    student: { studentId: record.studentId, name: displayName(record), submissionId: record.id },
     record,
     code,
     blocks: sessions ? bulkInsertedBlocks(sessions) : [],

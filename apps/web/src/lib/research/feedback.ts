@@ -1,13 +1,11 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { dataDir } from '../store';
+import { backend } from '../storage';
 
 /**
  * The instructor's own ratings of a submission: whether they agree with each
  * answer review, how useful each question was, and an overall note. This is
  * the ground truth the pilot compares the evaluator against. Instructor-only.
  *
- *   <data>/submissions/<id>/instructor-feedback.json
+ * Stored as the submission's "feedback" record (instructor-feedback.json in the local data folder).
  */
 export type Agreement = 'agree' | 'too-high' | 'too-low';
 export type OwnLevel = 'strong' | 'partial' | 'limited';
@@ -105,23 +103,12 @@ export function validateFeedback(input: unknown, questionIds?: string[], now: nu
   return { updatedAt: now, answers, questions, overall };
 }
 
-function feedbackFile(id: string): string {
-  return path.join(dataDir(), 'submissions', id, 'instructor-feedback.json');
-}
-
 export async function getFeedback(id: string): Promise<InstructorFeedback | null> {
   if (!SAFE_ID.test(id)) return null;
-  try {
-    return JSON.parse(await fs.readFile(feedbackFile(id), 'utf-8')) as InstructorFeedback;
-  } catch {
-    return null;
-  }
+  return (await backend().getDoc<InstructorFeedback>(id, 'feedback'))?.data ?? null;
 }
 
 export async function saveFeedback(id: string, feedback: InstructorFeedback): Promise<void> {
   if (!SAFE_ID.test(id)) throw new Error(`Unsafe submission id: ${id}`);
-  const file = feedbackFile(id);
-  // Write then rename, so a reader never sees half a file.
-  await fs.writeFile(`${file}.tmp`, JSON.stringify(feedback, null, 2));
-  await fs.rename(`${file}.tmp`, file);
+  await backend().putDoc(id, 'feedback', feedback);
 }

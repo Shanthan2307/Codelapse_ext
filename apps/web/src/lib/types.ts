@@ -28,6 +28,8 @@ export interface SubmissionRecord {
   courseId: string;
   assignmentId: string;
   studentId: string;
+  /** The name the tester typed on the form; absent for students picked from the course roster. */
+  studentName?: string;
   submittedAt: number;
   /** The feedback questions close this long after submission (Phase 4). */
   questionsCloseAt: number;

@@ -8,13 +8,16 @@
  * --out <file>          where to write it (default research/codelapse-research-<date>.sqlite)
  * --include-archives    also read apps/web/data-archive-* (earlier runs, kept by demo:reset)
  * --names               include student names (otherwise participant codes only)
+ * --from supabase       read the hosted site's data from Supabase instead of the local folder
  *
  * Reads CODELAPSE_DATA_DIR, or apps/web/data.
  */
-import { promises as fs } from 'fs';
+import { existsSync, promises as fs } from 'fs';
+import os from 'os';
 import path from 'path';
 import { buildResearchDatabase, DataSource } from '../src/lib/research/database';
 import { researchSalt } from '../src/lib/research/pseudonym';
+import { pull } from './supabase-data';
 
 const repoRoot = path.resolve(__dirname, '../../..');
 
@@ -24,7 +27,13 @@ function option(name: string): string | undefined {
 }
 
 async function main(): Promise<void> {
-  const dataDir = path.resolve(process.env.CODELAPSE_DATA_DIR ?? path.join(repoRoot, 'apps/web/data'));
+  let dataDir = path.resolve(process.env.CODELAPSE_DATA_DIR ?? path.join(repoRoot, 'apps/web/data'));
+  if (option('--from') === 'supabase') {
+    const envFile = path.join(repoRoot, 'apps/web/.env.local');
+    if (existsSync(envFile)) process.loadEnvFile(envFile);
+    dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'codelapse-supabase-'));
+    console.log(`Read ${await pull(dataDir)} submission(s) from Supabase.`);
+  }
   // The salt lives with the current data, so participant codes match the CSV exports.
   process.env.CODELAPSE_DATA_DIR = dataDir;
 
@@ -50,6 +59,9 @@ async function main(): Promise<void> {
     includeNames: process.argv.includes('--names'),
     appVersion: pkg.version ?? 'unknown'
   });
+
+  // The pulled copy holds student code and answers; the database now has what is needed.
+  if (option('--from') === 'supabase') await fs.rm(dataDir, { recursive: true, force: true });
 
   console.log(`Research database written to ${path.relative(process.cwd(), outFile) || outFile}`);
   console.log(`Read from: ${sources.map((s) => s.dir).join(', ')}`);

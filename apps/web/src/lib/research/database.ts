@@ -4,10 +4,11 @@ import { createRequire } from 'module';
 import path from 'path';
 import { parseSessionLog } from '@codelapse/core';
 import { decodeBundle } from '@codelapse/core/node';
-import { COURSE } from '../course';
+import { COURSE, displayName } from '../course';
 import type { SubmissionRecord } from '../types';
 import type { AnswerSet, QuestionSet } from '../questions/types';
 import type { EvaluationSet } from '../evaluation/types';
+import type { CodeCheck, HintProgress } from '../codecheck/types';
 import type { InstructorFeedback } from './feedback';
 import { participantId } from './pseudonym';
 
@@ -22,7 +23,7 @@ import { participantId } from './pseudonym';
  * node:sqlite, which the website never imports.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
 
 /** The few node:sqlite calls used here; typed locally because @types/node predates the module. */
 interface Statement {
@@ -66,7 +67,7 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 
 CREATE TABLE assignments (
-  id TEXT PRIMARY KEY, course_id TEXT, title TEXT, description TEXT, points INTEGER, due_at TEXT
+  id TEXT PRIMARY KEY, course_id TEXT, title TEXT, language TEXT, description TEXT, points INTEGER, due_at TEXT
 );
 
 CREATE TABLE participants (participant_id TEXT PRIMARY KEY, name TEXT);
@@ -169,6 +170,21 @@ CREATE TABLE ai_calls (
   system_prompt TEXT, user_prompt TEXT, output TEXT, validation_errors TEXT,
   input_tokens INTEGER, output_tokens INTEGER,
   PRIMARY KEY (submission_id, role, attempt)
+);
+
+CREATE TABLE code_checks (
+  submission_id TEXT PRIMARY KEY REFERENCES submissions(submission_id),
+  status TEXT, error TEXT, works INTEGER, issue_count INTEGER, error_count INTEGER,
+  provider TEXT, model TEXT, prompt_version TEXT, started_at TEXT, finished_at TEXT,
+  summary TEXT, notes TEXT, traces TEXT
+);
+
+CREATE TABLE code_issues (
+  submission_id TEXT NOT NULL REFERENCES submissions(submission_id),
+  issue_id TEXT NOT NULL, position INTEGER, severity TEXT, concept TEXT, title TEXT,
+  code_file TEXT, code_start INTEGER, code_end INTEGER, what_happens TEXT, hints TEXT, explanation TEXT,
+  hint_count INTEGER, hints_opened INTEGER, hint_opened_at TEXT, reflection TEXT, reflection_words INTEGER, reflection_at TEXT,
+  PRIMARY KEY (submission_id, issue_id)
 );
 
 CREATE TABLE injection_signals (
@@ -298,10 +314,10 @@ function writeMeta(db: Database, options: BuildOptions): void {
 
 function writeAssignments(db: Database): void {
   const insert = db.prepare(
-    'INSERT INTO assignments (id, course_id, title, description, points, due_at) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO assignments (id, course_id, title, language, description, points, due_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   for (const a of COURSE.assignments) {
-    insert.run(a.id, COURSE.id, a.title, a.description.join('\n\n'), a.points, a.dueAt);
+    insert.run(a.id, COURSE.id, a.title, a.language, a.description.join('\n\n'), a.points, a.dueAt);
   }
 }
 
@@ -318,7 +334,7 @@ async function writeSubmission(
   }
   const participant = participantId(options.salt, record.studentId);
   if (!seenParticipants.has(participant)) {
-    const name = options.includeNames ? (COURSE.students.find((s) => s.id === record.studentId)?.name ?? record.studentId) : null;
+    const name = options.includeNames ? displayName(record) : null;
     db.prepare('INSERT INTO participants (participant_id, name) VALUES (?, ?)').run(participant, name);
     seenParticipants.add(participant);
   }
@@ -418,6 +434,8 @@ async function writeSubmission(
   if (answers) writeAnswers(db, record.id, answers);
   const evaluation = await readJson<EvaluationSet>(path.join(dir, 'evaluation.json'));
   if (evaluation) writeEvaluation(db, record.id, evaluation);
+  const codeCheck = await readJson<CodeCheck>(path.join(dir, 'code-check.json'));
+  if (codeCheck) writeCodeCheck(db, record.id, codeCheck, await readJson<HintProgress>(path.join(dir, 'hint-progress.json')));
   const feedback = await readJson<InstructorFeedback>(path.join(dir, 'instructor-feedback.json'));
   if (feedback) writeFeedback(db, record.id, feedback);
   return true;
@@ -482,6 +500,35 @@ function writeEvaluation(db: Database, id: string, set: EvaluationSet): void {
   writeSignals(db, id, 'answers', set.injectionSignals ?? []);
 }
 
+function writeCodeCheck(db: Database, id: string, check: CodeCheck, progress: HintProgress | null): void {
+  const issues = check.issues ?? [];
+  db.prepare(
+    `INSERT INTO code_checks (submission_id, status, error, works, issue_count, error_count, provider, model, prompt_version,
+       started_at, finished_at, summary, notes, traces)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    id, check.status ?? null, check.error ?? null, bool(check.works), issues.length,
+    issues.filter((i) => i.severity === 'error').length, check.provider || null, check.model || null, check.promptVersion ?? null,
+    iso(check.startedAt), iso(check.finishedAt), check.summaryForInstructor ?? null, check.notesForInstructor ?? null, json(check.traces)
+  );
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO code_issues (submission_id, issue_id, position, severity, concept, title, code_file, code_start, code_end,
+       what_happens, hints, explanation, hint_count, hints_opened, hint_opened_at, reflection, reflection_words, reflection_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  issues.forEach((issue, i) => {
+    const p = progress?.issues?.[issue.id];
+    insert.run(
+      id, issue.id, i + 1, issue.severity ?? null, issue.concept ?? null, issue.title ?? null,
+      issue.codeRef?.file ?? null, issue.codeRef?.startLine ?? null, issue.codeRef?.endLine ?? null,
+      issue.whatHappens ?? null, json(issue.hints), issue.explanationForInstructor ?? null,
+      issue.hints?.length ?? null, p?.hintsShown ?? 1, json((p?.revealedAt ?? []).map((t) => iso(t))),
+      p?.reflection || null, p?.reflection ? words(p.reflection) : null, iso(p?.reflectionAt)
+    );
+  });
+  writeCalls(db, id, 'code-check', check.provider, check.model, check.log ?? []);
+}
+
 function writeFeedback(db: Database, id: string, feedback: InstructorFeedback): void {
   const ids = new Set([...Object.keys(feedback.answers ?? {}), ...Object.keys(feedback.questions ?? {})]);
   const insert = db.prepare(
@@ -501,7 +548,7 @@ function writeFeedback(db: Database, id: string, feedback: InstructorFeedback): 
 function writeCalls(
   db: Database,
   id: string,
-  role: 'questions' | 'review',
+  role: 'questions' | 'review' | 'code-check',
   provider: string,
   model: string,
   log: { at: number; system: string; user: string; output: unknown; validationErrors: string[]; usage?: { inputTokens: number; outputTokens: number } }[]

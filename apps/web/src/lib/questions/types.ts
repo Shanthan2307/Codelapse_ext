@@ -1,4 +1,5 @@
 import type { SubmissionRecord } from '../types';
+import type { Language } from '../course';
 
 export type QuestionType = 'process' | 'code';
 
@@ -6,6 +7,10 @@ export type QuestionType = 'process' | 'code';
 export interface QuestionExcerpt {
   label: string;
   code: string;
+  /** File line number of the excerpt's first line, when it is a slice of a submitted file. */
+  startLine?: number;
+  /** The file lines the question is about (inclusive), highlighted among the context lines around them. */
+  focus?: { start: number; end: number };
 }
 
 export interface CodeRef {
@@ -86,6 +91,8 @@ export interface QuestionContext {
   record: SubmissionRecord;
   assignmentTitle: string;
   assignmentDescription: string[];
+  /** Language the assignment is written in; C when not given. */
+  language?: Language;
   /** Submitted code, by file name. */
   code: { name: string; content: string }[];
 }

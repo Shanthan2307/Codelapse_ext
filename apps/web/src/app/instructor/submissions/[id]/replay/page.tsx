@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { ReplayView } from '@/components/ReplayView';
-import { findAssignment, findStudent } from '@/lib/course';
+import { displayName, findAssignment } from '@/lib/course';
 import { readSessions } from '@/lib/recording';
 import { getSubmission } from '@/lib/store';
 
@@ -25,7 +25,6 @@ export default async function ReplayPage({
   if (!submission || !sessions || sessions.length === 0) {
     notFound();
   }
-  const student = findStudent(submission.studentId);
   const assignment = findAssignment(submission.assignmentId);
   const at = Number(query.at);
 
@@ -34,12 +33,12 @@ export default async function ReplayPage({
       active="instructor"
       crumbs={[
         { label: 'Instructor view', href: '/instructor' },
-        { label: student?.name ?? 'Submission', href: `/instructor/submissions/${id}` },
+        { label: displayName(submission), href: `/instructor/submissions/${id}` },
         { label: 'Replay' }
       ]}
     >
       <h1>
-        Replay: {student?.name ?? submission.studentId}
+        Replay: {displayName(submission)}
       </h1>
       <p className="lead">
         {assignment?.title ?? submission.assignmentId}. Press Play to watch the work being written, or click a bar in the

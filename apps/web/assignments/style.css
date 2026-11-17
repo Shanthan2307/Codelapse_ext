@@ -1,0 +1,318 @@
+/* Shared print style for the assignment briefs (rendered to PDF by
+   apps/web/scripts/build-assignment-pdfs.mjs with headless Chrome). */
+
+@page {
+  size: A4;
+  margin: 18mm 17mm 20mm;
+  @bottom-left {
+    content: "CS 101 Programming Principles · Assignment 3";
+    font: 8pt/1 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #7d8998;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font: 8pt/1 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    color: #7d8998;
+  }
+}
+
+:root {
+  --text: #17202b;
+  --muted: #566373;
+  --accent: #2360a5;
+  --accent-soft: #e9f1fb;
+  --border: #d5dce5;
+  --surface: #f5f7fa;
+  --hint: #1d6f42;
+  --hint-soft: #e8f4ec;
+  --warn: #845500;
+  --warn-soft: #fcf2dc;
+  --code: #5a3ea6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 10pt;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: #fff;
+  font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+h1,
+h2,
+h3 {
+  line-height: 1.25;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+h1 {
+  font-size: 21pt;
+  margin: 0 0 2pt;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 13.5pt;
+  margin: 18pt 0 6pt;
+  padding-bottom: 3pt;
+  border-bottom: 1.5pt solid var(--accent);
+  color: var(--accent);
+}
+
+h3 {
+  font-size: 11pt;
+  margin: 12pt 0 4pt;
+}
+
+p,
+ul,
+ol {
+  margin: 0 0 6pt;
+}
+
+ul,
+ol {
+  padding-left: 16pt;
+}
+
+li {
+  margin-bottom: 2.5pt;
+  break-inside: avoid;
+}
+
+/* A function's heading and its rules stay on one page. */
+.spec {
+  break-inside: avoid;
+}
+
+code,
+pre,
+kbd {
+  font-family: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.92em;
+}
+
+code {
+  color: var(--code);
+  background: #f2effa;
+  padding: 0 2pt;
+  border-radius: 2pt;
+}
+
+pre {
+  margin: 4pt 0 8pt;
+  padding: 7pt 9pt;
+  background: var(--surface);
+  border: 0.75pt solid var(--border);
+  border-radius: 4pt;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  break-inside: avoid;
+}
+
+pre code {
+  color: inherit;
+  background: none;
+  padding: 0;
+}
+
+kbd {
+  border: 0.75pt solid var(--border);
+  border-radius: 2pt;
+  padding: 0 2.5pt;
+  background: var(--surface);
+}
+
+.subtitle {
+  margin: 0 0 10pt;
+  color: var(--muted);
+  font-size: 11pt;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 8pt 0 6pt;
+  border: 0.75pt solid var(--border);
+  border-radius: 4pt;
+  overflow: hidden;
+}
+
+.meta div {
+  padding: 5pt 8pt;
+  border-right: 0.75pt solid var(--border);
+  border-bottom: 0.75pt solid var(--border);
+  background: var(--surface);
+}
+
+.meta div:nth-child(3n) {
+  border-right: none;
+}
+
+.meta div:nth-last-child(-n + 3) {
+  border-bottom: none;
+}
+
+.meta dt {
+  font-size: 7.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.meta dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4pt 0 8pt;
+  break-inside: avoid;
+}
+
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  padding: 3.5pt 6pt;
+  border-bottom: 0.75pt solid var(--border);
+}
+
+th {
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.callout {
+  margin: 6pt 0 8pt;
+  padding: 7pt 10pt;
+  border-left: 3pt solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 4pt 4pt 0;
+  break-inside: avoid;
+}
+
+.callout > :last-child {
+  margin-bottom: 0;
+}
+
+.callout-title {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2pt;
+}
+
+.callout.hint {
+  border-left-color: var(--hint);
+  background: var(--hint-soft);
+}
+
+.callout.warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.hints {
+  counter-reset: hint;
+  list-style: none;
+  padding: 0;
+}
+
+.hints > li {
+  counter-increment: hint;
+  margin: 0 0 6pt;
+  padding: 6pt 10pt 6pt 30pt;
+  position: relative;
+  background: var(--hint-soft);
+  border-radius: 4pt;
+  break-inside: avoid;
+}
+
+.hints > li::before {
+  content: counter(hint);
+  position: absolute;
+  left: 9pt;
+  top: 6pt;
+  width: 14pt;
+  height: 14pt;
+  border-radius: 50%;
+  background: var(--hint);
+  color: #fff;
+  font-size: 8pt;
+  font-weight: 700;
+  line-height: 14pt;
+  text-align: center;
+}
+
+.hint-level {
+  font-size: 7.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hint);
+}
+
+.checklist {
+  list-style: none;
+  padding-left: 0;
+}
+
+.checklist li {
+  padding-left: 16pt;
+  position: relative;
+}
+
+.checklist li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 2.5pt;
+  width: 8pt;
+  height: 8pt;
+  border: 1pt solid var(--muted);
+  border-radius: 1.5pt;
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12pt;
+}
+
+.keep {
+  break-inside: avoid;
+}
+
+.page-break {
+  break-before: page;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 8.5pt;
+}

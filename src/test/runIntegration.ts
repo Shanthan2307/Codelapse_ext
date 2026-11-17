@@ -29,7 +29,7 @@ function createWorkspace(root: string): void {
   }
 }
 
-/** Scenario folders for the test recordings, each starting with an empty reverse.c. */
+/** Scenario folders for the test recordings, each starting with an empty reverse.c (reverse.py for Python). */
 export const FIXTURE_SCENARIOS = [
   'honest-incremental',
   'pasted-solution',
@@ -37,13 +37,14 @@ export const FIXTURE_SCENARIOS = [
   'copied-pair-b',
   'weak-but-honest',
   'abandoned-approach',
-  'edited-after-recording'
+  'edited-after-recording',
+  'python-honest'
 ];
 
 function createFixtureWorkspace(root: string): void {
   for (const name of FIXTURE_SCENARIOS) {
     fs.mkdirSync(path.join(root, name), { recursive: true });
-    fs.writeFileSync(path.join(root, name, 'reverse.c'), '');
+    fs.writeFileSync(path.join(root, name, name.startsWith('python-') ? 'reverse.py' : 'reverse.c'), '');
   }
 }
 

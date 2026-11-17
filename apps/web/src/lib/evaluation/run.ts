@@ -62,7 +62,8 @@ export async function runEvaluation(id: string): Promise<void> {
         answers,
         moments: record.moments,
         code: await readAllSubmittedCode(record),
-        assignmentTitle: assignment.title
+        assignmentTitle: assignment.title,
+        language: assignment.language
       },
       model
     );

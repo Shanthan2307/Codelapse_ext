@@ -87,7 +87,7 @@ if (addresses.length === 0) {
 console.log(`AI provider: ${provider}`);
 console.log(`Instructor password: ${password}   (any user name; saved in apps/web/.env.local)`);
 console.log(`Submissions are saved in: ${dataDir}`);
-console.log('Students pick their name from a list, so run this only on a network you trust. Stop with Ctrl+C.\n');
+console.log('Testers type their own name (there is no sign-in), so run this only on a network you trust. Stop with Ctrl+C.\n');
 
 // 4. Serve to the whole network.
 const server = spawn(npx, ['next', 'start', '-H', '0.0.0.0', '-p', String(port)], {

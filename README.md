@@ -10,14 +10,14 @@ CodeLapse is being tried with a small group of student testers. Students install
 
 ### For students
 
-You need VS Code 1.93 or newer and a C compiler (`gcc --version` in a terminal should print a version). The full guide, with troubleshooting, is [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
+The assignment comes in two languages, **C** and **Python**: use the one your instructor gives you. Each has a detailed PDF brief (examples, hints and a checklist) on its assignment page. You need VS Code 1.93 or newer, plus a C compiler (`gcc --version`) or Python 3.10+ (`python3 --version`). The full guide, with troubleshooting, is [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
 
 1. **Install the extension.** Download `codelapse-0.1.0.vsix` from the [pilot release](https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot) (under **Assets**). In VS Code, open **Extensions**, click **`···`**, choose **Install from VSIX…** and pick the file. A short walkthrough opens.
 2. **Choose your assignment folder.** Create an empty folder, open it in VS Code, and click **CodeLapse: Choose folder** in the status bar. Only this folder is recorded.
-3. **Write and build your code as usual.** Write `reverse.c` and build it in the VS Code terminal (`gcc -Wall -o reverse reverse.c && ./reverse`). Your edits and builds are recorded on your computer.
+3. **Write and run your code as usual.** Write `reverse.c` and build it in the VS Code terminal (`gcc -Wall -o reverse reverse.c && ./reverse`), or write `reverse.py` and run it (`python3 reverse.py`). Your edits and runs are recorded on your computer.
 4. **Export your recording.** Run **CodeLapse: Export Assignment Bundle** from the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`). This saves a `.codelapse` file.
 5. **Open the submission page.** Click **Open Submission Page** in the message that appears. The first time, VS Code asks for the address your instructor gives you; paste it in.
-6. **Submit.** Pick your name, drop in the `.codelapse` file and `reverse.c`, and click **Submit Assignment**.
+6. **Submit.** On the assignment for your language, pick your name, drop in the `.codelapse` file and your code file, and click **Submit Assignment**.
 7. **Answer the four questions** on the page that opens. You have one hour from submitting, and you can submit your answers once.
 
 Nothing leaves your computer until you upload it yourself in step 6.
@@ -173,7 +173,7 @@ npm run package            # Build the .vsix
 
 Neither says anyone cheated. They describe what the recording shows, for an instructor to judge.
 
-`fixtures/recordings` holds scripted recordings of a small C assignment, made by driving the real extension (see its README). They are for testing, not evidence of how students work. Regenerate them with `npm run fixtures`.
+`fixtures/recordings` holds scripted recordings of a small C assignment, made by driving the real extension (see its README). They are for testing, not evidence of how students work. Seven are C and one (`python-honest`) is Python. Regenerate them with `npm run fixtures`.
 
 ## Demo submission site
 
@@ -185,12 +185,13 @@ npm run web:dev        # http://localhost:3100
 
 | Page | For | Shows |
 |---|---|---|
-| `/courses/cs101/assignments/a3-reverse` | Students | The assignment and the submission form |
+| `/courses/cs101` | Students | Both assignments (C and Python), each with its PDF brief |
+| `/courses/cs101/assignments/a3-reverse`, `…/a3-reverse-py` | Students | The C or Python assignment, its PDF brief and the submission form |
 | `/submissions/<id>` | The student | Confirmation and the four feedback questions, with the time left to answer |
 | `/instructor` | Instructors | Each student's latest submission: recording summary and replay check |
 | `/instructor/submissions/<id>` | Instructors | Per-file replay check, the questions with why each was asked, the answers and their review, the code and the decision moments |
 
-The course, assignment and the five demo students are defined in `apps/web/src/lib/course.ts`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. Students have no sign-in. Set `CODELAPSE_INSTRUCTOR_PASSWORD` (`npm run demo` creates one) to put the instructor pages, comparison, ratings and research export behind a password; without it they are open to anyone who can reach the site.
+The course, the two assignments (C and Python) and the five demo students are defined in `apps/web/src/lib/course.ts`. The PDF briefs are built from `apps/web/assignments/*.html` with `npm run assignments:pdf` (needs Google Chrome) into `apps/web/public/assignments/`. Submissions are saved as plain files in `apps/web/data` (or `CODELAPSE_DATA_DIR`), which git ignores because it holds student code. Students have no sign-in. Set `CODELAPSE_INSTRUCTOR_PASSWORD` (`npm run demo` creates one) to put the instructor pages, comparison, ratings and research export behind a password; without it they are open to anyone who can reach the site.
 
 `npm run web:build && npm run web:smoke` builds the site and submits the scripted recordings as all five students to check every page.
 

@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDateTime, formatDuration, plural } from '@/components/format';
-import { COURSE, findAssignment, findStudent } from '@/lib/course';
-import { getAnswers, getQuestionSet, getSubmission } from '@/lib/store';
+import { COURSE, displayName, findAssignment } from '@/lib/course';
+import { getAnswers, getCodeCheck, getHintProgress, getQuestionSet, getSubmission } from '@/lib/store';
+import { studentCodeCheck } from '@/lib/codecheck/progress';
+import { CodeCheckPanel } from '@/components/CodeCheckPanel';
 import { studentView } from '@/lib/questions/answers';
 import { QuestionsForm, QuestionsState } from '@/components/QuestionsForm';
 
@@ -17,7 +19,6 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
     notFound();
   }
   const assignment = findAssignment(submission.assignmentId);
-  const student = findStudent(submission.studentId);
   const assignmentHref = `/courses/${COURSE.id}/assignments/${submission.assignmentId}`;
   const set = await getQuestionSet(id);
   const answers = await getAnswers(id);
@@ -31,6 +32,8 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
     answeredAt: answers?.submittedAt
   };
 
+  const codeCheck = studentCodeCheck(await getCodeCheck(id), await getHintProgress(id));
+
   return (
     <CourseShell
       active="assignments"
@@ -41,13 +44,15 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
       ]}
     >
       <div className="notice notice-success" role="status">
-        <strong>Submission received.</strong> {student?.name ?? 'Your'} submission for{' '}
+        <strong>Submission received.</strong> {displayName(submission)}'s submission for{' '}
         {assignment?.title ?? 'this assignment'} was received on {formatDateTime(submission.submittedAt)}.
       </div>
 
       <h1>Your submission</h1>
 
       <QuestionsForm submissionId={submission.id} initial={questions} />
+
+      <CodeCheckPanel submissionId={submission.id} initial={codeCheck} />
 
       <section className="card">
         <h2>What you submitted</h2>

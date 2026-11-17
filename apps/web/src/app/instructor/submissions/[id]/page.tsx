@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { formatClock, formatCount, formatDateTime, formatDuration, plural } from '@/components/format';
-import { findAssignment, findStudent } from '@/lib/course';
-import { getAnswers, getEvaluation, getQuestionSet, getSubmission, readSubmittedCode } from '@/lib/store';
+import { displayName, findAssignment } from '@/lib/course';
+import { getAnswers, getCodeCheck, getEvaluation, getHintProgress, getQuestionSet, getSubmission, readSubmittedCode } from '@/lib/store';
+import { CodeCheckReview } from '@/components/CodeCheckReview';
 import type { AnswerSet, GeneratedQuestion, QuestionSet } from '@/lib/questions/types';
 import { RetryQuestionsButton } from '@/components/RetryQuestionsButton';
 import { RetryButton } from '@/components/RetryButton';
@@ -11,6 +12,7 @@ import { OpenDetailsOnHash } from '@/components/OpenDetailsOnHash';
 import { WatchMomentLink, replayHref } from '@/components/ReplayLink';
 import { AnswerEvaluationView, HighlightedAnswer, LevelCounts } from '@/components/AnswerReview';
 import { RatingPanel } from '@/components/RatingPanel';
+import { CodeExcerpts } from '@/components/CodeExcerpts';
 import { emptyFeedback, getFeedback } from '@/lib/research/feedback';
 import type { AnswerEvaluation, EvaluationSet } from '@/lib/evaluation/types';
 import type { FileCheck, Moment } from '@/lib/types';
@@ -40,7 +42,6 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   if (!submission) {
     notFound();
   }
-  const student = findStudent(submission.studentId);
   const assignment = findAssignment(submission.assignmentId);
   const code = await Promise.all(
     submission.files.map(async (file) => ({ file, text: await readSubmittedCode(submission.id, file.name) }))
@@ -49,6 +50,7 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   const questionSet = await getQuestionSet(submission.id);
   const answers = await getAnswers(submission.id);
   const evaluation = answers ? await getEvaluation(submission.id) : null;
+  const [codeCheck, hintProgress] = await Promise.all([getCodeCheck(submission.id), getHintProgress(submission.id)]);
   const momentsById = new Map(submission.moments.map((m) => [m.id, m]));
   const closed = Date.now() > submission.questionsCloseAt;
   // No ratings saved yet still shows the card, empty, so the instructor can start rating.
@@ -61,10 +63,10 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   return (
     <CourseShell
       active="instructor"
-      crumbs={[{ label: 'Instructor view', href: '/instructor' }, { label: student?.name ?? 'Submission' }]}
+      crumbs={[{ label: 'Instructor view', href: '/instructor' }, { label: displayName(submission) }]}
     >
       <h1>
-        {student?.name ?? submission.studentId}: {assignment?.title ?? submission.assignmentId}
+        {displayName(submission)}: {assignment?.title ?? submission.assignmentId}
       </h1>
       <p className="lead">
         Submitted {formatDateTime(submission.submittedAt)}. Everything below describes what the recording shows. It
@@ -180,6 +182,8 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
           ))}
         </div>
       </details>
+
+      <CodeCheckReview submissionId={submission.id} check={codeCheck} progress={hintProgress} />
 
       <QuestionsSection
         submissionId={submission.id}
@@ -416,16 +420,7 @@ function InstructorQuestion({
         )}
       </div>
       <p className="question-text">{question.text}</p>
-      {question.excerpts.length > 0 && (
-        <div className={question.excerpts.length > 1 ? 'excerpts excerpts-pair' : 'excerpts'}>
-          {question.excerpts.map((excerpt) => (
-            <div key={excerpt.label}>
-              <p className="code-name">{excerpt.label}</p>
-              <pre>{excerpt.code || '(empty)'}</pre>
-            </div>
-          ))}
-        </div>
-      )}
+      <CodeExcerpts excerpts={question.excerpts} />
       <dl className="question-notes">
         <div>
           <dt>Why this was asked</dt>

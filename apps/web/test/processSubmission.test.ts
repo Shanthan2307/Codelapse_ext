@@ -46,6 +46,18 @@ describe('Processing a submission', () => {
     assert.ok(record.recording.bulkInsertedChars > 500);
   });
 
+  it('accepts a tester who typed their name, with a stable id for that name', () => {
+    const typed = processSubmission({ assignmentId: 'a3-reverse', studentName: '  Jane   Doe ', ...upload('honest-incremental') });
+    assert.strictEqual(typed.studentName, 'Jane Doe');
+    assert.strictEqual(typed.studentId, 'tester-jane-doe');
+    const again = processSubmission({ assignmentId: 'a3-reverse', studentName: 'jane doe', ...upload('honest-incremental') });
+    assert.strictEqual(again.studentId, typed.studentId, 'the same name maps to the same tester');
+    assert.throws(
+      () => processSubmission({ assignmentId: 'a3-reverse', studentName: ' !! ', ...upload('honest-incremental') }),
+      /Enter your name/
+    );
+  });
+
   it('turns bad uploads into messages a student can act on', () => {
     const good = upload('honest-incremental');
     const attempt = (changes: Partial<Parameters<typeof processSubmission>[0]>) => () =>

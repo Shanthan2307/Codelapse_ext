@@ -1,3 +1,4 @@
+import { AI_REQUEST_TIMEOUT_MS } from '../ai/timeouts';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { describeApiError } from '../ai/claudeErrors';
@@ -28,7 +29,7 @@ export class ClaudeEvaluatorModel implements EvaluatorModel {
 
   constructor(options: { model?: string; client?: Anthropic } = {}) {
     this.model = options.model ?? process.env.CODELAPSE_EVALUATOR_MODEL ?? DEFAULT_EVALUATOR_MODEL;
-    this.client = options.client ?? new Anthropic({ timeout: 5 * 60 * 1000 });
+    this.client = options.client ?? new Anthropic({ timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1 });
   }
 
   async evaluate(prompt: { system: string; user: string }) {

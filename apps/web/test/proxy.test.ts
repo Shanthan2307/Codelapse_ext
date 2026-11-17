@@ -24,6 +24,7 @@ describe('Instructor password', () => {
     assert.ok(needsInstructor(req('/api/submissions/abc/feedback', 'PUT')));
     assert.ok(needsInstructor(req('/api/submissions/abc/evaluation', 'POST')));
     assert.ok(needsInstructor(req('/api/submissions/abc/questions', 'POST')));
+    assert.ok(needsInstructor(req('/api/submissions/abc/code-check/retry', 'POST')));
   });
 
   it('leaves everything a student needs open', () => {
@@ -33,6 +34,8 @@ describe('Instructor password', () => {
       ['/submissions/abc', 'GET'],
       ['/api/submissions/abc/questions', 'GET'],
       ['/api/submissions/abc/answers', 'POST'],
+      ['/api/submissions/abc/code-check', 'GET'],
+      ['/api/submissions/abc/code-check', 'POST'],
       ['/instructors-guide', 'GET']
     ]) {
       assert.ok(!needsInstructor(req(path, method)), `${method} ${path}`);

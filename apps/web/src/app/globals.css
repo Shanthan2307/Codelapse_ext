@@ -1951,3 +1951,172 @@ pre.compare-code:not(:has(.compare-line)) {
 .export-card { margin-top: var(--s-5); }
 .export-card h2 { margin-top: 0; }
 .export-links { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+
+/* ---- Assignments in two languages ---- */
+.lang-badge { display: inline-block; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.02em; padding: 2px 8px; border-radius: 999px; vertical-align: middle; }
+.lang-c { background: var(--c-accent-soft); color: var(--c-accent); }
+.lang-python { background: var(--c-ok-soft); color: var(--c-ok); }
+.item-head { display: inline-flex; align-items: center; gap: var(--s-2); }
+.brief-banner { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: var(--s-3) 0 var(--s-4); }
+.assignment-tabs { display: flex; gap: var(--s-1); margin: var(--s-3) 0 var(--s-4); border-bottom: 1px solid var(--c-border); }
+.assignment-tabs a { padding: var(--s-2) var(--s-4); text-decoration: none; color: var(--c-muted); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; }
+.assignment-tabs a:hover { color: var(--c-text); }
+.assignment-tabs a[aria-current='page'] { color: var(--c-accent); border-bottom-color: var(--c-accent); }
+
+/* ---- Code excerpts with highlighting (questions and code-check hints) ---- */
+.xc {
+  margin: 0;
+  padding: var(--s-2) 0;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.xc-line {
+  display: block;
+  padding-right: var(--s-3);
+  white-space: pre;
+}
+.xc-ln {
+  display: inline-block;
+  width: 2.6em;
+  padding-right: 0.6em;
+  text-align: right;
+  color: var(--c-subtle);
+  user-select: none;
+}
+.xc-mark {
+  display: inline-block;
+  width: 1.4em;
+  color: var(--c-subtle);
+  user-select: none;
+}
+.xc-focus {
+  background: var(--c-mark);
+  box-shadow: inset 3px 0 0 var(--c-focus);
+}
+.xc-focus .xc-mark {
+  color: var(--c-warn);
+}
+.xc-removed {
+  background: var(--c-error-soft);
+  box-shadow: inset 3px 0 0 var(--c-error);
+}
+.xc-removed .xc-mark {
+  color: var(--c-error);
+  font-weight: 700;
+}
+.xc-added {
+  background: var(--c-ok-soft);
+  box-shadow: inset 3px 0 0 var(--c-ok);
+}
+.xc-added .xc-mark {
+  color: var(--c-ok);
+  font-weight: 700;
+}
+.xc-change {
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.xc-removed .xc-change {
+  background: #f3c4c4;
+  text-decoration: line-through;
+  text-decoration-color: rgba(159, 37, 37, 0.5);
+}
+.xc-added .xc-change {
+  background: #b9e3c8;
+}
+.xc-legend {
+  font-size: var(--t-sm);
+  color: var(--c-muted);
+  margin: 0 0 var(--s-2);
+}
+.xc-key {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+}
+.xc-key-removed {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+.xc-key-added {
+  background: var(--c-ok-soft);
+  color: var(--c-ok);
+}
+.xc-key-focus {
+  margin-left: var(--s-2);
+  background: var(--c-mark);
+  color: var(--c-warn);
+  font-family: var(--font);
+}
+
+/* ---- Code check: incremental hints ---- */
+.cc-issue {
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  margin: var(--s-3) 0;
+}
+.cc-issue-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-2);
+}
+.cc-issue-head h3 {
+  margin: 0;
+  font-size: var(--t-md);
+}
+.cc-sev {
+  font-size: var(--t-xs);
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+}
+.cc-sev-error {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+.cc-sev-warning {
+  background: var(--c-warn-soft);
+  color: var(--c-warn);
+}
+.cc-hints {
+  list-style: none;
+  padding: 0;
+  margin: var(--s-3) 0;
+}
+.cc-hint {
+  border-left: 3px solid var(--c-accent);
+  background: var(--c-accent-soft);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
+.cc-hint-n {
+  display: block;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--c-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+}
+.cc-trace {
+  font-size: var(--t-sm);
+}
+.cc-sev-ok {
+  background: var(--c-ok-soft);
+  color: var(--c-ok);
+}

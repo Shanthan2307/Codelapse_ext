@@ -10,4 +10,9 @@ apps/web/next-env.d.ts
 *.tsbuildinfo
 .env*.local
 apps/web/data-archive-*
+apps/web/data-supabase
 /research/
+.vercel
+
+# Supabase CLI working files (project ref, connection details)
+**/supabase/.temp

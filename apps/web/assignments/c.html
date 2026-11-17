@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 3 (C): Reverse a String</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<h1>Assignment 3 (C): Reverse a String</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026</p>
+
+<dl class="meta">
+  <div><dt>Language</dt><dd>C (standard library only)</dd></div>
+  <div><dt>File to write</dt><dd><code>reverse.c</code></dd></div>
+  <div><dt>Due</dt><dd>Nov 20, 2026, 11:59 PM</dd></div>
+  <div><dt>Points</dt><dd>20 (demo course)</dd></div>
+  <div><dt>You submit</dt><dd><code>reverse.c</code> + your <code>.codelapse</code> recording</dd></div>
+  <div><dt>Time</dt><dd>About 45–60 minutes, then up to 1 hour for 4 short questions</dd></div>
+</dl>
+
+<h2>1. Overview</h2>
+<p>You will write a small C program with two functions: one that reverses a string <b>in place</b>, and one that counts its vowels. It is a short program, but it touches several ideas that matter in every C program you will write: how strings are stored, how loops move through an array, and what it means for a function to change the data it is given.</p>
+<p>You will write it in VS Code while the <b>CodeLapse</b> extension records how you work. When you submit, you will answer four short questions about your own work and your own code.</p>
+
+<h3>What you will practise</h3>
+<ul>
+  <li>How C stores a string: an array of <code>char</code> that ends with the null character <code>'\0'</code>.</li>
+  <li>Using <code>strlen</code> and loops with indices (or pointers) to walk through an array.</li>
+  <li>Changing data <b>in place</b> through a pointer, and protecting data you only read with <code>const</code>.</li>
+  <li>Testing your own code on ordinary and unusual inputs, and fixing compiler errors and warnings.</li>
+</ul>
+
+<h2>2. What to build</h2>
+<p>Write everything in one file, <code>reverse.c</code>. Use only the C standard library (for example <code>&lt;stdio.h&gt;</code>, <code>&lt;string.h&gt;</code>, <code>&lt;ctype.h&gt;</code>).</p>
+
+<div class="spec">
+<h3><code>void reverse(char *s)</code></h3>
+<ul>
+  <li>Reverses the string <code>s</code> <b>in place</b>: after the call, the same array holds the characters in reverse order.</li>
+  <li>Must <b>not</b> use a second array or string, and must not allocate memory (<code>malloc</code>). A single <code>char</code> variable for swapping is fine.</li>
+  <li>Must work for any string, including the empty string <code>""</code> and a string of one character.</li>
+  <li>Returns nothing: the change happens to the caller's array.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>int count_vowels(const char *s)</code></h3>
+<ul>
+  <li>Returns how many vowels the string contains. The vowels are <code>a e i o u</code>, in <b>either case</b> (<code>A E I O U</code> count too).</li>
+  <li><code>y</code> is <b>not</b> a vowel for this assignment. Spaces, digits and punctuation are not vowels.</li>
+  <li>Must not change the string. The <code>const</code> in the parameter is part of the required signature.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>int main(void)</code></h3>
+<ul>
+  <li>Puts a test word in a <code>char</code> <b>array</b> (for example <code>"codelapse"</code>), calls both functions on it, and prints the reversed word and the vowel count.</li>
+  <li>Returns <code>0</code>.</li>
+</ul>
+</div>
+
+<div class="callout warn">
+  <span class="callout-title">Not allowed</span>
+  A second array or buffer to build the reversed string; <code>malloc</code>; any non-standard library; library functions that reverse for you (some systems have <code>strrev</code>, which is not standard C). The program must compile with <b>no warnings</b> using <code>gcc -Wall</code>.
+</div>
+
+<h2>3. Examples</h2>
+<p>Every row was checked by running a correct solution. The quotes only show where the string starts and ends; they are not part of it.</p>
+<table>
+  <thead><tr><th>Input</th><th>After <code>reverse</code></th><th class="num"><code>count_vowels</code></th><th>Why it is a useful test</th></tr></thead>
+  <tbody>
+    <tr><td><code>"codelapse"</code></td><td><code>"espaledoc"</code></td><td class="num">4</td><td>The normal case (odd length: 9)</td></tr>
+    <tr><td><code>""</code></td><td><code>""</code></td><td class="num">0</td><td>Empty string: nothing to swap, must not crash</td></tr>
+    <tr><td><code>"a"</code></td><td><code>"a"</code></td><td class="num">1</td><td>One character: stays the same</td></tr>
+    <tr><td><code>"ab"</code></td><td><code>"ba"</code></td><td class="num">1</td><td>Shortest even length</td></tr>
+    <tr><td><code>"abc"</code></td><td><code>"cba"</code></td><td class="num">1</td><td>Short odd length: the middle stays put</td></tr>
+    <tr><td><code>"racecar"</code></td><td><code>"racecar"</code></td><td class="num">3</td><td>A palindrome reads the same reversed</td></tr>
+    <tr><td><code>"a b"</code></td><td><code>"b a"</code></td><td class="num">1</td><td>Spaces are characters too</td></tr>
+    <tr><td><code>"Hello, World!"</code></td><td><code>"!dlroW ,olleH"</code></td><td class="num">3</td><td>Punctuation, a space, and capitals</td></tr>
+    <tr><td><code>"Programming"</code></td><td><code>"gnimmargorP"</code></td><td class="num">3</td><td>A capital letter moves to the end</td></tr>
+    <tr><td><code>"AEIOU aeiou"</code></td><td><code>"uoiea UOIEA"</code></td><td class="num">10</td><td>Upper- and lower-case vowels both count</td></tr>
+    <tr><td><code>"rhythm"</code></td><td><code>"mhtyhr"</code></td><td class="num">0</td><td><code>y</code> is not a vowel</td></tr>
+  </tbody>
+</table>
+
+<h3>Example run</h3>
+<pre><code>$ gcc -Wall -o reverse reverse.c
+$ ./reverse
+Original: codelapse
+Reversed: espaledoc
+Vowels: 4</code></pre>
+<p>The exact wording of the output is up to you, but it must show the reversed word and the vowel count. Reversing does not change how many vowels a word has, so you can count before or after reversing.</p>
+
+<h2>4. A plan that works</h2>
+<ol class="keep">
+  <li>Create the folder, open it in VS Code and start CodeLapse (section 8). Create <code>reverse.c</code>.</li>
+  <li>Write a <code>main</code> that only prints your test word. Build and run it, so you know your setup works.</li>
+  <li>Write <code>reverse</code>. Call it from <code>main</code>, print the result, build and run.</li>
+  <li>Try the examples above by changing the test word (or by testing several words in <code>main</code>).</li>
+  <li>Write <code>count_vowels</code>. Print its result and check it against the table.</li>
+  <li>Build with <code>-Wall</code> one last time and fix every warning. Save the file.</li>
+</ol>
+
+<h2>5. Hints</h2>
+<p class="muted">Read one hint at a time and try it yourself before moving on to the next. They start general and get more specific.</p>
+<ol class="hints">
+  <li><span class="hint-level">Getting started</span><br>
+    A C string is an array of <code>char</code> followed by <code>'\0'</code>. <code>strlen(s)</code> (from <code>&lt;string.h&gt;</code>) gives the number of characters <b>before</b> the <code>'\0'</code>, so the last real character is at index <code>strlen(s) - 1</code>. Never move the <code>'\0'</code>.</li>
+  <li><span class="hint-level">The idea</span><br>
+    Picture two fingers, one on the first character and one on the last. Swap what they point at, then move both fingers one step towards the middle. Repeat.</li>
+  <li><span class="hint-level">When to stop</span><br>
+    Stop when the fingers meet or cross: that is after about half the length. If you keep going to the end, every pair is swapped a second time and the string comes back unchanged. With an odd length the middle character never needs to move. Check your stopping rule against <code>"ab"</code> and <code>"abc"</code>.</li>
+  <li><span class="hint-level">Swapping</span><br>
+    To swap two characters you need somewhere to keep one of them for a moment: one temporary <code>char</code>. If you write <code>s[i] = s[j]; s[j] = s[i];</code> without it, both end up the same.</li>
+  <li><span class="hint-level">Indices or pointers</span><br>
+    You can use two <code>int</code> or <code>size_t</code> indices, or two <code>char *</code> pointers. Both are fine; be ready to explain your choice. Careful with the empty string: <code>strlen</code> returns <code>size_t</code>, which cannot be negative, so <code>strlen(s) - 1</code> on <code>""</code> is a huge number, not <code>-1</code>. Make sure your loop does not run at all for <code>""</code>.</li>
+  <li><span class="hint-level">Counting vowels</span><br>
+    Walk through the string until you reach <code>'\0'</code> and check each character. For upper case, either compare against both cases or turn the character into lower case first with <code>tolower</code> from <code>&lt;ctype.h&gt;</code> (cast the argument to <code>unsigned char</code>). If you look characters up in a string of vowels with <code>strchr</code>, remember that <code>strchr</code> also "finds" the <code>'\0'</code> at the end, so only call it on real characters.</li>
+  <li><span class="hint-level">const</span><br>
+    <code>const char *s</code> promises that <code>count_vowels</code> only reads the string. If you try to change a character through <code>s</code>, the compiler reports an error. That is the point.</li>
+  <li><span class="hint-level">main</span><br>
+    Write <code>char word[] = "codelapse";</code>, not <code>char *word = "codelapse";</code>. The first makes an array you are allowed to change; the second points at a string literal, and changing it is undefined behaviour (often a crash). Because <code>reverse</code> changes <code>word</code> itself, print the original <b>before</b> you reverse it.</li>
+</ol>
+
+<h2>6. Test your program</h2>
+<ul>
+  <li>Build with <code>gcc -Wall -o reverse reverse.c</code> after every change, in the VS Code terminal. Read warnings as carefully as errors.</li>
+  <li>Run <code>./reverse</code> and compare with the table. Change the test word in <code>main</code> to try the edge cases, or call your functions on several words and print each result.</li>
+  <li>A quick way to check yourself: <code>printf("%s %d\n", word, count_vowels(word));</code> after each step.</li>
+</ul>
+
+<h3>Self-check before you submit</h3>
+<ul class="checklist">
+  <li>Compiles with <code>gcc -Wall</code> with no errors and no warnings.</li>
+  <li><code>reverse</code> uses no second array and no <code>malloc</code>.</li>
+  <li>Correct for <code>""</code>, <code>"a"</code>, <code>"ab"</code>, <code>"abc"</code> and <code>"Hello, World!"</code>.</li>
+  <li><code>count_vowels</code> counts capital vowels and does not count <code>y</code>.</li>
+  <li>The function signatures are exactly <code>void reverse(char *s)</code> and <code>int count_vowels(const char *s)</code>.</li>
+  <li><code>main</code> prints the reversed word and the vowel count, and returns <code>0</code>.</li>
+  <li>You can explain, in your own words, why your loop stops where it does.</li>
+</ul>
+
+<h2>7. Common mistakes</h2>
+<table>
+  <thead><tr><th style="width:36%">Mistake</th><th>What happens, and the fix</th></tr></thead>
+  <tbody>
+    <tr><td>Looping all the way to the end</td><td>Every pair is swapped twice and the string looks unchanged. Stop at the middle.</td></tr>
+    <tr><td>Off by one at the end</td><td>Using <code>s[len]</code> as the last character swaps the <code>'\0'</code> to the front, and the string looks empty. The last character is <code>s[len - 1]</code>.</td></tr>
+    <tr><td>Swapping without a temporary</td><td>Both positions end up with the same character.</td></tr>
+    <tr><td>Changing a string literal</td><td><code>char *w = "hello"; reverse(w);</code> may crash. Use <code>char w[] = "hello";</code>.</td></tr>
+    <tr><td>Forgetting a semicolon or a bracket</td><td>The compiler often reports it on the line <b>after</b> the mistake. Look at the line above too.</td></tr>
+    <tr><td>Forgetting capital vowels, or counting <code>y</code></td><td><code>"AEIOU aeiou"</code> must give 10 and <code>"rhythm"</code> must give 0.</td></tr>
+    <tr><td>Printing the "original" after reversing</td><td>The array has already changed, so both lines show the reversed word.</td></tr>
+    <tr><td>Ignoring warnings</td><td>Warnings from <code>-Wall</code> often point at real problems, such as an unused variable. Calling <code>strlen</code> without <code>#include &lt;string.h&gt;</code> gives a warning or an error, depending on the compiler.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Working with CodeLapse</h2>
+<p>CodeLapse records how your program grows, so the questions can be about <i>your</i> work. Set it up before you start writing. The full tester guide (installation and troubleshooting) is in <code>docs/TESTER_GUIDE.md</code> of the CodeLapse repository.</p>
+<ol>
+  <li><b>Check your tools.</b> VS Code 1.93 or newer, and a C compiler: <code>gcc --version</code> in a terminal should print a version (on a Mac it may say "clang"; that is fine).</li>
+  <li><b>Install CodeLapse.</b> Download <code>codelapse-0.1.0.vsix</code> from<br><span class="small">https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot</span><br>In VS Code: <b>Extensions</b> → <b><code>···</code></b> → <b>Install from VSIX…</b> and pick the file. A short walkthrough opens.</li>
+  <li><b>Choose your folder.</b> Create an empty folder (for example <code>reverse-assignment</code>), open it with <b>File → Open Folder…</b>, then click <b>CodeLapse: Choose folder</b> in the status bar and pick it. The status bar now shows the folder name with a record icon. Only this folder is recorded.</li>
+  <li><b>Write and build in VS Code.</b> Create <code>reverse.c</code>, and build and run in the VS Code terminal (<b>Terminal → New Terminal</b>, bash, zsh or PowerShell): <code>gcc -Wall -o reverse reverse.c</code> then <code>./reverse</code>. Builds in a separate terminal app are not recorded. Failed builds are fine and normal.</li>
+  <li><b>Export.</b> Open the Command Palette (<kbd>Cmd+Shift+P</kbd> / <kbd>Ctrl+Shift+P</kbd>) and run <b>CodeLapse: Export Assignment Bundle (.codelapse)</b>. Save the <code>.codelapse</code> file.</li>
+  <li><b>Submit.</b> Click <b>Open Submission Page</b> in the message that appears (or run <b>CodeLapse: Open Submission Page</b>). The first time, VS Code asks for the address your instructor gives you. On the page, pick your name, add the <code>.codelapse</code> file and <code>reverse.c</code>, and click <b>Submit Assignment</b>.</li>
+</ol>
+
+<h2>9. The four questions</h2>
+<p>Right after you submit, the page shows <b>four short questions about your own work</b>: two about things you did while working (for example a build that failed and how you fixed it, or something you rewrote), and two about specific lines of your code. Every student gets different questions.</p>
+<ul>
+  <li><b>You have one hour from submitting</b> to answer, and you can submit your answers <b>once</b>. A timer shows the time left; your draft is kept if you refresh the page.</li>
+  <li>Write a few sentences each, <b>in your own words</b>. Spelling and grammar do not matter.</li>
+  <li>Explain <b>why</b>, not just what: why the loop stops there, why you chose that approach, what the compiler error told you.</li>
+  <li>Be specific: mention the actual line, variable, error or change. "It works" says much less than "it stops at half the length because …".</li>
+  <li>If you are not sure, say what you think and why. An honest partial answer is better than a vague one.</li>
+</ul>
+
+<h2>10. Working honestly, and what is recorded</h2>
+<p>Write the code yourself, and please turn off AI coding assistants (such as GitHub Copilot) for this assignment. Mistakes, failed builds and rewrites are completely normal; they are part of how programs get written.</p>
+<p><b>CodeLapse records</b> only the folder you choose: what you type, when you switch files, and your builds with their output. It does not record other folders, websites, other apps or your file paths and username. Nothing leaves your computer until you export and upload it yourself.</p>
+<p><b>Your instructor sees</b> your code, your answers, a summary of your recording (how long you worked, how much was typed or added in larger pieces such as pastes, how your builds went), and a short review of how well your answers explain your code. None of this is a grade or an accusation: it describes how the work happened, and your instructor decides what it means. If you are unsure whether something is allowed, ask your instructor.</p>
+
+<h2>11. If something goes wrong</h2>
+<table>
+  <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>gcc: command not found</code></td><td>Mac: run <code>xcode-select --install</code>. Windows: ask your instructor which compiler to install.</td></tr>
+    <tr><td>Status bar says <b>CodeLapse: Choose folder</b> or <b>Not recording</b></td><td>Click it and choose your assignment folder.</td></tr>
+    <tr><td>Builds don't seem to be recorded</td><td>Build in the VS Code terminal (bash, zsh or PowerShell), not a separate Terminal app.</td></tr>
+    <tr><td>"Choose who you are before submitting."</td><td>Pick your name at the top of the form.</td></tr>
+    <tr><td>"Attach your .codelapse recording."</td><td>Add the <code>.codelapse</code> file you exported.</td></tr>
+    <tr><td>"The recording has no sessions in it."</td><td>Nothing was recorded in that folder. Check you chose the right folder.</td></tr>
+    <tr><td>"… is not a C source file. …"</td><td>Upload only <code>reverse.c</code> (not the compiled <code>reverse</code> program).</td></tr>
+    <tr><td>"Your questions could not be prepared."</td><td>Nothing to do: your submission was received and your instructor has been told.</td></tr>
+  </tbody>
+</table>
+<p class="muted small">Anything else: ask your instructor. Good luck, and have fun with it.</p>
+
+</body>
+</html>

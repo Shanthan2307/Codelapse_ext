@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDuration, formatShortDateTime, plural } from '@/components/format';
-import { COURSE } from '@/lib/course';
+import { COURSE, displayName, selectedAssignment } from '@/lib/course';
 import { getAnswers, getEvaluation, getQuestionSet, latestSubmissions } from '@/lib/store';
 import { agreeingSignalNames, buildCohort } from '@/lib/cohort';
+import { AssignmentTabs, withAssignment } from '@/components/AssignmentTabs';
 import { LevelCounts } from '@/components/AnswerReview';
 import type { EvaluationSet } from '@/lib/evaluation/types';
 import type { AnswerSet, QuestionSet } from '@/lib/questions/types';
@@ -11,8 +12,8 @@ import type { SubmissionRecord } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function InstructorPage() {
-  const assignment = COURSE.assignments[0];
+export default async function InstructorPage({ searchParams }: { searchParams: Promise<{ assignment?: string | string[] }> }) {
+  const assignment = selectedAssignment((await searchParams).assignment);
   const latest = await latestSubmissions(assignment.id);
   const byStudent = new Map<string, SubmissionRecord>(latest.map((s) => [s.studentId, s]));
   const questionState = new Map<
@@ -43,15 +44,24 @@ export default async function InstructorPage() {
           name: other.name,
           count: names.length,
           evidence: names.length === 0 ? 'no strong signal' : names.join(', '),
-          href: `/instructor/compare/${self.submissionId}/${other.submissionId}`
+          href: withAssignment(`/instructor/compare/${self.submissionId}/${other.submissionId}`, assignment.id)
         });
       }
     }
   }
+  // Roster students first (shown even before they submit), then anyone who typed their own name.
+  const rosterIds = new Set(COURSE.students.map((s) => s.id));
+  const rows = [
+    ...COURSE.students.filter((s) => byStudent.has(s.id)).map((s) => ({ id: s.id, name: s.name })),
+    ...latest
+      .filter((s) => !rosterIds.has(s.studentId))
+      .map((s) => ({ id: s.studentId, name: displayName(s) }))
+      .sort((x, y) => x.name.localeCompare(y.name))
+  ];
   const now = Date.now();
   const states = [...questionState.values()];
   const overview = [
-    { value: `${latest.length} of ${COURSE.students.length}`, label: 'students submitted' },
+    { value: latest.length, label: latest.length === 1 ? 'tester submitted' : 'testers submitted' },
     { value: latest.filter((s) => s.replay.verdict !== 'consistent').length, label: 'recording checks need a look' },
     { value: states.filter((q) => q.answers).length, label: 'answered their questions' },
     { value: states.filter((q) => q.evaluation?.status === 'ready').length, label: 'answer sets reviewed' }
@@ -60,6 +70,7 @@ export default async function InstructorPage() {
   return (
     <CourseShell active="instructor" crumbs={[{ label: 'Instructor view' }]}>
       <h1>Submissions: {assignment.title}</h1>
+      <AssignmentTabs basePath="/instructor" current={assignment} />
       <p className="lead">
         Each student&apos;s latest submission. The recording check compares the end of the recording with the
         submitted code. These numbers describe the recording; you decide what they mean. Select a name for details.
@@ -67,7 +78,7 @@ export default async function InstructorPage() {
 
       {latest.length >= 2 && (
         <div className="compare-link-row">
-          <Link href="/instructor/compare" className="button button-primary">
+          <Link href={withAssignment('/instructor/compare', assignment.id)} className="button button-primary">
             Compare students
           </Link>
           <span className="muted">See which submissions resemble each other more than usual.</span>
@@ -90,7 +101,7 @@ export default async function InstructorPage() {
               <th scope="col">Submitted</th>
               <th scope="col">Recorded</th>
               <th scope="col">Typed</th>
-              <th scope="col">Builds</th>
+              <th scope="col">{assignment.language === 'c' ? 'Builds' : 'Runs'}</th>
               <th scope="col">Recording</th>
               <th scope="col">Moments</th>
               <th scope="col">Questions</th>
@@ -98,19 +109,17 @@ export default async function InstructorPage() {
             </tr>
           </thead>
           <tbody>
-            {COURSE.students.map((student) => {
+            {rows.length === 0 && (
+              <tr className="row-empty">
+                <td colSpan={9} className="muted">
+                  No submissions yet.
+                </td>
+              </tr>
+            )}
+            {rows.map((student) => {
               const s = byStudent.get(student.id);
               if (!s) {
-                return (
-                  <tr key={student.id} className="row-empty">
-                    <th scope="row" className="nowrap">
-                      {student.name}
-                    </th>
-                    <td colSpan={8} className="muted">
-                      Not submitted
-                    </td>
-                  </tr>
-                );
+                return null;
               }
               const needsLook = s.replay.files.filter(
                 (f) => f.status === 'differs' || f.status === 'not-recorded'

@@ -1,3 +1,4 @@
+import { AI_REQUEST_TIMEOUT_MS } from '../ai/timeouts';
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { GeneratorOutput, GeneratorOutputSchema } from './schema';
@@ -38,7 +39,7 @@ export class ClaudeQuestionModel implements QuestionModel {
 
   constructor(options: { model?: string; client?: Anthropic } = {}) {
     this.model = options.model ?? process.env.CODELAPSE_QUESTION_MODEL ?? DEFAULT_CLAUDE_MODEL;
-    this.client = options.client ?? new Anthropic({ timeout: 5 * 60 * 1000 });
+    this.client = options.client ?? new Anthropic({ timeout: AI_REQUEST_TIMEOUT_MS, maxRetries: 1 });
   }
 
   async generate(prompt: { system: string; user: string }) {

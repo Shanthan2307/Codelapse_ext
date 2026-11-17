@@ -3,18 +3,24 @@ import { notFound } from 'next/navigation';
 import { CourseShell } from '@/components/CourseShell';
 import { MarkPhrases, NumberedCode, SignalChips, agreementText, pct } from '@/components/CompareParts';
 import { formatClock, formatCount, formatDuration } from '@/components/format';
-import { COURSE } from '@/lib/course';
+import { selectedAssignment } from '@/lib/course';
 import { findPair } from '@/lib/cohort';
+import { withAssignment } from '@/components/AssignmentTabs';
 import { getSubmission, readAllSubmittedCode } from '@/lib/store';
 import type { SubmissionRecord } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-type Params = { params: Promise<{ a: string; b: string }> };
+type Params = {
+  params: Promise<{ a: string; b: string }>;
+  searchParams: Promise<{ assignment?: string | string[] }>;
+};
 
-export default async function PairPage({ params }: Params) {
+export default async function PairPage({ params, searchParams }: Params) {
   const { a, b } = await params;
-  const assignment = COURSE.assignments[0];
+  // The pair belongs to one assignment: the one asked for, or the first student's.
+  const asked = (await searchParams).assignment;
+  const assignment = selectedAssignment(asked ?? (await getSubmission(a))?.assignmentId);
   const found = await findPair(assignment.id, a, b);
   const [recordA, recordB] = await Promise.all([getSubmission(a), getSubmission(b)]);
   if (!found || !recordA || !recordB) {
@@ -27,8 +33,8 @@ export default async function PairPage({ params }: Params) {
     <CourseShell
       active="instructor"
       crumbs={[
-        { label: 'Instructor view', href: '/instructor' },
-        { label: 'Compare students', href: '/instructor/compare' },
+        { label: 'Instructor view', href: withAssignment('/instructor', assignment.id) },
+        { label: 'Compare students', href: withAssignment('/instructor/compare', assignment.id) },
         { label: `${pair.a.name} and ${pair.b.name}` }
       ]}
     >

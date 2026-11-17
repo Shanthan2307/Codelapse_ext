@@ -1,13 +1,12 @@
 import { checkReplay, computeSessionAnalytics, extractMoments, parseSessionLog, Session } from '@codelapse/core';
 import { decodeBundle, sha256 } from '@codelapse/core/node';
-import { COURSE, findAssignment, findStudent } from './course';
+import { COURSE, CODE_FILE_HELP, Language, cleanName, findAssignment, findStudent, isAllowedCodeFile, testerId } from './course';
 import { RecordingSummary, SubmissionRecord, SubmittedFileInfo } from './types';
 
 export const QUESTION_WINDOW_MS = 60 * 60 * 1000;
 export const MAX_BUNDLE_BYTES = 25 * 1024 * 1024;
 export const MAX_CODE_FILE_BYTES = 512 * 1024;
 export const MAX_CODE_FILES = 20;
-const ALLOWED_CODE_FILE = /^(?:[\w.-]+\.(?:c|h)|Makefile|makefile)$/;
 
 export interface UploadedFile {
   name: string;
@@ -15,7 +14,10 @@ export interface UploadedFile {
 }
 
 export interface SubmissionInput {
-  studentId: string;
+  /** A roster student's id. Ignored when studentName is given. */
+  studentId?: string;
+  /** The name a tester typed on the form. */
+  studentName?: string;
   assignmentId: string;
   bundle: UploadedFile;
   codeFiles: UploadedFile[];
@@ -39,8 +41,10 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
   if (!assignment) {
     throw new SubmissionError('This assignment does not exist.');
   }
-  if (!findStudent(input.studentId)) {
-    throw new SubmissionError('Choose who you are before submitting.');
+  const studentName = cleanName(input.studentName ?? '');
+  const studentId = studentName ? testerId(studentName) : (input.studentId ?? '');
+  if (!studentId || (!studentName && !findStudent(studentId))) {
+    throw new SubmissionError('Enter your name before submitting.');
   }
   if (input.bundle.bytes.length === 0) {
     throw new SubmissionError('Attach your .codelapse recording.');
@@ -48,7 +52,7 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
   if (input.bundle.bytes.length > MAX_BUNDLE_BYTES) {
     throw new SubmissionError('The .codelapse file is larger than 25 MB.');
   }
-  const codeFiles = checkCodeFiles(input.codeFiles);
+  const codeFiles = checkCodeFiles(input.codeFiles, (f) => f.bytes.length, assignment.language);
 
   let sessions: Session[];
   let bundle: ReturnType<typeof decodeBundle>;
@@ -80,7 +84,7 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
   // Only compare what was asked for: other recorded files (notes, tests) are listed but not required.
   const submittedPaths = new Set(submitted.map((s) => s.path));
   const replay = checkReplay(sessions, submitted, {
-    ignore: (path) => !submittedPaths.has(path) && !isCodePath(path)
+    ignore: (path) => !submittedPaths.has(path) && !isCodePath(path, assignment.language)
   });
 
   const now = input.now ?? Date.now();
@@ -88,7 +92,8 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
     id: input.id ?? newSubmissionId(now),
     courseId: COURSE.id,
     assignmentId: assignment.id,
-    studentId: input.studentId,
+    studentId,
+    ...(studentName ? { studentName } : {}),
     submittedAt: now,
     questionsCloseAt: now + QUESTION_WINDOW_MS,
     files,
@@ -98,10 +103,31 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
   };
 }
 
-function checkCodeFiles(files: UploadedFile[]): UploadedFile[] {
-  const named = files.filter((f) => f.name && f.bytes.length > 0);
+/**
+ * The checks that can be made before any bytes arrive, from names and sizes
+ * only: used to hand out direct-upload links. processSubmission still checks
+ * the files themselves afterwards.
+ */
+export function checkUploadPlan(input: {
+  assignmentId: string;
+  studentName: string;
+  recording: { name: string; size: number };
+  code: { name: string; size: number }[];
+}): { assignmentId: string; codeNames: string[] } {
+  const assignment = findAssignment(input.assignmentId);
+  if (!assignment) throw new SubmissionError('This assignment does not exist.');
+  if (!testerId(cleanName(input.studentName))) throw new SubmissionError('Enter your name before submitting.');
+  if (!(input.recording.size > 0)) throw new SubmissionError('Attach your .codelapse recording.');
+  if (input.recording.size > MAX_BUNDLE_BYTES) throw new SubmissionError('The .codelapse file is larger than 25 MB.');
+  const code = checkCodeFiles(input.code, (f) => (Number.isFinite(f.size) ? f.size : 0), assignment.language);
+  return { assignmentId: assignment.id, codeNames: code.map((f) => f.name) };
+}
+
+function checkCodeFiles<T extends { name: string }>(files: T[], sizeOf: (file: T) => number, language: Language): T[] {
+  const help = CODE_FILE_HELP[language];
+  const named = files.filter((f) => f.name && sizeOf(f) > 0);
   if (named.length === 0) {
-    throw new SubmissionError('Attach your code (.c or .h files).');
+    throw new SubmissionError(language === 'c' ? 'Attach your code (.c or .h files).' : 'Attach your code (.py files).');
   }
   if (named.length > MAX_CODE_FILES) {
     throw new SubmissionError(`Upload at most ${MAX_CODE_FILES} code files.`);
@@ -110,22 +136,22 @@ function checkCodeFiles(files: UploadedFile[]): UploadedFile[] {
   return named.map((file) => {
     // Browsers send a bare name; never trust a path in it.
     const name = file.name.split(/[\\/]/).pop() ?? '';
-    if (!ALLOWED_CODE_FILE.test(name)) {
-      throw new SubmissionError(`"${name}" is not a C source file. Upload .c and .h files (or a Makefile).`);
+    if (!isAllowedCodeFile(language, name)) {
+      throw new SubmissionError(`"${name}" is not ${help.kind}. ${help.upload}`);
     }
-    if (file.bytes.length > MAX_CODE_FILE_BYTES) {
+    if (sizeOf(file) > MAX_CODE_FILE_BYTES) {
       throw new SubmissionError(`"${name}" is larger than 512 KB.`);
     }
     if (seen.has(name)) {
       throw new SubmissionError(`"${name}" was attached twice.`);
     }
     seen.add(name);
-    return { name, bytes: file.bytes };
+    return { ...file, name };
   });
 }
 
-function isCodePath(path: string): boolean {
-  return ALLOWED_CODE_FILE.test(path.split('/').pop() ?? '');
+function isCodePath(path: string, language: Language): boolean {
+  return isAllowedCodeFile(language, path.split('/').pop() ?? '');
 }
 
 function finalRecordedPaths(sessions: Session[]): string[] {

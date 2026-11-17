@@ -53,6 +53,7 @@ export async function runQuestionGeneration(id: string): Promise<void> {
         record,
         assignmentTitle: assignment.title,
         assignmentDescription: assignment.description,
+        language: assignment.language,
         code: await readAllSubmittedCode(record)
       },
       model
