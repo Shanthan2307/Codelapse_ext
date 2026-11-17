@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { COURSE, LANGUAGE_LABELS, type Assignment } from '@/lib/course';
+import { COURSE, type Assignment } from '@/lib/course';
 
-/** Switches the instructor pages between the C and Python versions of the assignment. */
+/** Switches the instructor pages between the course's assignments. */
 export function AssignmentTabs({ basePath, current }: { basePath: string; current: Assignment }) {
   return (
     <nav className="assignment-tabs" aria-label="Assignment">
@@ -11,7 +11,7 @@ export function AssignmentTabs({ basePath, current }: { basePath: string; curren
           href={withAssignment(basePath, assignment.id)}
           aria-current={assignment.id === current.id ? 'page' : undefined}
         >
-          {LANGUAGE_LABELS[assignment.language]}
+          {assignment.label}
         </Link>
       ))}
     </nav>

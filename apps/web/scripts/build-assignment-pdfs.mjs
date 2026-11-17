@@ -16,7 +16,10 @@ const outDir = path.join(webDir, 'public', 'assignments');
 
 const BRIEFS = [
   { source: 'c.html', pdf: 'assignment-3-c-reverse-a-string.pdf' },
-  { source: 'python.html', pdf: 'assignment-3-python-reverse-a-string.pdf' }
+  { source: 'python.html', pdf: 'assignment-3-python-reverse-a-string.pdf' },
+  { source: 'grades.html', pdf: 'assignment-4-python-grade-statistics.pdf' },
+  { source: 'wordcount.html', pdf: 'assignment-5-python-word-frequency.pdf' },
+  { source: 'library.html', pdf: 'assignment-6-python-library-checkout.pdf' }
 ];
 
 const CHROME_CANDIDATES = [

@@ -12,6 +12,8 @@ export type Language = 'c' | 'python';
 export interface Assignment {
   id: string;
   title: string;
+  /** A short name for tabs and lists, e.g. "Python: Grades". */
+  label: string;
   /** The programming language students write the assignment in. */
   language: Language;
   /** Site path of the PDF brief with the full assignment, e.g. /assignments/….pdf */
@@ -49,6 +51,7 @@ export const COURSE: Course = {
     {
       id: 'a3-reverse',
       title: 'Assignment 3 (C): Reverse a String',
+      label: 'C: Reverse',
       language: 'c',
       briefPdf: '/assignments/assignment-3-c-reverse-a-string.pdf',
       points: 20,
@@ -64,6 +67,7 @@ export const COURSE: Course = {
     {
       id: 'a3-reverse-py',
       title: 'Assignment 3 (Python): Reverse a String',
+      label: 'Python: Reverse',
       language: 'python',
       briefPdf: '/assignments/assignment-3-python-reverse-a-string.pdf',
       points: 20,
@@ -76,6 +80,57 @@ export const COURSE: Course = {
         'After you submit, you will get four short questions about your work. You have one hour from submission to answer them.'
       ],
       expectedFiles: ['reverse.py']
+    },
+    {
+      id: 'a4-grades-py',
+      title: 'Assignment 4 (Python): Grade Statistics',
+      label: 'Python: Grades',
+      language: 'python',
+      briefPdf: '/assignments/assignment-4-python-grade-statistics.pdf',
+      points: 20,
+      dueAt: '2026-11-24T23:59:00',
+      description: [
+        'Write grades.py in Python. Implement average(scores) (0.0 for an empty list), highest(scores) (None for an empty list), letter_grade(score) (A from 90, B from 80, C from 70, D from 60, otherwise F) and count_passing(scores, pass_mark=60).',
+        'Write the loops yourself: do not use sum(), max(), min(), sorted() or any import.',
+        'Under if __name__ == "__main__": run them on a list of scores and print the results. Run it with python3 grades.py.',
+        'Record your work with the CodeLapse extension in VS Code. When you are done, run "CodeLapse: Export Assignment Bundle" and upload the .codelapse file together with grades.py.',
+        'After you submit, you will get four short questions about your work. You have one hour from submission to answer them.'
+      ],
+      expectedFiles: ['grades.py']
+    },
+    {
+      id: 'a5-wordcount-py',
+      title: 'Assignment 5 (Python): Word Frequency',
+      label: 'Python: Words',
+      language: 'python',
+      briefPdf: '/assignments/assignment-5-python-word-frequency.pdf',
+      points: 20,
+      dueAt: '2026-11-24T23:59:00',
+      description: [
+        'Write wordcount.py in Python. Implement clean_word(word) (strip punctuation from both ends, lower case), count_words(text) (a dictionary from each word to its count) and top_words(counts, n) (the n most frequent words as (word, count) tuples, ties in alphabetical order).',
+        'Count with a dictionary of your own: do not use collections.Counter, re or any other import.',
+        'Under if __name__ == "__main__": count the words of a short text and print the top 3. Run it with python3 wordcount.py.',
+        'Record your work with the CodeLapse extension in VS Code. When you are done, run "CodeLapse: Export Assignment Bundle" and upload the .codelapse file together with wordcount.py.',
+        'After you submit, you will get four short questions about your work. You have one hour from submission to answer them.'
+      ],
+      expectedFiles: ['wordcount.py']
+    },
+    {
+      id: 'a6-library-py',
+      title: 'Assignment 6 (Python): Library Checkout',
+      label: 'Python: Library',
+      language: 'python',
+      briefPdf: '/assignments/assignment-6-python-library-checkout.pdf',
+      points: 30,
+      dueAt: '2026-11-24T23:59:00',
+      description: [
+        'A medium assignment in two files. In library.py, write a module with a LibraryError exception and Book and Library classes: add_book, available, checkout, return_book and loans_of, enforcing the rules in the brief (copies on the shelf, one copy per member, at most 3 books per member). The module never prints; it raises LibraryError when a rule is broken.',
+        'In main.py, import the module and write run(commands, library), which processes commands such as "checkout 111 ana" and returns one output line each, turning a LibraryError into an "error: ..." line and carrying on.',
+        'Under if __name__ == "__main__": in main.py, build the sample library from the brief and print the results of the sample commands. Run it with python3 main.py.',
+        'Record your work with the CodeLapse extension in VS Code. When you are done, run "CodeLapse: Export Assignment Bundle" and upload the .codelapse file together with library.py and main.py.',
+        'After you submit, you will get four short questions about your work. You have one hour from submission to answer them.'
+      ],
+      expectedFiles: ['library.py', 'main.py']
     }
   ]
 };

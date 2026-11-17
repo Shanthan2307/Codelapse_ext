@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 4 (Python): Grade Statistics</title>
+<link rel="stylesheet" href="style.css">
+<style>@page { @bottom-left { content: "CS 101 Programming Principles · Assignment 4"; } }</style>
+</head>
+<body>
+
+<h1>Assignment 4 (Python): Grade Statistics</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026 · Basic</p>
+
+<dl class="meta">
+  <div><dt>Language</dt><dd>Python 3.10+ (standard library only)</dd></div>
+  <div><dt>File to write</dt><dd><code>grades.py</code></dd></div>
+  <div><dt>Due</dt><dd>Nov 24, 2026, 11:59 PM</dd></div>
+  <div><dt>Points</dt><dd>20 (demo course)</dd></div>
+  <div><dt>You submit</dt><dd><code>grades.py</code> + your <code>.codelapse</code> recording</dd></div>
+  <div><dt>Time</dt><dd>About 45–60 minutes, then up to 1 hour for 4 short questions</dd></div>
+</dl>
+
+<h2>1. Overview</h2>
+<p>A teacher has a list of test scores and wants a few numbers about them: the average, the highest score, how many students passed, and a letter grade for each score. You will write four small functions that work these out. Python has built-in shortcuts for some of this (<code>sum</code>, <code>max</code>), but here you write the loops yourself, so you practise the patterns those shortcuts hide.</p>
+<p>You will write it in VS Code while the <b>CodeLapse</b> extension records how you work. When you submit, you will answer four short questions about your own work and your own code.</p>
+
+<h3>What you will practise</h3>
+<ul>
+  <li><b>Lists</b> and looping over them with <code>for</code>.</li>
+  <li>The <b>accumulator</b> pattern: a variable that starts at a value and is updated on every pass (a running total, a count, the best so far).</li>
+  <li><b>Conditions</b> with <code>if</code> / <code>elif</code> / <code>else</code>, and getting the <b>boundaries</b> right (is 90 an A or a B?).</li>
+  <li>Handling the <b>empty list</b>, <code>None</code> as "no answer", and a parameter with a <b>default value</b>.</li>
+</ul>
+
+<h2>2. What to build</h2>
+<p>Write everything in one file, <code>grades.py</code>. Scores are whole numbers from 0 to 100. No imports are needed.</p>
+
+<div class="spec">
+<h3><code>def average(scores: list[int]) -&gt; float</code></h3>
+<ul>
+  <li>Returns the mean of the scores: their total divided by how many there are.</li>
+  <li>For an <b>empty list</b> it returns <code>0.0</code> (and must not crash with a division by zero).</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def highest(scores: list[int]) -&gt; int | None</code></h3>
+<ul>
+  <li>Returns the largest score. For an <b>empty list</b> it returns <code>None</code>.</li>
+  <li>Must work when every score is <code>0</code> (the answer is then <code>0</code>, not <code>None</code>).</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def letter_grade(score: int) -&gt; str</code></h3>
+<ul>
+  <li>Returns <code>"A"</code> for 90 and above, <code>"B"</code> for 80–89, <code>"C"</code> for 70–79, <code>"D"</code> for 60–69 and <code>"F"</code> below 60.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def count_passing(scores: list[int], pass_mark: int = 60) -&gt; int</code></h3>
+<ul>
+  <li>Returns how many scores are <b>at or above</b> <code>pass_mark</code>. When the caller leaves <code>pass_mark</code> out, it is 60.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3>Running it as a program</h3>
+<ul>
+  <li>Under <code>if __name__ == "__main__":</code>, make a list of scores (for example <code>[72, 95, 88, 61, 45]</code>), and print the average (rounded to 2 decimals), the highest score, the number passing, and each score with its letter grade.</li>
+</ul>
+</div>
+
+<div class="callout warn">
+  <span class="callout-title">Not allowed</span>
+  <code>sum()</code>, <code>max()</code>, <code>min()</code>, <code>sorted()</code>, <code>.sort()</code>, <code>statistics</code> or any other import. Allowed: <code>for</code> and <code>while</code> loops, <code>len()</code>, <code>if</code>/<code>elif</code>/<code>else</code>, <code>round()</code> for printing, and ordinary arithmetic.
+</div>
+
+<h2>3. Examples</h2>
+<p>Every row was checked by running a correct solution.</p>
+<table>
+  <thead><tr><th>Scores</th><th class="num"><code>average</code></th><th class="num"><code>highest</code></th><th class="num"><code>count_passing</code></th><th class="num">with <code>pass_mark=70</code></th><th>Why it is a useful test</th></tr></thead>
+  <tbody>
+    <tr><td><code>[72, 95, 88, 61, 45]</code></td><td class="num">72.2</td><td class="num">95</td><td class="num">4</td><td class="num">3</td><td>The normal case</td></tr>
+    <tr><td><code>[]</code></td><td class="num">0.0</td><td class="num"><code>None</code></td><td class="num">0</td><td class="num">0</td><td>Empty list: no division by zero</td></tr>
+    <tr><td><code>[100]</code></td><td class="num">100.0</td><td class="num">100</td><td class="num">1</td><td class="num">1</td><td>One score</td></tr>
+    <tr><td><code>[59, 60, 61]</code></td><td class="num">60.0</td><td class="num">61</td><td class="num">2</td><td class="num">0</td><td>Exactly on the pass mark counts as passing</td></tr>
+    <tr><td><code>[0, 0, 0]</code></td><td class="num">0.0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td>Highest is 0, which is not "no answer"</td></tr>
+    <tr><td><code>[70, 85]</code></td><td class="num">77.5</td><td class="num">85</td><td class="num">2</td><td class="num">2</td><td>The average is not a whole number</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th class="num">Score</th><th>100</th><th>90</th><th>89</th><th>80</th><th>79</th><th>70</th><th>69</th><th>60</th><th>59</th><th>0</th></tr></thead>
+  <tbody><tr><td class="num"><code>letter_grade</code></td><td>A</td><td>A</td><td>B</td><td>B</td><td>C</td><td>C</td><td>D</td><td>D</td><td>F</td><td>F</td></tr></tbody>
+</table>
+
+<h3>Example run</h3>
+<pre><code>$ python3 grades.py
+Scores: [72, 95, 88, 61, 45]
+Average: 72.2
+Highest: 95
+Passing: 4
+72 C
+95 A
+88 B
+61 D
+45 F</code></pre>
+<p>The exact wording of the output is up to you.</p>
+
+<h2>4. A plan that works</h2>
+<ol class="keep">
+  <li>Create the folder, open it in VS Code and start CodeLapse (section 8). Create <code>grades.py</code>.</li>
+  <li>Write the <code>if __name__ == "__main__":</code> block so it only prints the list. Run it, so you know your setup works.</li>
+  <li>Write <code>average</code>, print its result and run. Then try it on <code>[]</code>.</li>
+  <li>Write <code>highest</code> and check it against the table, including <code>[0, 0, 0]</code>.</li>
+  <li>Write <code>letter_grade</code> and try every boundary in the second table.</li>
+  <li>Write <code>count_passing</code>; call it once without <code>pass_mark</code> and once with <code>pass_mark=70</code>.</li>
+  <li>Add a few <code>assert</code> checks (section 6), run once more, and save.</li>
+</ol>
+
+<h2>5. Hints</h2>
+<p class="muted">Read one hint at a time and try it yourself before moving on to the next.</p>
+<ol class="hints">
+  <li><span class="hint-level">The accumulator</span><br>
+    Make a variable before the loop (for example a total that starts at <code>0</code>), and update it inside the loop for every score. After the loop it holds the answer.</li>
+  <li><span class="hint-level">The empty list</span><br>
+    Dividing by <code>len(scores)</code> fails when the list is empty. Check for that case first and return early.</li>
+  <li><span class="hint-level">The best so far</span><br>
+    For <code>highest</code>, keep "the best score seen so far". The tricky part is what it should start as. Starting at <code>0</code> works for these scores but hides the empty-list case; starting at <code>None</code> means "nothing seen yet". Then think about how to test for <code>None</code> so that a real score of <code>0</code> is not mistaken for it.</li>
+  <li><span class="hint-level">Order of the conditions</span><br>
+    An <code>if</code>/<code>elif</code> chain stops at the first true condition. If you check the lowest grade first, or the highest first, the other conditions change. Pick one order and test 89, 90 and 59 by hand.</li>
+  <li><span class="hint-level">Default parameters</span><br>
+    Writing <code>pass_mark: int = 60</code> in the <code>def</code> line means callers may leave it out. Inside the function, use <code>pass_mark</code>, never the number 60.</li>
+  <li><span class="hint-level">Return, don't print</span><br>
+    The four functions <code>return</code> their results; only the <code>__main__</code> block prints.</li>
+</ol>
+
+<h2>6. Test your program</h2>
+<ul>
+  <li>Run <code>python3 grades.py</code> in the VS Code terminal after every change (on Windows <code>py grades.py</code>).</li>
+  <li>Let Python check for you with <code>assert</code> lines in the <code>__main__</code> block:</li>
+</ul>
+<pre><code>assert average([]) == 0.0
+assert highest([0, 0, 0]) == 0
+assert letter_grade(90) == "A"
+assert count_passing([59, 60, 61], pass_mark=70) == 0</code></pre>
+
+<h3>Self-check before you submit</h3>
+<ul class="checklist">
+  <li>Runs with <code>python3 grades.py</code> without errors.</li>
+  <li>No <code>sum</code>, <code>max</code>, <code>min</code>, <code>sorted</code> or imports.</li>
+  <li><code>average([])</code> is <code>0.0</code> and <code>highest([])</code> is <code>None</code>.</li>
+  <li>Every boundary in the letter-grade table gives the right letter.</li>
+  <li><code>count_passing</code> counts a score equal to the pass mark, and uses <code>pass_mark</code> when it is given.</li>
+  <li>You can explain, in your own words, what each accumulator starts as and why.</li>
+</ul>
+
+<h2>7. Common mistakes</h2>
+<table>
+  <thead><tr><th style="width:36%">Mistake</th><th>What happens, and the fix</th></tr></thead>
+  <tbody>
+    <tr><td>Dividing by <code>len(scores)</code> without checking</td><td><code>ZeroDivisionError</code> on an empty list. Handle it first.</td></tr>
+    <tr><td><code>if not best:</code> to test for "nothing yet"</td><td><code>0</code> also counts as false, so a list of zeros goes wrong. Compare with <code>is None</code>.</td></tr>
+    <tr><td><code>&gt;</code> where <code>&gt;=</code> is needed</td><td>90 becomes a B, or a score of exactly 60 doesn't pass.</td></tr>
+    <tr><td>Resetting the accumulator inside the loop</td><td>Only the last score counts. Set it up once, before the loop.</td></tr>
+    <tr><td>Using <code>60</code> instead of <code>pass_mark</code></td><td><code>pass_mark=70</code> has no effect.</td></tr>
+    <tr><td><code>return</code> inside the loop</td><td>The function stops after the first score. Return after the loop.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Working with CodeLapse</h2>
+<p>CodeLapse records how your program grows, so the questions can be about <i>your</i> work. Set it up before you start writing. The full tester guide (installation and troubleshooting) is in <code>docs/TESTER_GUIDE.md</code> of the CodeLapse repository.</p>
+<ol>
+  <li><b>Check your tools.</b> VS Code 1.93 or newer, and Python 3.10 or newer: <code>python3 --version</code> in a terminal (on Windows <code>py --version</code>) should print a version.</li>
+  <li><b>Install CodeLapse.</b> Download <code>codelapse-0.1.0.vsix</code> from<br><span class="small">https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot</span><br>In VS Code: <b>Extensions</b> → <b><code>···</code></b> → <b>Install from VSIX…</b> and pick the file. A short walkthrough opens.</li>
+  <li><b>Choose your folder.</b> Create an empty folder (for example <code>grades-assignment</code>), open it with <b>File → Open Folder…</b>, then click <b>CodeLapse: Choose folder</b> in the status bar and pick it. The status bar now shows the folder name with a record icon. Only this folder is recorded.</li>
+  <li><b>Write and run in VS Code.</b> Create <code>grades.py</code>, and run it in the VS Code terminal (<b>Terminal → New Terminal</b>, bash, zsh or PowerShell) with <code>python3 grades.py</code>. Runs in a separate terminal app are not recorded. Errors along the way are fine and normal.</li>
+  <li><b>Export.</b> Open the Command Palette (<kbd>Cmd+Shift+P</kbd> / <kbd>Ctrl+Shift+P</kbd>) and run <b>CodeLapse: Export Assignment Bundle (.codelapse)</b>. Save the <code>.codelapse</code> file.</li>
+  <li><b>Submit.</b> Click <b>Open Submission Page</b> in the message that appears (or run <b>CodeLapse: Open Submission Page</b>). The first time, VS Code asks for the address your instructor gives you: make sure it is the address of <b>this</b> assignment. On the page, pick your name, add the <code>.codelapse</code> file and <code>grades.py</code>, and click <b>Submit Assignment</b>.</li>
+</ol>
+
+<h2>9. The four questions</h2>
+<p>Right after you submit, the page shows <b>four short questions about your own work</b>: two about things you did while working (for example an error you fixed, or something you rewrote), and two about specific lines of your code. Every student gets different questions.</p>
+<ul>
+  <li><b>You have one hour from submitting</b> to answer, and you can submit your answers <b>once</b>. A timer shows the time left; your draft is kept if you refresh the page.</li>
+  <li>Write a few sentences each, <b>in your own words</b>. Spelling and grammar do not matter.</li>
+  <li>Explain <b>why</b>, not just what: why an accumulator starts where it does, why you chose that approach, what an error message told you.</li>
+  <li>Be specific: mention the actual line, variable, error or change. "It works" says much less than "this check comes first because …".</li>
+  <li>If you are not sure, say what you think and why. An honest partial answer is better than a vague one.</li>
+</ul>
+
+<h2>10. Working honestly, and what is recorded</h2>
+<p>Write the code yourself, and please turn off AI coding assistants (such as GitHub Copilot) for this assignment. Mistakes, errors and rewrites are completely normal; they are part of how programs get written.</p>
+<p><b>CodeLapse records</b> only the folder you choose: what you type, when you switch files, and the programs you run in the VS Code terminal with their output. It does not record other folders, websites, other apps or your file paths and username. Nothing leaves your computer until you export and upload it yourself.</p>
+<p><b>Your instructor sees</b> your code, your answers, a summary of your recording (how long you worked, how much was typed or added in larger pieces such as pastes, how your runs went), and a short review of how well your answers explain your code. None of this is a grade or an accusation: it describes how the work happened, and your instructor decides what it means. If you are unsure whether something is allowed, ask your instructor.</p>
+
+<h2>11. If something goes wrong</h2>
+<table>
+  <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>python3: command not found</code></td><td>Install Python 3 from python.org. On Windows, try <code>py</code> or <code>python</code> instead of <code>python3</code>.</td></tr>
+    <tr><td>Status bar says <b>CodeLapse: Choose folder</b> or <b>Not recording</b></td><td>Click it and choose your assignment folder.</td></tr>
+    <tr><td>Runs don't seem to be recorded</td><td>Run your program in the VS Code terminal (bash, zsh or PowerShell), not a separate Terminal app.</td></tr>
+    <tr><td>"Choose who you are before submitting."</td><td>Pick your name at the top of the form.</td></tr>
+    <tr><td>"Attach your .codelapse recording."</td><td>Add the <code>.codelapse</code> file you exported.</td></tr>
+    <tr><td>"The recording has no sessions in it."</td><td>Nothing was recorded in that folder. Check you chose the right folder.</td></tr>
+    <tr><td>The page says a file is not allowed</td><td>Upload only <code>grades.py</code>, not other files.</td></tr>
+    <tr><td>"Your questions could not be prepared."</td><td>Nothing to do: your submission was received and your instructor has been told.</td></tr>
+  </tbody>
+</table>
+<p class="muted small">Anything else: ask your instructor. Good luck, and have fun with it.</p>
+</body>
+</html>

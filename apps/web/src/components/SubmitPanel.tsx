@@ -6,7 +6,6 @@ import { DragEvent, FormEvent, useEffect, useId, useState } from 'react';
 import {
   CODE_FILE_ACCEPT,
   CODE_FILE_HELP,
-  LANGUAGE_LABELS,
   MAX_NAME_LENGTH,
   cleanName,
   isAllowedCodeFile,
@@ -27,6 +26,8 @@ export interface PreviousSubmission {
 export interface ProgramChoice {
   id: string;
   title: string;
+  /** Short name, e.g. "Python: Grades". */
+  label: string;
   /** Decides which code files are accepted. */
   language: Language;
   expectedFiles: string[];
@@ -237,7 +238,7 @@ export function SubmitPanel({ assignmentId: initialAssignment, assignments, prev
             <select id="program" name="program" value={assignmentId} onChange={(e) => chooseProgram(e.target.value)}>
               {assignments.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {LANGUAGE_LABELS[a.language]}: {a.expectedFiles.join(', ')} ({a.title})
+                  {a.label}: {a.expectedFiles.join(', ')} ({a.title})
                 </option>
               ))}
             </select>

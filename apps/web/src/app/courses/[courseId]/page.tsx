@@ -17,7 +17,7 @@ export default async function CourseHome({ params }: { params: Promise<{ courseI
       <p className="lead">{COURSE.term}. Submit your code here together with your CodeLapse recording.</p>
 
       <h2 id="assignments">Assignments</h2>
-      <p className="hint">The same assignment comes in two languages. Choose the one in the language you know best.</p>
+      <p className="hint">Assignment 3 comes in C and Python. Assignments 4 and 5 are short Python programs in one file; assignment 6 is a medium Python program in two files. Do the one your instructor gives you.</p>
       <ul className="item-list">
         {COURSE.assignments.map((assignment) => (
           <li key={assignment.id}>

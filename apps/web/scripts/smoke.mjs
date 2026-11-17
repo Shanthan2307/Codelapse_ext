@@ -159,11 +159,14 @@ try {
 
   await page('/courses/cs101/assignments/a3-reverse', ['Reverse a String']);
   await page('/courses/cs101/assignments/a3-reverse-py', ['Reverse a String', 'reverse.py', 'Python']);
-  await page('/courses/cs101', ['(C)', '(Python)']);
+  await page('/courses/cs101/assignments/a4-grades-py', ['Grade Statistics', 'grades.py']);
+  await page('/courses/cs101/assignments/a5-wordcount-py', ['Word Frequency', 'wordcount.py']);
+  await page('/courses/cs101/assignments/a6-library-py', ['Library Checkout', 'library.py, main.py']);
+  await page('/courses/cs101', ['(C)', '(Python)', 'Grade Statistics', 'Word Frequency', 'Library Checkout']);
   await page('/instructor?assignment=a3-reverse-py', ['Python']);
 
   // The PDF briefs, once they have been written into public/assignments.
-  for (const file of ['assignment-3-c-reverse-a-string.pdf', 'assignment-3-python-reverse-a-string.pdf']) {
+  for (const file of ['assignment-3-c-reverse-a-string.pdf', 'assignment-3-python-reverse-a-string.pdf', 'assignment-4-python-grade-statistics.pdf', 'assignment-5-python-word-frequency.pdf', 'assignment-6-python-library-checkout.pdf']) {
     if (!fs.existsSync(path.join(webDir, 'public', 'assignments', file))) {
       console.log(`--  skipped /assignments/${file}: not written yet`);
       continue;

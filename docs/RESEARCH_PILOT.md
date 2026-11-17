@@ -188,7 +188,7 @@ The site picks its storage from `CODELAPSE_STORAGE`: `supabase` on Vercel, unset
 | `CODELAPSE_AI_PROVIDER` and its key (`FEATHERLESS_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) | as for `npm run demo` |
 
    Do not set `CODELAPSE_RESEARCH_SALT` there: the salt lives in Supabase's `settings` table, where the research views use it too.
-4. Give testers `https://<your-project>.vercel.app/courses/cs101/assignments/a3-reverse` (or `a3-reverse-py`). The instructor view is `/instructor`.
+4. Give testers `https://<your-project>.vercel.app/courses/cs101/assignments/<id>`, where `<id>` is `a3-reverse` (C), `a3-reverse-py`, `a4-grades-py`, `a5-wordcount-py` (basic Python, one file) or `a6-library-py` (medium Python, two files: `library.py` and `main.py`). The instructor view is `/instructor`.
 
 ### How it works on a hosted site
 

@@ -12,14 +12,18 @@ const bundle = { name: 'honest-incremental.codelapse', bytes: fs.readFileSync(pa
 const python = Buffer.from('def reverse(text: str) -> str:\n    out = ""\n    for ch in text:\n        out = ch + out\n    return out\n');
 
 describe('The C and Python assignments', () => {
-  it('are both configured, each with a language, a PDF brief and an expected file', () => {
+  it('are all configured, each with a language, a label, a PDF brief and expected files', () => {
     const ids = COURSE.assignments.map((a) => a.id);
-    assert.deepStrictEqual(ids, ['a3-reverse', 'a3-reverse-py']);
+    assert.deepStrictEqual(ids, ['a3-reverse', 'a3-reverse-py', 'a4-grades-py', 'a5-wordcount-py', 'a6-library-py']);
     assert.strictEqual(new Set(ids).size, ids.length, 'ids are unique');
     for (const a of COURSE.assignments) {
       assert.match(a.briefPdf, /^\/assignments\/[a-z0-9-]+\.pdf$/, a.id);
       assert.ok(a.expectedFiles.every((f) => isAllowedCodeFile(a.language, f)), `${a.id} expects files it accepts`);
+      assert.ok(a.label.length > 0 && a.label.length <= 20, `${a.id} has a short label`);
+      const pdf = path.resolve(__dirname, '..', 'public', a.briefPdf.slice(1));
+      assert.ok(fs.existsSync(pdf), `${a.id} brief exists at ${a.briefPdf}`);
     }
+    assert.strictEqual(new Set(COURSE.assignments.map((a) => a.label)).size, ids.length, 'labels are unique');
     assert.strictEqual(findAssignment('a3-reverse')!.language, 'c');
     assert.strictEqual(findAssignment('a3-reverse-py')!.language, 'python');
   });
@@ -68,6 +72,19 @@ describe('The C and Python assignments', () => {
       questions, answers: { submittedAt: 0, answers: [] }, moments: [], code: context.code, assignmentTitle: py.title, language: 'python'
     }).system;
     assert.match(review, /their own Python programming assignment/);
+  });
+
+  it('takes the two-file library assignment with both files', () => {
+    const lib = Buffer.from('class LibraryError(Exception):\n    pass\n');
+    const main = Buffer.from('from library import LibraryError\n');
+    const record = processSubmission({
+      studentId: 'student-c',
+      assignmentId: 'a6-library-py',
+      bundle,
+      codeFiles: [{ name: 'library.py', bytes: lib }, { name: 'main.py', bytes: main }]
+    });
+    assert.deepStrictEqual(record.files.map((f) => f.name).sort(), ['library.py', 'main.py']);
+    assert.deepStrictEqual(findAssignment('a6-library-py')!.expectedFiles, ['library.py', 'main.py']);
   });
 
   it('shows the first assignment on the instructor pages unless another is chosen', () => {
