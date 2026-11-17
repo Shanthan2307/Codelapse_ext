@@ -121,6 +121,7 @@ export default async function AssignmentPage({
             assignments={COURSE.assignments.map((a) => ({
               id: a.id,
               title: a.title,
+              label: a.label,
               language: a.language,
               expectedFiles: a.expectedFiles
             }))}

@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 5 (Python): Word Frequency</title>
+<link rel="stylesheet" href="style.css">
+<style>@page { @bottom-left { content: "CS 101 Programming Principles · Assignment 5"; } }</style>
+</head>
+<body>
+
+<h1>Assignment 5 (Python): Word Frequency</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026 · Basic</p>
+
+<dl class="meta">
+  <div><dt>Language</dt><dd>Python 3.10+ (standard library only)</dd></div>
+  <div><dt>File to write</dt><dd><code>wordcount.py</code></dd></div>
+  <div><dt>Due</dt><dd>Nov 24, 2026, 11:59 PM</dd></div>
+  <div><dt>Points</dt><dd>20 (demo course)</dd></div>
+  <div><dt>You submit</dt><dd><code>wordcount.py</code> + your <code>.codelapse</code> recording</dd></div>
+  <div><dt>Time</dt><dd>About 45–60 minutes, then up to 1 hour for 4 short questions</dd></div>
+</dl>
+
+<h2>1. Overview</h2>
+<p>Which words does a piece of text use most? You will write a small program that tidies up each word, counts how often every word appears, and lists the most common ones. Counting things by name is one of the most common jobs in programming, and the tool for it in Python is the <b>dictionary</b>.</p>
+<p>You will write it in VS Code while the <b>CodeLapse</b> extension records how you work. When you submit, you will answer four short questions about your own work and your own code.</p>
+
+<h3>What you will practise</h3>
+<ul>
+  <li><b>Dictionaries</b>: adding a key, updating its value, and handling a key you have not seen yet.</li>
+  <li><b>String methods</b>: <code>split</code>, <code>strip</code> and <code>lower</code>.</li>
+  <li><b>Sorting with a key</b>, and breaking ties in a fixed order.</li>
+  <li><b>Tuples</b> and lists of tuples.</li>
+</ul>
+
+<h2>2. What to build</h2>
+<p>Write everything in one file, <code>wordcount.py</code>. No imports are needed.</p>
+
+<div class="spec">
+<h3><code>def clean_word(word: str) -&gt; str</code></h3>
+<ul>
+  <li>Removes these punctuation characters from <b>both ends</b> of the word: <code>. , ! ? ; : " ' ( ) -</code> and returns it in <b>lower case</b>.</li>
+  <li>Punctuation <b>inside</b> a word stays (<code>"don't"</code> stays <code>"don't"</code>). A word made only of punctuation becomes <code>""</code>.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def count_words(text: str) -&gt; dict[str, int]</code></h3>
+<ul>
+  <li>Splits <code>text</code> on whitespace, cleans each piece with <code>clean_word</code>, <b>skips empty results</b>, and returns a dictionary from each word to how many times it appears.</li>
+  <li><code>"Go go GO!"</code> is one word appearing 3 times.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>def top_words(counts: dict[str, int], n: int) -&gt; list[tuple[str, int]]</code></h3>
+<ul>
+  <li>Returns the <code>n</code> most frequent words as <code>(word, count)</code> tuples, most frequent first.</li>
+  <li>Words with the same count are in <b>alphabetical order</b>. If there are fewer than <code>n</code> words, return them all; if <code>n</code> is 0, return <code>[]</code>.</li>
+  <li>Must not change the <code>counts</code> dictionary.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3>Running it as a program</h3>
+<ul>
+  <li>Under <code>if __name__ == "__main__":</code>, put a short text in a variable, count its words, and print the top 3 as <code>word: count</code>.</li>
+</ul>
+</div>
+
+<div class="callout warn">
+  <span class="callout-title">Not allowed</span>
+  <code>collections.Counter</code>, <code>re</code> (regular expressions), or any other import. Allowed: dictionaries and their methods (<code>get</code>, <code>items</code>, <code>in</code>), string methods, <code>sorted()</code> with <code>key=</code>, slicing a list, and lambdas.
+</div>
+
+<h2>3. Examples</h2>
+<p>Every row was checked by running a correct solution.</p>
+<table>
+  <thead><tr><th><code>clean_word</code> input</th><th>Returns</th><th>Why it is a useful test</th></tr></thead>
+  <tbody>
+    <tr><td><code>"Hello,"</code></td><td><code>"hello"</code></td><td>Trailing comma, capital letter</td></tr>
+    <tr><td><code>'"Quoted!"'</code></td><td><code>"quoted"</code></td><td>Punctuation at both ends, several characters deep</td></tr>
+    <tr><td><code>"don't"</code></td><td><code>"don't"</code></td><td>Punctuation inside a word stays</td></tr>
+    <tr><td><code>"(Yes)."</code></td><td><code>"yes"</code></td><td>Brackets and a full stop</td></tr>
+    <tr><td><code>"Python3"</code></td><td><code>"python3"</code></td><td>Digits are kept</td></tr>
+    <tr><td><code>"--"</code></td><td><code>""</code></td><td>Only punctuation: becomes empty, and is skipped when counting</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th>Call</th><th>Returns</th></tr></thead>
+  <tbody>
+    <tr><td><code>count_words("The cat sat. The cat ran! A dog sat, too.")</code></td><td><code>{"the": 2, "cat": 2, "sat": 2, "ran": 1, "a": 1, "dog": 1, "too": 1}</code></td></tr>
+    <tr><td><code>count_words("")</code> and <code>count_words("   ... !!! ")</code></td><td><code>{}</code></td></tr>
+    <tr><td><code>count_words("Go go GO!")</code></td><td><code>{"go": 3}</code></td></tr>
+    <tr><td><code>top_words(</code>the first result<code>, 3)</code></td><td><code>[("cat", 2), ("sat", 2), ("the", 2)]</code> (a tie, so alphabetical)</td></tr>
+    <tr><td><code>top_words({"b": 2, "a": 2, "c": 1}, 2)</code></td><td><code>[("a", 2), ("b", 2)]</code></td></tr>
+    <tr><td><code>top_words({"x": 1}, 5)</code></td><td><code>[("x", 1)]</code> (fewer words than asked for)</td></tr>
+    <tr><td><code>top_words({"x": 1}, 0)</code></td><td><code>[]</code></td></tr>
+  </tbody>
+</table>
+<p class="muted small">The order of keys inside a dictionary doesn't matter for <code>count_words</code>; only the words and counts do.</p>
+
+<h3>Example run</h3>
+<pre><code>$ python3 wordcount.py
+cat: 2
+sat: 2
+the: 2</code></pre>
+
+<h2>4. A plan that works</h2>
+<ol class="keep">
+  <li>Create the folder, open it in VS Code and start CodeLapse (section 8). Create <code>wordcount.py</code>.</li>
+  <li>Write <code>clean_word</code> first and check every row of the first table.</li>
+  <li>Write <code>count_words</code> and print its result for the example sentence.</li>
+  <li>Write <code>top_words</code>: get the order right first, then the tie-break, then the limit <code>n</code>.</li>
+  <li>Write the <code>__main__</code> block, add a few <code>assert</code> checks (section 6), run and save.</li>
+</ol>
+
+<h2>5. Hints</h2>
+<p class="muted">Read one hint at a time and try it yourself before moving on to the next.</p>
+<ol class="hints">
+  <li><span class="hint-level">Splitting</span><br>
+    <code>text.split()</code> with no argument splits on any run of spaces, tabs and new lines, and never gives empty pieces. <code>text.split(" ")</code> behaves differently: try both on <code>"a  b"</code>.</li>
+  <li><span class="hint-level">Stripping</span><br>
+    <code>word.strip(chars)</code> removes any of the characters in <code>chars</code> from both ends, as many as there are, and leaves the middle alone. Check how to put both kinds of quote mark into one string.</li>
+  <li><span class="hint-level">A key you haven't seen</span><br>
+    <code>counts[word] += 1</code> fails with <code>KeyError</code> the first time a word appears. Either check <code>if word in counts</code> first, or use <code>counts.get(word, 0)</code>, which gives a default when the key is missing.</li>
+  <li><span class="hint-level">Sorting pairs</span><br>
+    <code>counts.items()</code> gives <code>(word, count)</code> pairs. <code>sorted(..., key=...)</code> sorts by whatever the key function returns for each pair. If the key returns a tuple, Python compares the first parts, and only looks at the second part when the first parts are equal.</li>
+  <li><span class="hint-level">Biggest first, but A before Z</span><br>
+    You want counts in <b>descending</b> order and words in <b>ascending</b> order at the same time. <code>reverse=True</code> flips both. Think about a key that makes a bigger count sort earlier on its own.</li>
+  <li><span class="hint-level">Taking the first n</span><br>
+    A slice like <code>items[:n]</code> never fails, even when <code>n</code> is larger than the list.</li>
+</ol>
+
+<h2>6. Test your program</h2>
+<ul>
+  <li>Run <code>python3 wordcount.py</code> in the VS Code terminal after every change (on Windows <code>py wordcount.py</code>).</li>
+  <li>Let Python check for you with <code>assert</code> lines in the <code>__main__</code> block:</li>
+</ul>
+<pre><code>assert clean_word('"Quoted!"') == "quoted"
+assert count_words("Go go GO!") == {"go": 3}
+assert top_words({"b": 2, "a": 2, "c": 1}, 2) == [("a", 2), ("b", 2)]</code></pre>
+
+<h3>Self-check before you submit</h3>
+<ul class="checklist">
+  <li>Runs with <code>python3 wordcount.py</code> without errors, with no imports.</li>
+  <li>Every row in the <code>clean_word</code> table matches.</li>
+  <li>Empty text and text made only of punctuation give <code>{}</code>.</li>
+  <li><code>top_words</code> breaks ties alphabetically and handles <code>n</code> larger than the number of words, and <code>n = 0</code>.</li>
+  <li>You can explain, in your own words, how your sort key puts the words in the right order.</li>
+</ul>
+
+<h2>7. Common mistakes</h2>
+<table>
+  <thead><tr><th style="width:36%">Mistake</th><th>What happens, and the fix</th></tr></thead>
+  <tbody>
+    <tr><td><code>counts[word] += 1</code> on a new word</td><td><code>KeyError</code>. Give missing words a starting value first.</td></tr>
+    <tr><td>Forgetting to lower-case</td><td><code>"The"</code> and <code>"the"</code> are counted as different words.</td></tr>
+    <tr><td>Counting the empty word</td><td><code>"--"</code> adds a <code>""</code> key. Skip empty results.</td></tr>
+    <tr><td><code>reverse=True</code> with a <code>(count, word)</code> key</td><td>Ties come out Z to A. Sort descending by count and ascending by word.</td></tr>
+    <tr><td>Using <code>.replace</code> to remove punctuation</td><td>It also removes the apostrophe inside <code>"don't"</code>. Only the ends are cleaned.</td></tr>
+    <tr><td>Sorting <code>counts</code> in place, or deleting from it</td><td>The caller's dictionary changes. <code>sorted()</code> makes a new list.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Working with CodeLapse</h2>
+<p>CodeLapse records how your program grows, so the questions can be about <i>your</i> work. Set it up before you start writing. The full tester guide (installation and troubleshooting) is in <code>docs/TESTER_GUIDE.md</code> of the CodeLapse repository.</p>
+<ol>
+  <li><b>Check your tools.</b> VS Code 1.93 or newer, and Python 3.10 or newer: <code>python3 --version</code> in a terminal (on Windows <code>py --version</code>) should print a version.</li>
+  <li><b>Install CodeLapse.</b> Download <code>codelapse-0.1.0.vsix</code> from<br><span class="small">https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot</span><br>In VS Code: <b>Extensions</b> → <b><code>···</code></b> → <b>Install from VSIX…</b> and pick the file. A short walkthrough opens.</li>
+  <li><b>Choose your folder.</b> Create an empty folder (for example <code>wordcount-assignment</code>), open it with <b>File → Open Folder…</b>, then click <b>CodeLapse: Choose folder</b> in the status bar and pick it. The status bar now shows the folder name with a record icon. Only this folder is recorded.</li>
+  <li><b>Write and run in VS Code.</b> Create <code>wordcount.py</code>, and run it in the VS Code terminal (<b>Terminal → New Terminal</b>, bash, zsh or PowerShell) with <code>python3 wordcount.py</code>. Runs in a separate terminal app are not recorded. Errors along the way are fine and normal.</li>
+  <li><b>Export.</b> Open the Command Palette (<kbd>Cmd+Shift+P</kbd> / <kbd>Ctrl+Shift+P</kbd>) and run <b>CodeLapse: Export Assignment Bundle (.codelapse)</b>. Save the <code>.codelapse</code> file.</li>
+  <li><b>Submit.</b> Click <b>Open Submission Page</b> in the message that appears (or run <b>CodeLapse: Open Submission Page</b>). The first time, VS Code asks for the address your instructor gives you: make sure it is the address of <b>this</b> assignment. On the page, pick your name, add the <code>.codelapse</code> file and <code>wordcount.py</code>, and click <b>Submit Assignment</b>.</li>
+</ol>
+
+<h2>9. The four questions</h2>
+<p>Right after you submit, the page shows <b>four short questions about your own work</b>: two about things you did while working (for example an error you fixed, or something you rewrote), and two about specific lines of your code. Every student gets different questions.</p>
+<ul>
+  <li><b>You have one hour from submitting</b> to answer, and you can submit your answers <b>once</b>. A timer shows the time left; your draft is kept if you refresh the page.</li>
+  <li>Write a few sentences each, <b>in your own words</b>. Spelling and grammar do not matter.</li>
+  <li>Explain <b>why</b>, not just what: why your sort key orders the words the way it does, why you chose that approach, what an error message told you.</li>
+  <li>Be specific: mention the actual line, variable, error or change. "It works" says much less than "this check comes first because …".</li>
+  <li>If you are not sure, say what you think and why. An honest partial answer is better than a vague one.</li>
+</ul>
+
+<h2>10. Working honestly, and what is recorded</h2>
+<p>Write the code yourself, and please turn off AI coding assistants (such as GitHub Copilot) for this assignment. Mistakes, errors and rewrites are completely normal; they are part of how programs get written.</p>
+<p><b>CodeLapse records</b> only the folder you choose: what you type, when you switch files, and the programs you run in the VS Code terminal with their output. It does not record other folders, websites, other apps or your file paths and username. Nothing leaves your computer until you export and upload it yourself.</p>
+<p><b>Your instructor sees</b> your code, your answers, a summary of your recording (how long you worked, how much was typed or added in larger pieces such as pastes, how your runs went), and a short review of how well your answers explain your code. None of this is a grade or an accusation: it describes how the work happened, and your instructor decides what it means. If you are unsure whether something is allowed, ask your instructor.</p>
+
+<h2>11. If something goes wrong</h2>
+<table>
+  <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>python3: command not found</code></td><td>Install Python 3 from python.org. On Windows, try <code>py</code> or <code>python</code> instead of <code>python3</code>.</td></tr>
+    <tr><td>Status bar says <b>CodeLapse: Choose folder</b> or <b>Not recording</b></td><td>Click it and choose your assignment folder.</td></tr>
+    <tr><td>Runs don't seem to be recorded</td><td>Run your program in the VS Code terminal (bash, zsh or PowerShell), not a separate Terminal app.</td></tr>
+    <tr><td>"Choose who you are before submitting."</td><td>Pick your name at the top of the form.</td></tr>
+    <tr><td>"Attach your .codelapse recording."</td><td>Add the <code>.codelapse</code> file you exported.</td></tr>
+    <tr><td>"The recording has no sessions in it."</td><td>Nothing was recorded in that folder. Check you chose the right folder.</td></tr>
+    <tr><td>The page says a file is not allowed</td><td>Upload only <code>wordcount.py</code>, not other files.</td></tr>
+    <tr><td>"Your questions could not be prepared."</td><td>Nothing to do: your submission was received and your instructor has been told.</td></tr>
+  </tbody>
+</table>
+<p class="muted small">Anything else: ask your instructor. Good luck, and have fun with it.</p>
+</body>
+</html>

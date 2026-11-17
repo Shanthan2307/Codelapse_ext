@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 6 (Python): Library Checkout</title>
+<link rel="stylesheet" href="style.css">
+<style>@page { @bottom-left { content: "CS 101 Programming Principles · Assignment 6"; } }</style>
+</head>
+<body>
+
+<h1>Assignment 6 (Python): Library Checkout</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026 · Medium · Two files</p>
+
+<dl class="meta">
+  <div><dt>Language</dt><dd>Python 3.10+ (standard library only)</dd></div>
+  <div><dt>Files to write</dt><dd><code>library.py</code> (a module) and <code>main.py</code> (the program)</dd></div>
+  <div><dt>Due</dt><dd>Nov 24, 2026, 11:59 PM</dd></div>
+  <div><dt>Points</dt><dd>30 (demo course)</dd></div>
+  <div><dt>You submit</dt><dd><code>library.py</code>, <code>main.py</code> + your <code>.codelapse</code> recording</dd></div>
+  <div><dt>Time</dt><dd>About 1.5–2 hours, then up to 1 hour for 4 short questions</dd></div>
+</dl>
+
+<h2>1. Overview</h2>
+<p>A small library lends books to its members. You will build it in two parts, the way real programs are built. First a <b>module</b>, <code>library.py</code>, that knows the rules: which books exist, how many copies are on the shelf, and who may borrow what. Then a <b>program</b>, <code>main.py</code>, that <b>imports</b> the module and uses it to process a list of commands such as <code>checkout 111 ana</code>, printing what happened.</p>
+<p>The module never prints and never reads input: it only keeps the data and enforces the rules, and it reports a broken rule by <b>raising an exception</b>. The program decides what to show the user. Keeping those two jobs apart is the main idea of this assignment.</p>
+<p>You will write it in VS Code while the <b>CodeLapse</b> extension records how you work. When you submit, you will answer four short questions about your own work and your own code.</p>
+
+<h3>What you will practise</h3>
+<ul>
+  <li>Writing a <b>module</b> and <b>importing</b> it from another file (<code>from library import ...</code>).</li>
+  <li><b>Classes</b> and <b>objects</b>: <code>__init__</code>, attributes, methods, and objects that hold other objects.</li>
+  <li><b>Exceptions</b>: defining your own (<code>class LibraryError(Exception)</code>), raising it, and catching it with <code>try</code> / <code>except</code> in another file.</li>
+  <li>Keeping <b>state</b> consistent: copies on the shelf, who has which book, a limit per member.</li>
+  <li>Parsing simple text commands.</li>
+</ul>
+
+<h2>2. What to build</h2>
+<p>Put both files in the same folder. Use only plain Python; the only import allowed is <code>main.py</code> importing your own <code>library</code>.</p>
+
+<h3>Part A: <code>library.py</code> (the module)</h3>
+
+<div class="spec">
+<h3><code>MAX_LOANS = 3</code> and <code>class LibraryError(Exception)</code></h3>
+<ul>
+  <li>A constant for how many books one member may hold at once, and your own exception type. Every broken rule raises <code>LibraryError</code> with a short message.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>class Book</code></h3>
+<ul>
+  <li><code>Book(isbn: str, title: str, author: str, copies: int)</code> stores all four. If <code>copies</code> is less than 1, it raises <code>ValueError</code>.</li>
+  <li>It also keeps track of <b>who currently has a copy</b> (one entry per member who borrowed it).</li>
+  <li><code>available() -&gt; int</code>: how many copies are on the shelf right now.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3><code>class Library</code></h3>
+<ul>
+  <li><code>Library()</code> starts empty.</li>
+  <li><code>add_book(book)</code>: adds a book. Raises <code>LibraryError</code> if a book with the same ISBN is already there.</li>
+  <li><code>available(isbn) -&gt; int</code>: copies on the shelf. Raises <code>LibraryError</code> for an unknown ISBN.</li>
+  <li><code>checkout(isbn, member)</code>: lends one copy to <code>member</code>. Raises <code>LibraryError</code>, checking <b>in this order</b>:
+    <ol>
+      <li>the ISBN is unknown;</li>
+      <li>the member already has a copy of this book;</li>
+      <li>no copies are on the shelf;</li>
+      <li>the member already has <code>MAX_LOANS</code> books.</li>
+    </ol>
+    When it raises, nothing changes.</li>
+  <li><code>return_book(isbn, member)</code>: takes the copy back. Raises <code>LibraryError</code> if the ISBN is unknown or the member doesn't have this book.</li>
+  <li><code>loans_of(member) -&gt; list[str]</code>: the <b>titles</b> the member has, in alphabetical order (<code>[]</code> if none).</li>
+  <li>The module does nothing when imported: no prints, no test code at the top level (put any experiments under <code>if __name__ == "__main__":</code>).</li>
+</ul>
+</div>
+
+<h3>Part B: <code>main.py</code> (the program)</h3>
+
+<div class="spec">
+<h3><code>def run(commands: list[str], library: Library) -&gt; list[str]</code></h3>
+<ul>
+  <li>Imports what it needs from <code>library</code>. Goes through the commands in order and returns one output line per command (blank commands are skipped and give no line).</li>
+  <li>The commands, with words separated by spaces:
+    <table>
+      <thead><tr><th>Command</th><th>Output line when it works</th></tr></thead>
+      <tbody>
+        <tr><td><code>checkout ISBN MEMBER</code></td><td><code>ok: MEMBER borrowed ISBN</code></td></tr>
+        <tr><td><code>return ISBN MEMBER</code></td><td><code>ok: MEMBER returned ISBN</code></td></tr>
+        <tr><td><code>available ISBN</code></td><td><code>ISBN: N available</code></td></tr>
+        <tr><td><code>loans MEMBER</code></td><td><code>MEMBER: Title, Title</code> or <code>MEMBER: no books</code></td></tr>
+      </tbody>
+    </table>
+  </li>
+  <li>When the module raises <code>LibraryError</code>, the line is <code>error: </code> followed by its message, and the program <b>carries on</b> with the next command.</li>
+  <li>Anything else (an unknown word, or the wrong number of words) gives <code>error: unknown command: </code> followed by the command.</li>
+</ul>
+</div>
+
+<div class="spec">
+<h3>Running it as a program</h3>
+<ul>
+  <li>Under <code>if __name__ == "__main__":</code> in <code>main.py</code>, build the sample library below, run the sample commands, and print each output line. Run it with <code>python3 main.py</code>.</li>
+</ul>
+</div>
+
+<div class="callout warn">
+  <span class="callout-title">Rules</span>
+  All the rules live in <code>library.py</code>; <code>main.py</code> must not check copies or limits itself, and <code>library.py</code> must not print. Do not reach into the library's attributes from <code>main.py</code>: use its methods. No imports other than your own module.
+</div>
+
+<h2>3. Example</h2>
+<p>The sample library: <code>Book("111", "Dune", "Frank Herbert", 2)</code>, <code>Book("222", "Emma", "Jane Austen", 1)</code>, <code>Book("333", "Ulysses", "James Joyce", 1)</code> and <code>Book("444", "Beloved", "Toni Morrison", 1)</code>. This run was checked with a correct solution. Your error messages may be worded differently, but each must say what went wrong.</p>
+<table>
+  <thead><tr><th>Command</th><th>Output line</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td><code>checkout 111 ana</code></td><td><code>ok: ana borrowed 111</code></td><td>2 copies, now 1 left</td></tr>
+    <tr><td><code>checkout 111 ben</code></td><td><code>ok: ben borrowed 111</code></td><td>Now 0 left</td></tr>
+    <tr><td><code>checkout 111 cy</code></td><td><code>error: no copies of Dune are available</code></td><td>Shelf is empty</td></tr>
+    <tr><td><code>available 111</code></td><td><code>111: 0 available</code></td><td></td></tr>
+    <tr><td><code>checkout 222 ana</code></td><td><code>ok: ana borrowed 222</code></td><td>ana has 2 books</td></tr>
+    <tr><td><code>checkout 222 ben</code></td><td><code>error: no copies of Emma are available</code></td><td></td></tr>
+    <tr><td><code>checkout 111 ana</code></td><td><code>error: ana already has Dune</code></td><td>Checked before "no copies"</td></tr>
+    <tr><td><code>return 333 ana</code></td><td><code>error: ana does not have Ulysses</code></td><td></td></tr>
+    <tr><td><code>checkout 333 ana</code></td><td><code>ok: ana borrowed 333</code></td><td>ana has 3 books</td></tr>
+    <tr><td><code>checkout 444 ana</code></td><td><code>error: ana already has 3 books</code></td><td>The limit</td></tr>
+    <tr><td><code>loans ana</code></td><td><code>ana: Dune, Emma, Ulysses</code></td><td>Titles, alphabetical</td></tr>
+    <tr><td><code>return 111 ana</code></td><td><code>ok: ana returned 111</code></td><td></td></tr>
+    <tr><td><code>available 111</code></td><td><code>111: 1 available</code></td><td>The copy is back</td></tr>
+    <tr><td><code>checkout 999 ana</code></td><td><code>error: no book with ISBN 999</code></td><td>Unknown ISBN</td></tr>
+    <tr><td><code>renew 111 ana</code></td><td><code>error: unknown command: renew 111 ana</code></td><td>Not a command</td></tr>
+    <tr><td><code>loans cy</code></td><td><code>cy: no books</code></td><td>cy's checkout failed earlier</td></tr>
+  </tbody>
+</table>
+<p>Also: adding a second book with ISBN <code>"111"</code> raises <code>LibraryError</code>, and <code>Book("5", "X", "Y", 0)</code> raises <code>ValueError</code>.</p>
+
+<h2>4. A plan that works</h2>
+<ol class="keep">
+  <li>Create the folder, open it in VS Code and start CodeLapse (section 8). Create both files.</li>
+  <li>In <code>library.py</code>, write <code>LibraryError</code> and <code>Book</code>. In <code>main.py</code>, import <code>Book</code>, make one, and print its title. Run <code>python3 main.py</code>: this proves the import works.</li>
+  <li>Write <code>Library</code> with <code>add_book</code> and <code>available</code>. Build the sample library in <code>main.py</code>.</li>
+  <li>Add <code>checkout</code>, one rule at a time, in the order given. Try each rule from <code>main.py</code>.</li>
+  <li>Add <code>return_book</code> and <code>loans_of</code>.</li>
+  <li>Write <code>run</code> with <code>try</code> / <code>except LibraryError</code>, then the unknown-command case.</li>
+  <li>Run the sample commands and compare every line with the table. Save both files.</li>
+</ol>
+
+<h2>5. Hints</h2>
+<p class="muted">Read one hint at a time and try it yourself before moving on to the next.</p>
+<ol class="hints">
+  <li><span class="hint-level">Importing</span><br>
+    <code>from library import Book, Library, LibraryError</code> works when <code>library.py</code> is in the same folder as the file you run. If Python says <code>ModuleNotFoundError</code>, check the terminal is in that folder and the file name is exactly <code>library.py</code>.</li>
+  <li><span class="hint-level">Where to keep the books</span><br>
+    The library needs to find a book by its ISBN quickly. Think about which built-in type maps one value (an ISBN) to another (a <code>Book</code>).</li>
+  <li><span class="hint-level">Who has a copy</span><br>
+    If each <code>Book</code> remembers which members currently have it, then <code>available()</code> is the number of copies minus the number of borrowers, and "already has this book" is a membership test. Then think about how to count how many books one member has across all books.</li>
+  <li><span class="hint-level">Raise, don't print</span><br>
+    <code>raise LibraryError(f"no copies of {book.title} are available")</code> stops the method immediately. Do all checks <b>before</b> changing anything, so a refused checkout leaves the library exactly as it was.</li>
+  <li><span class="hint-level">Catching in the other file</span><br>
+    In <code>run</code>, put the work for one command inside <code>try:</code>. In <code>except LibraryError as e:</code>, <code>str(e)</code> (or <code>f"{e}"</code>) is the message you raised. The loop continues with the next command after the <code>except</code> block.</li>
+  <li><span class="hint-level">Parsing a command</span><br>
+    <code>line.split()</code> gives a list of words. Check the first word <b>and</b> the number of words before using <code>parts[1]</code> or <code>parts[2]</code>, or a short command will raise <code>IndexError</code>.</li>
+  <li><span class="hint-level">An import that does nothing</span><br>
+    Any code at the top level of <code>library.py</code> runs on import. If you tested it with prints there, move them under <code>if __name__ == "__main__":</code>.</li>
+</ol>
+
+<h2>6. Test your program</h2>
+<ul>
+  <li>Run <code>python3 main.py</code> in the VS Code terminal after every change (on Windows <code>py main.py</code>).</li>
+  <li>Check the module on its own, too. Running <code>python3 -c "import library"</code> must print nothing.</li>
+  <li>Let Python check for you with <code>assert</code> lines in <code>main.py</code>'s <code>__main__</code> block:</li>
+</ul>
+<pre><code>lib = sample_library()          # however you build the sample
+assert run(["checkout 111 ana", "available 111"], lib) == ["ok: ana borrowed 111", "111: 1 available"]
+assert run(["loans bob"], lib) == ["bob: no books"]
+assert run(["checkout 111"], lib) == ["error: unknown command: checkout 111"]</code></pre>
+
+<h3>Self-check before you submit</h3>
+<ul class="checklist">
+  <li><code>python3 main.py</code> prints the 16 lines of the example, in order.</li>
+  <li><code>library.py</code> never prints, and importing it prints nothing.</li>
+  <li><code>main.py</code> imports from <code>library</code> and never checks a rule itself.</li>
+  <li>The four checkout rules are checked in the given order, and a refused checkout changes nothing.</li>
+  <li>An error doesn't stop the run: the next command still happens.</li>
+  <li>You can explain, in your own words, why the rules are in <code>library.py</code> and the printing is in <code>main.py</code>.</li>
+</ul>
+
+<h2>7. Common mistakes</h2>
+<table>
+  <thead><tr><th style="width:36%">Mistake</th><th>What happens, and the fix</th></tr></thead>
+  <tbody>
+    <tr><td>Printing an error inside <code>library.py</code></td><td>The program can't decide what to show, and <code>run</code> returns the wrong lines. Raise <code>LibraryError</code> instead.</td></tr>
+    <tr><td>Changing state before all checks pass</td><td>A refused checkout still uses up a copy. Check first, change last.</td></tr>
+    <tr><td>Checking the rules in another order</td><td><code>checkout 111 ana</code> above says "no copies" instead of "already has Dune".</td></tr>
+    <tr><td><code>except Exception</code> or a bare <code>except:</code></td><td>Real bugs (a typo, an <code>IndexError</code>) are hidden as if they were library errors. Catch <code>LibraryError</code>.</td></tr>
+    <tr><td>Storing the borrowers list as a class attribute</td><td>Every book shares one list. Create it in <code>__init__</code> with <code>self.</code>.</td></tr>
+    <tr><td>Test code at the top of <code>library.py</code></td><td>It runs every time <code>main.py</code> imports the module.</td></tr>
+    <tr><td><code>parts[2]</code> without checking the length</td><td><code>IndexError</code> on <code>checkout 111</code>. Count the words first.</td></tr>
+  </tbody>
+</table>
+
+<h2>8. Working with CodeLapse</h2>
+<p>CodeLapse records how your program grows, so the questions can be about <i>your</i> work. Set it up before you start writing. The full tester guide (installation and troubleshooting) is in <code>docs/TESTER_GUIDE.md</code> of the CodeLapse repository.</p>
+<ol>
+  <li><b>Check your tools.</b> VS Code 1.93 or newer, and Python 3.10 or newer: <code>python3 --version</code> in a terminal (on Windows <code>py --version</code>) should print a version.</li>
+  <li><b>Install CodeLapse.</b> Download <code>codelapse-0.1.0.vsix</code> from<br><span class="small">https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot</span><br>In VS Code: <b>Extensions</b> → <b><code>···</code></b> → <b>Install from VSIX…</b> and pick the file. A short walkthrough opens.</li>
+  <li><b>Choose your folder.</b> Create an empty folder (for example <code>library-assignment</code>), open it with <b>File → Open Folder…</b>, then click <b>CodeLapse: Choose folder</b> in the status bar and pick it. The status bar now shows the folder name with a record icon. Only this folder is recorded.</li>
+  <li><b>Write and run in VS Code.</b> Create <code>library.py</code> and <code>main.py</code>, and run the program in the VS Code terminal (<b>Terminal → New Terminal</b>, bash, zsh or PowerShell) with <code>python3 main.py</code>. Runs in a separate terminal app are not recorded. Errors along the way are fine and normal.</li>
+  <li><b>Export.</b> Open the Command Palette (<kbd>Cmd+Shift+P</kbd> / <kbd>Ctrl+Shift+P</kbd>) and run <b>CodeLapse: Export Assignment Bundle (.codelapse)</b>. Save the <code>.codelapse</code> file.</li>
+  <li><b>Submit.</b> Click <b>Open Submission Page</b> in the message that appears (or run <b>CodeLapse: Open Submission Page</b>). The first time, VS Code asks for the address your instructor gives you: make sure it is the address of <b>this</b> assignment. On the page, pick your name, add the <code>.codelapse</code> file and <code>library.py</code> and <code>main.py</code>, and click <b>Submit Assignment</b>.</li>
+</ol>
+
+<h2>9. The four questions</h2>
+<p>Right after you submit, the page shows <b>four short questions about your own work</b>: two about things you did while working (for example an error you fixed, or something you rewrote), and two about specific lines of your code. Every student gets different questions.</p>
+<ul>
+  <li><b>You have one hour from submitting</b> to answer, and you can submit your answers <b>once</b>. A timer shows the time left; your draft is kept if you refresh the page.</li>
+  <li>Write a few sentences each, <b>in your own words</b>. Spelling and grammar do not matter.</li>
+  <li>Explain <b>why</b>, not just what: why a rule lives in the module and not in the program, why you chose that approach, what an error message told you.</li>
+  <li>Be specific: mention the actual line, variable, error or change. "It works" says much less than "this check comes first because …".</li>
+  <li>If you are not sure, say what you think and why. An honest partial answer is better than a vague one.</li>
+</ul>
+
+<h2>10. Working honestly, and what is recorded</h2>
+<p>Write the code yourself, and please turn off AI coding assistants (such as GitHub Copilot) for this assignment. Mistakes, errors and rewrites are completely normal; they are part of how programs get written.</p>
+<p><b>CodeLapse records</b> only the folder you choose: what you type, when you switch files, and the programs you run in the VS Code terminal with their output. It does not record other folders, websites, other apps or your file paths and username. Nothing leaves your computer until you export and upload it yourself.</p>
+<p><b>Your instructor sees</b> your code, your answers, a summary of your recording (how long you worked, how much was typed or added in larger pieces such as pastes, how your runs went), and a short review of how well your answers explain your code. None of this is a grade or an accusation: it describes how the work happened, and your instructor decides what it means. If you are unsure whether something is allowed, ask your instructor.</p>
+
+<h2>11. If something goes wrong</h2>
+<table>
+  <thead><tr><th style="width:42%">What you see</th><th>What to do</th></tr></thead>
+  <tbody>
+    <tr><td><code>python3: command not found</code></td><td>Install Python 3 from python.org. On Windows, try <code>py</code> or <code>python</code> instead of <code>python3</code>.</td></tr>
+    <tr><td>Status bar says <b>CodeLapse: Choose folder</b> or <b>Not recording</b></td><td>Click it and choose your assignment folder.</td></tr>
+    <tr><td>Runs don't seem to be recorded</td><td>Run your program in the VS Code terminal (bash, zsh or PowerShell), not a separate Terminal app.</td></tr>
+    <tr><td>"Choose who you are before submitting."</td><td>Pick your name at the top of the form.</td></tr>
+    <tr><td>"Attach your .codelapse recording."</td><td>Add the <code>.codelapse</code> file you exported.</td></tr>
+    <tr><td>"The recording has no sessions in it."</td><td>Nothing was recorded in that folder. Check you chose the right folder.</td></tr>
+    <tr><td>The page says a file is not allowed</td><td>Upload only <code>library.py</code> and <code>main.py</code>, not other files.</td></tr>
+    <tr><td>"Your questions could not be prepared."</td><td>Nothing to do: your submission was received and your instructor has been told.</td></tr>
+  </tbody>
+</table>
+<p class="muted small">Anything else: ask your instructor. Good luck, and have fun with it.</p>
+</body>
+</html>

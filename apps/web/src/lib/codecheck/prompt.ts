@@ -3,7 +3,7 @@ import { numbered } from '../questions/prompt';
 import type { RecordingSummary } from '../types';
 
 /** Bump when the prompt changes, so stored checks say which prompt made them. */
-export const CODECHECK_PROMPT_VERSION = 'codecheck-v1';
+export const CODECHECK_PROMPT_VERSION = 'codecheck-v2';
 
 export const MAX_ISSUES = 4;
 export const MIN_HINTS = 2;
@@ -22,7 +22,7 @@ function systemPrompt(language: string): string {
 
 You receive the assignment and the student's code with line numbers.
 
-1. Trace the code by hand. Choose four to six inputs that exercise the assignment's requirements and edge cases (for example an empty string, one character, odd and even lengths, upper- and lower-case letters). For each, write the input, the output the assignment expects, the output this code really produces, and whether it passes. Work out what the code actually does, line by line; do not assume it works because it looks reasonable. For C, also consider whether it compiles cleanly with gcc -Wall, and undefined behaviour such as reading past the end of a string, writing to a string literal, or a missing null terminator.
+1. Trace the code by hand. Choose four to six inputs that exercise the assignment's requirements and edge cases (for example empty input, a single item, boundary values, upper- and lower-case letters, and every rule or error case the assignment lists). For each, write the input, the output the assignment expects, the output this code really produces, and whether it passes. Work out what the code actually does, line by line; do not assume it works because it looks reasonable. For C, also consider whether it compiles cleanly with gcc -Wall, and undefined behaviour such as reading past the end of a string, writing to a string literal, or a missing null terminator. When there are several files, check that they work together: every import names something the other file really defines, and the program runs as the assignment describes.
 
 2. Set works to true only if every traced case passes and the code meets the assignment's rules. Otherwise set it to false.
 
