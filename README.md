@@ -228,6 +228,17 @@ It is told to judge understanding, not writing, and not to speculate about AI us
 
 Pairs are ranked by how many of these agree, then by strength. Each signal is compared with the class median, and only called above typical when it clearly stands out (this needs at least four pairs). The pair page shows the two submissions with matching code lines marked, the inserted blocks and the answers with shared wording highlighted. Everyone works on the same assignment, so some similarity is expected; the page says so and leaves the judgement to the instructor.
 
+### Signs of AI use
+
+Each instructor detail page has a **Signs of AI use** card, and the instructor list has an **AI signs** column (Few / Some / Strong signs). It reads how the code was written, not only how it looks:
+
+- **Where each line came from:** every line of the final code is traced to the first moment it appeared in the recording (spacing ignored) and marked typed, pasted (one large edit) or not written while recording. The card shows the code with each line colored by origin.
+- **Pasting:** share of the code that arrived in large single edits; a long pause with no editor activity followed by a paste.
+- **Transcribing (typed from another screen):** typed top to bottom with almost no going back, almost no deletions, and no failed builds; unusually many typed lines per minute.
+- **Style typical of chat assistants:** leftovers such as ```` ``` ```` or "Here's…", characters keyboards don't type (— “ ” →), "Example usage" comments, a docstring and type hints on every function, and similar. Style counts least.
+
+Each signal says what was seen, how strong it is, and what else could explain it. It is evidence for the conversation with the student, never a verdict. An optional outside detector (Codequiry) can be added; see [docs/AI_DETECTION.md](docs/AI_DETECTION.md), which also explains why the well-known detectors were not used.
+
 ### Watching a replay
 
 Each instructor detail page has **Watch replay**, and every decision moment and process question has **Watch this moment**, which opens the student's recording a few seconds before it. The player is the same one the VS Code extension uses (`packages/replay`).

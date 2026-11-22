@@ -1,4 +1,4 @@
-import { checkReplay, computeSessionAnalytics, extractMoments, parseSessionLog, Session } from '@codelapse/core';
+import { analyzeAuthorship, checkReplay, computeSessionAnalytics, extractMoments, parseSessionLog, Session } from '@codelapse/core';
 import { decodeBundle, sha256 } from '@codelapse/core/node';
 import { COURSE, CODE_FILE_HELP, Language, cleanName, findAssignment, findStudent, isAllowedCodeFile, testerId } from './course';
 import { RecordingSummary, SubmissionRecord, SubmittedFileInfo } from './types';
@@ -99,7 +99,8 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
     files,
     recording: summarize(sessions, bundle),
     replay,
-    moments: extractMoments(sessions)
+    moments: extractMoments(sessions),
+    authorship: analyzeAuthorship({ sessions, submitted, language: assignment.language })
   };
 }
 

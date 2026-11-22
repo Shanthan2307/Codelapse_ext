@@ -13,6 +13,9 @@ import { WatchMomentLink, replayHref } from '@/components/ReplayLink';
 import { AnswerEvaluationView, HighlightedAnswer, LevelCounts } from '@/components/AnswerReview';
 import { RatingPanel } from '@/components/RatingPanel';
 import { CodeExcerpts } from '@/components/CodeExcerpts';
+import { AuthorshipPanel } from '@/components/AuthorshipPanel';
+import { getAuthorship } from '@/lib/authorship';
+import { externalDetectorEnabled, refreshExternalAiCheck } from '@/lib/aidetect/run';
 import { emptyFeedback, getFeedback } from '@/lib/research/feedback';
 import type { AnswerEvaluation, EvaluationSet } from '@/lib/evaluation/types';
 import type { FileCheck, Moment } from '@/lib/types';
@@ -51,6 +54,10 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
   const answers = await getAnswers(submission.id);
   const evaluation = answers ? await getEvaluation(submission.id) : null;
   const [codeCheck, hintProgress] = await Promise.all([getCodeCheck(submission.id), getHintProgress(submission.id)]);
+  const [authorship, externalAiCheck] = await Promise.all([
+    getAuthorship(submission).catch(() => null),
+    refreshExternalAiCheck(submission.id)
+  ]);
   const momentsById = new Map(submission.moments.map((m) => [m.id, m]));
   const closed = Date.now() > submission.questionsCloseAt;
   // No ratings saved yet still shows the card, empty, so the instructor can start rating.
@@ -125,6 +132,13 @@ export default async function InstructorSubmissionPage({ params }: { params: Pro
           {recording.extensionVersion}.
         </p>
       </section>
+
+      <AuthorshipPanel
+        report={authorship}
+        code={code.map(({ file, text }) => ({ path: file.recordedPath, text }))}
+        external={externalAiCheck}
+        externalEnabled={externalDetectorEnabled()}
+      />
 
       <section className="card">
         <h2>

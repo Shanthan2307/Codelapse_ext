@@ -92,6 +92,16 @@ describe('Processing a submission', () => {
   });
 });
 
+describe('Signs of AI use at upload', () => {
+  it('stores them with the submission: pasted code is high, typed code has no pasted lines', () => {
+    const pasted = processSubmission({ ...base, ...upload('pasted-solution') });
+    assert.strictEqual(pasted.authorship?.level, 'high');
+    assert.ok(pasted.authorship!.lines.pasted > 0);
+    const honest = processSubmission({ ...base, ...upload('honest-incremental') });
+    assert.strictEqual(honest.authorship?.lines.pasted, 0);
+  });
+});
+
 describe('Storing submissions', () => {
   let dir: string;
   before(() => {

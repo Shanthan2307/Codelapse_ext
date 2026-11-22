@@ -1,4 +1,4 @@
-import type { FileCheck, Moment, ReplayCheckResult } from '@codelapse/core';
+import type { AuthorshipReport, FileCheck, Moment, ReplayCheckResult } from '@codelapse/core';
 
 /** What a submission's recording shows, totalled over all its sessions. */
 export interface RecordingSummary {
@@ -37,6 +37,8 @@ export interface SubmissionRecord {
   recording: RecordingSummary;
   replay: ReplayCheckResult;
   moments: Moment[];
+  /** Signs of AI use read from how the code was written. Absent on submissions made before it existed. */
+  authorship?: AuthorshipReport;
 }
 
-export type { FileCheck, Moment, ReplayCheckResult };
+export type { AuthorshipReport, FileCheck, Moment, ReplayCheckResult };

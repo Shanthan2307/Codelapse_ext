@@ -26,7 +26,8 @@ export const DOC_FILES: Record<DocKind, string> = {
   evaluation: 'evaluation.json',
   code_check: 'code-check.json',
   hint_progress: 'hint-progress.json',
-  feedback: 'instructor-feedback.json'
+  feedback: 'instructor-feedback.json',
+  ai_detection: 'ai-detection.json'
 };
 
 const submissionsDir = () => path.join(dataDir(), 'submissions');

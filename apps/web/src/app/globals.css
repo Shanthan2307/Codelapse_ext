@@ -2120,3 +2120,108 @@ pre.compare-code:not(:has(.compare-line)) {
   background: var(--c-ok-soft);
   color: var(--c-ok);
 }
+
+/* ---------- Signs of AI use ---------- */
+.pill-alert {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+
+.ai-signals {
+  list-style: none;
+  padding: 0;
+  margin: var(--s-4) 0;
+  display: grid;
+  gap: var(--s-3);
+}
+
+.ai-signal {
+  border: 1px solid var(--c-border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: var(--s-3) var(--s-4);
+  background: var(--c-surface-2);
+}
+
+.ai-signal p {
+  margin: 0 0 var(--s-1);
+}
+
+.ai-signal-strong {
+  border-left-color: var(--c-error);
+}
+
+.ai-signal-moderate {
+  border-left-color: var(--c-warn);
+}
+
+.ai-signal-weak {
+  border-left-color: var(--c-border-strong);
+}
+
+.ai-strength-strong {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+
+.ai-strength-moderate {
+  background: var(--c-warn-soft);
+  color: var(--c-warn);
+}
+
+.ai-strength-weak {
+  background: var(--c-surface);
+  color: var(--c-muted);
+  border: 1px solid var(--c-border);
+}
+
+.ai-external {
+  margin: var(--s-4) 0;
+}
+
+.ai-origins > summary {
+  cursor: pointer;
+  font-weight: 600;
+  margin: var(--s-3) 0;
+}
+
+.origin-code .origin-line {
+  display: block;
+  padding-left: var(--s-2);
+  border-left: 4px solid transparent;
+}
+
+.origin-code .origin-p {
+  background: var(--c-error-soft);
+  border-left-color: var(--c-error);
+}
+
+.origin-code .origin-o {
+  background: var(--c-warn-soft);
+  border-left-color: var(--c-warn);
+}
+
+.origin-code .origin-t {
+  border-left-color: var(--c-ok);
+}
+
+.origin-key {
+  display: inline-block;
+  padding: 0 var(--s-2);
+  border-left: 4px solid;
+  border-radius: 2px;
+}
+
+.origin-key.origin-t {
+  border-color: var(--c-ok);
+}
+
+.origin-key.origin-p {
+  border-color: var(--c-error);
+  background: var(--c-error-soft);
+}
+
+.origin-key.origin-o {
+  border-color: var(--c-warn);
+  background: var(--c-warn-soft);
+}
