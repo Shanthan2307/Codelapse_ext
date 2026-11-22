@@ -5,6 +5,7 @@ import { UPLOAD_ID, uploadPaths } from '@/lib/uploads';
 import { saveSubmission } from '@/lib/store';
 import { markQuestionsPending, runQuestionGeneration } from '@/lib/questions/run';
 import { markCodeCheckPending, runCodeCheck } from '@/lib/codecheck/run';
+import { startExternalAiCheck } from '@/lib/aidetect/run';
 
 export const runtime = 'nodejs';
 // Question writing and the code check run after the reply; on Vercel they must finish within this.
@@ -89,6 +90,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     after(() => runQuestionGeneration(record.id));
     // The reviewer model checks whether the code works, at the same time as the questions are written.
     after(() => runCodeCheck(record.id));
+    // Only when CODEQUIRY_API_KEY is set: an outside AI-code detector, alongside the recording's own signals.
+    after(() => startExternalAiCheck(record.id));
     if (staged.length > 0) after(() => backend().removeFiles(staged).catch(() => undefined));
     return NextResponse.json({ id: record.id }, { status: 201 });
   } catch (err) {

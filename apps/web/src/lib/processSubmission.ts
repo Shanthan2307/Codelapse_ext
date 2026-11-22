@@ -1,4 +1,4 @@
-import { checkReplay, computeSessionAnalytics, extractMoments, parseSessionLog, Session } from '@codelapse/core';
+import { analyzeAuthorship, checkReplay, computeSessionAnalytics, extractMoments, parseSessionLog, Session } from '@codelapse/core';
 import { decodeBundle, sha256 } from '@codelapse/core/node';
 import { COURSE, CODE_FILE_HELP, Language, cleanName, findAssignment, findStudent, isAllowedCodeFile, testerId } from './course';
 import { RecordingSummary, SubmissionRecord, SubmittedFileInfo } from './types';
@@ -99,7 +99,8 @@ export function processSubmission(input: SubmissionInput): SubmissionRecord {
     files,
     recording: summarize(sessions, bundle),
     replay,
-    moments: extractMoments(sessions)
+    moments: extractMoments(sessions),
+    authorship: analyzeAuthorship({ sessions, submitted, language: assignment.language })
   };
 }
 
@@ -127,7 +128,7 @@ function checkCodeFiles<T extends { name: string }>(files: T[], sizeOf: (file: T
   const help = CODE_FILE_HELP[language];
   const named = files.filter((f) => f.name && sizeOf(f) > 0);
   if (named.length === 0) {
-    throw new SubmissionError(language === 'c' ? 'Attach your code (.c or .h files).' : 'Attach your code (.py files).');
+    throw new SubmissionError(help.attach);
   }
   if (named.length > MAX_CODE_FILES) {
     throw new SubmissionError(`Upload at most ${MAX_CODE_FILES} code files.`);

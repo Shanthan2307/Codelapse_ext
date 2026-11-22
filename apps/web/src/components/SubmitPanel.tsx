@@ -128,7 +128,7 @@ function blockingProblems(name: string, recording: File | null, code: File[], la
   } else if (recording.size > MAX_RECORDING_BYTES) {
     problems.push('The recording is larger than 25 MB.');
   }
-  if (code.length === 0) problems.push(language === 'c' ? 'Add your code (.c or .h files).' : 'Add your code (.py files).');
+  if (code.length === 0) problems.push(help.attach.replace('Attach', 'Add'));
   for (const file of code) {
     if (!isAllowedCodeFile(language, file.name)) {
       problems.push(`"${file.name}" is not ${help.kind}. ${help.upload}`);
@@ -262,7 +262,7 @@ export function SubmitPanel({ assignmentId: initialAssignment, assignments, prev
 
           <DropZone
             label="Code files"
-            help={`Drop ${expectedFiles.join(', ')} here, or click to choose. You can add several ${language === 'c' ? '.c and .h' : '.py'} files.`}
+            help={`Drop ${expectedFiles.join(', ')} here, or click to choose. You can add several ${CODE_FILE_HELP[language].extensions} files.`}
             accept={CODE_FILE_ACCEPT[language]}
             multiple
             files={code}

@@ -14,7 +14,7 @@ const python = Buffer.from('def reverse(text: str) -> str:\n    out = ""\n    fo
 describe('The C and Python assignments', () => {
   it('are all configured, each with a language, a label, a PDF brief and expected files', () => {
     const ids = COURSE.assignments.map((a) => a.id);
-    assert.deepStrictEqual(ids, ['a3-reverse', 'a3-reverse-py', 'a4-grades-py', 'a5-wordcount-py', 'a6-library-py']);
+    assert.deepStrictEqual(ids, ['a3-reverse', 'a3-reverse-py', 'a4-grades-py', 'a5-wordcount-py', 'a6-library-py', 'a7-palindrome-py', 'a7-palindrome-java']);
     assert.strictEqual(new Set(ids).size, ids.length, 'ids are unique');
     for (const a of COURSE.assignments) {
       assert.match(a.briefPdf, /^\/assignments\/[a-z0-9-]+\.pdf$/, a.id);
@@ -33,6 +33,19 @@ describe('The C and Python assignments', () => {
     assert.ok(!isAllowedCodeFile('python', 'reverse.c'));
     assert.ok(isAllowedCodeFile('c', 'reverse.c') && isAllowedCodeFile('c', 'util.h') && isAllowedCodeFile('c', 'Makefile'));
     assert.ok(!isAllowedCodeFile('c', 'reverse.py'));
+  });
+
+  it('takes the Java palindrome assignment with a .java file, and refuses other files', () => {
+    assert.ok(isAllowedCodeFile('java', 'Palindrome.java'));
+    assert.ok(!isAllowedCodeFile('java', 'palindrome.py'));
+    const java = Buffer.from('public class Palindrome {\n    public static boolean isPalindrome(String s) {\n        return true;\n    }\n}\n');
+    const record = processSubmission({ studentId: 'student-b', assignmentId: 'a7-palindrome-java', bundle, codeFiles: [{ name: 'Palindrome.java', bytes: java }] });
+    assert.deepStrictEqual(record.files.map((f) => f.name), ['Palindrome.java']);
+    assert.strictEqual(record.authorship?.version, 'authorship-v1');
+    assert.throws(
+      () => processSubmission({ studentId: 'student-b', assignmentId: 'a7-palindrome-java', bundle, codeFiles: [{ name: 'palindrome.py', bytes: python }] }),
+      /not a Java file\. Upload your \.java files\./
+    );
   });
 
   it('takes a Python submission and refuses the wrong language with a clear message', () => {

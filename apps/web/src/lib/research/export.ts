@@ -1,4 +1,6 @@
 import type { MomentKind } from '@codelapse/core';
+import { getAuthorship } from '../authorship';
+import { getExternalAiCheck } from '../aidetect/run';
 import { getAnswers, getEvaluation, getQuestionSet, latestSubmissions } from '../store';
 import { getFeedback } from './feedback';
 import { participantId } from './pseudonym';
@@ -47,6 +49,13 @@ export interface SubmissionRow extends Record<string, CsvValue> {
   review_partial: number | null;
   review_limited: number | null;
   instructor_follow_up: boolean | null;
+  ai_signs_level: string;
+  ai_signs_points: number | null;
+  ai_signals: string;
+  lines_typed: number | null;
+  lines_pasted: number | null;
+  lines_outside: number | null;
+  external_ai_probability: number | null;
 }
 
 export interface AnswerRow extends Record<string, CsvValue> {
@@ -95,7 +104,9 @@ export const SUBMISSION_COLUMNS: (keyof SubmissionRow & string)[] = [
   'runs_passed', 'runs_failed', 'runs_unknown', 'replay_verdict', 'replay_files_differing',
   'moments_total', 'moments_fix_after_failed_run', 'moments_repeated_failures', 'moments_bulk_insert',
   'moments_rewrite', 'moments_abandoned_approach', 'moments_function_written',
-  'review_strong', 'review_partial', 'review_limited', 'instructor_follow_up'
+  'review_strong', 'review_partial', 'review_limited', 'instructor_follow_up',
+  'ai_signs_level', 'ai_signs_points', 'ai_signals', 'lines_typed', 'lines_pasted', 'lines_outside',
+  'external_ai_probability'
 ];
 
 export function answerColumns(includeText: boolean): (keyof AnswerRow & string)[] {
@@ -118,11 +129,13 @@ export async function buildResearchExport(assignmentId: string, options: Researc
   const records = (await latestSubmissions(assignmentId)).sort((a, b) => a.submittedAt - b.submittedAt);
 
   for (const record of records) {
-    const [questionSet, answerSet, evaluation, feedback] = await Promise.all([
+    const [questionSet, answerSet, evaluation, feedback, authorship, external] = await Promise.all([
       getQuestionSet(record.id),
       getAnswers(record.id),
       getEvaluation(record.id),
-      getFeedback(record.id)
+      getFeedback(record.id),
+      getAuthorship(record).catch(() => null),
+      getExternalAiCheck(record.id).catch(() => null)
     ]);
     const participant = participantId(options.salt, record.studentId);
     const minutesToAnswers = answerSet ? round1((answerSet.submittedAt - record.submittedAt) / 60000) : null;
@@ -157,7 +170,14 @@ export async function buildResearchExport(assignmentId: string, options: Researc
       review_strong: reviewed ? evaluation.counts.strong : null,
       review_partial: reviewed ? evaluation.counts.partial : null,
       review_limited: reviewed ? evaluation.counts.limited : null,
-      instructor_follow_up: feedback ? feedback.overall.followUp : null
+      instructor_follow_up: feedback ? feedback.overall.followUp : null,
+      ai_signs_level: authorship?.level ?? 'none',
+      ai_signs_points: authorship?.points ?? null,
+      ai_signals: authorship ? authorship.signals.map((x) => `${x.kind}:${x.strength}`).join(';') : '',
+      lines_typed: authorship?.lines.typed ?? null,
+      lines_pasted: authorship?.lines.pasted ?? null,
+      lines_outside: authorship?.lines.outside ?? null,
+      external_ai_probability: external?.status === 'ready' ? (external.averageAiProbability ?? null) : null
     });
 
     if (!questionSet || questionSet.status !== 'ready' || !answerSet) continue;

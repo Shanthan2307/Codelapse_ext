@@ -1,9 +1,9 @@
 import type { SubmissionRecord } from '../types';
 
 /** The JSON records kept for each submission, besides the submission itself. */
-export type DocKind = 'questions' | 'answers' | 'evaluation' | 'code_check' | 'hint_progress' | 'feedback';
+export type DocKind = 'questions' | 'answers' | 'evaluation' | 'code_check' | 'hint_progress' | 'feedback' | 'ai_detection';
 
-export const DOC_KINDS: readonly DocKind[] = ['questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback'];
+export const DOC_KINDS: readonly DocKind[] = ['questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection'];
 
 /** A stored record and an opaque version, for updates that must not overwrite someone else's. */
 export interface StoredDoc<T> {

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDuration, formatShortDateTime, plural } from '@/components/format';
-import { COURSE, displayName, selectedAssignment } from '@/lib/course';
+import { COMPILED, COURSE, displayName, selectedAssignment } from '@/lib/course';
 import { getAnswers, getEvaluation, getQuestionSet, latestSubmissions } from '@/lib/store';
 import { agreeingSignalNames, buildCohort } from '@/lib/cohort';
 import { AssignmentTabs, withAssignment } from '@/components/AssignmentTabs';
@@ -9,6 +9,8 @@ import { LevelCounts } from '@/components/AnswerReview';
 import type { EvaluationSet } from '@/lib/evaluation/types';
 import type { AnswerSet, QuestionSet } from '@/lib/questions/types';
 import type { SubmissionRecord } from '@/lib/types';
+import { getAuthorship } from '@/lib/authorship';
+import { LEVEL_CLASS, LEVEL_LABELS } from '@/components/AuthorshipPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +33,9 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
     )
   );
   // Each student's closest match among the others, for a quick pointer to the comparison.
+  const authorship = new Map(
+    await Promise.all(latest.map(async (s) => [s.id, await getAuthorship(s).catch(() => null)] as const))
+  );
   const cohort = latest.length >= 2 ? await buildCohort(assignment.id) : null;
   const closest = new Map<string, { name: string; count: number; evidence: string; href: string }>();
   for (const pair of cohort?.pairs ?? []) {
@@ -101,8 +106,9 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
               <th scope="col">Submitted</th>
               <th scope="col">Recorded</th>
               <th scope="col">Typed</th>
-              <th scope="col">{assignment.language === 'c' ? 'Builds' : 'Runs'}</th>
+              <th scope="col">{COMPILED[assignment.language] ? 'Builds' : 'Runs'}</th>
               <th scope="col">Recording</th>
+              <th scope="col">AI signs</th>
               <th scope="col">Moments</th>
               <th scope="col">Questions</th>
               <th scope="col">Review</th>
@@ -111,7 +117,7 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
           <tbody>
             {rows.length === 0 && (
               <tr className="row-empty">
-                <td colSpan={9} className="muted">
+                <td colSpan={10} className="muted">
                   No submissions yet.
                 </td>
               </tr>
@@ -165,6 +171,9 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
                         </span>
                       </>
                     )}
+                  </td>
+                  <td>
+                    <AuthorshipCell report={authorship.get(s.id) ?? null} href={`/instructor/submissions/${s.id}#ai-use`} />
                   </td>
                   <td className="num">{s.moments.length}</td>
                   <td className="q-cell">
@@ -242,4 +251,17 @@ function ReviewCell({ answered, evaluation }: { answered: boolean; evaluation: E
     return <span className="muted">—</span>;
   }
   return <LevelCounts counts={evaluation.counts} stacked />;
+}
+
+function AuthorshipCell({ report, href }: { report: Awaited<ReturnType<typeof getAuthorship>>; href: string }) {
+  if (!report) return <span className="muted">–</span>;
+  const top = report.signals[0];
+  return (
+    <>
+      <Link href={href} className={LEVEL_CLASS[report.level]}>
+        {LEVEL_LABELS[report.level]}
+      </Link>
+      {top && <span className="sub">{top.title}</span>}
+    </>
+  );
 }

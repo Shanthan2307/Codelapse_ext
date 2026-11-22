@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Assignment 7 (Java): Valid Palindrome</title>
+<link rel="stylesheet" href="style.css">
+<style>@page { @bottom-left { content: "CS 101 Programming Principles · Assignment 7"; } }</style>
+</head>
+<body>
+
+<h1>Assignment 7 (Java): Valid Palindrome</h1>
+<p class="subtitle">CS 101 Programming Principles · Fall 2026 · DSA</p>
+
+<dl class="meta">
+  <div><dt>File to write</dt><dd><code>Palindrome.java</code></dd></div>
+  <div><dt>Function</dt><dd><code>public static boolean isPalindrome(String s)</code></dd></div>
+  <div><dt>Run it</dt><dd><code>javac Palindrome.java &amp;&amp; java Palindrome</code></dd></div>
+  <div><dt>You submit</dt><dd><code>Palindrome.java</code> + your <code>.codelapse</code> recording</dd></div>
+</dl>
+
+<h2>Problem</h2>
+<p>Given a string <code>s</code>, return <code>true</code> if it is a <b>palindrome</b>, otherwise return <code>false</code>.</p>
+<p>A palindrome is a string that reads the same forward and backward. It is also case-insensitive and ignores all non-alphanumeric characters.</p>
+<p><b>Note:</b> Alphanumeric characters consist of letters (A-Z, a-z) and numbers (0-9).</p>
+
+<h3>Example 1</h3>
+<pre>Input: s = "Was it a car or a cat I saw?"
+Output: true</pre>
+<p>Explanation: After considering only alphanumerical characters we have <code>"wasitacaroracatisaw"</code>, which is a palindrome.</p>
+
+<h3>Example 2</h3>
+<pre>Input: s = "tab a cat"
+Output: false</pre>
+<p>Explanation: <code>"tabacat"</code> is not a palindrome.</p>
+
+<h3>Constraints</h3>
+<ul>
+  <li><code>1 &lt;= s.length &lt;= 1000</code></li>
+  <li><code>s</code> is made up of only printable ASCII characters.</li>
+</ul>
+
+<h2>Recommended Time &amp; Space Complexity</h2>
+<p>You should aim for a solution with <b>O(n)</b> time and <b>O(1)</b> space, where n is the length of the input string.</p>
+
+<h2>Hints</h2>
+<ol class="hints">
+  <li><span class="hint-level">Hint 1</span><br>A brute force solution would be to create a copy of the string, reverse it, and then check for equality. This would be an O(n) solution with extra space. Can you think of a way to do this without O(n) space?</li>
+  <li><span class="hint-level">Hint 2</span><br>Can you find the logic by observing the definition of palindrome or from the brute force solution?</li>
+  <li><span class="hint-level">Hint 3</span><br>A palindrome string is a string that is read the same from the start as well as from the end. This means the character at the start should match the character at the end at the same index. We can use the two pointer algorithm to do this efficiently.</li>
+</ol>
+
+</body>
+</html>

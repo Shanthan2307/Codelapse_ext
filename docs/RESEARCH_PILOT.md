@@ -84,6 +84,11 @@ The one-hour answer window starts when a student uploads, not when they open the
 | `moments_*` | How many decision moments of each kind were found |
 | `review_strong`, `review_partial`, `review_limited` | The reviewer's levels across the four answers |
 | `instructor_follow_up` | Whether you ticked follow up |
+| `ai_signs_level` | Signs of AI use from the recording: `low`, `some` or `high` (`none` if the recording could not be read) |
+| `ai_signs_points` | Sum of signal weights (weak 1, moderate 3, strong 6); for sorting, not a probability |
+| `ai_signals` | The signals found, as `kind:strength` separated by `;` |
+| `lines_typed`, `lines_pasted`, `lines_outside` | Lines of the final code by where they first appeared in the recording |
+| `external_ai_probability` | Codequiry's average AI probability (0–100), when that detector is set up |
 
 ### Table 1: process vs code questions
 

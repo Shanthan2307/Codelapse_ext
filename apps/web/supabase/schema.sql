@@ -22,16 +22,22 @@ create table if not exists public.submissions (
 create index if not exists submissions_assignment_idx on public.submissions (assignment_id, submitted_at desc);
 
 -- One row per submission and kind of record: questions, answers, evaluation,
--- code_check, hint_progress, feedback (the instructor's ratings).
+-- code_check, hint_progress, feedback (the instructor's ratings), ai_detection
+-- (the optional external AI-code detector).
 create table if not exists public.submission_docs (
   submission_id text not null references public.submissions (id) on delete cascade,
-  kind          text not null check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback')),
+  kind          text not null check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection')),
   data          jsonb not null,
   -- Bumped on every update, so the site can update hint progress without overwriting a parallel change.
   version       integer not null default 1,
   updated_at    timestamptz not null default now(),
   primary key (submission_id, kind)
 );
+
+-- Databases made before ai_detection existed: widen the allowed kinds.
+alter table public.submission_docs drop constraint if exists submission_docs_kind_check;
+alter table public.submission_docs add constraint submission_docs_kind_check
+  check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection'));
 
 create table if not exists public.settings (
   key   text primary key,
