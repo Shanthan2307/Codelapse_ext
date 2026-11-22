@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { CourseShell } from '@/components/CourseShell';
 import { formatCount, formatDuration, formatShortDateTime, plural } from '@/components/format';
-import { COURSE, displayName, selectedAssignment } from '@/lib/course';
+import { COMPILED, COURSE, displayName, selectedAssignment } from '@/lib/course';
 import { getAnswers, getEvaluation, getQuestionSet, latestSubmissions } from '@/lib/store';
 import { agreeingSignalNames, buildCohort } from '@/lib/cohort';
 import { AssignmentTabs, withAssignment } from '@/components/AssignmentTabs';
@@ -106,7 +106,7 @@ export default async function InstructorPage({ searchParams }: { searchParams: P
               <th scope="col">Submitted</th>
               <th scope="col">Recorded</th>
               <th scope="col">Typed</th>
-              <th scope="col">{assignment.language === 'c' ? 'Builds' : 'Runs'}</th>
+              <th scope="col">{COMPILED[assignment.language] ? 'Builds' : 'Runs'}</th>
               <th scope="col">Recording</th>
               <th scope="col">AI signs</th>
               <th scope="col">Moments</th>

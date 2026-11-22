@@ -7,7 +7,7 @@ export interface Student {
   name: string;
 }
 
-export type Language = 'c' | 'python';
+export type Language = 'c' | 'python' | 'java';
 
 export interface Assignment {
   id: string;
@@ -131,6 +131,36 @@ export const COURSE: Course = {
         'After you submit, you will get four short questions about your work. You have one hour from submission to answer them.'
       ],
       expectedFiles: ['library.py', 'main.py']
+    },
+    {
+      id: 'a7-palindrome-py',
+      title: 'Assignment 7 (Python): Valid Palindrome',
+      label: 'Python: Palindrome',
+      language: 'python',
+      briefPdf: '/assignments/assignment-7-python-valid-palindrome.pdf',
+      points: 20,
+      dueAt: '2026-11-28T23:59:00',
+      description: [
+        'Given a string s, return true if it is a palindrome, otherwise return false. A palindrome reads the same forward and backward; it is case-insensitive and ignores all non-alphanumeric characters.',
+        'Write palindrome.py with def is_palindrome(s: str) -> bool. Run it with python3 palindrome.py.',
+        'Record your work with the CodeLapse extension, export the bundle, and upload the .codelapse file together with palindrome.py. You then have one hour to answer four short questions.'
+      ],
+      expectedFiles: ['palindrome.py']
+    },
+    {
+      id: 'a7-palindrome-java',
+      title: 'Assignment 7 (Java): Valid Palindrome',
+      label: 'Java: Palindrome',
+      language: 'java',
+      briefPdf: '/assignments/assignment-7-java-valid-palindrome.pdf',
+      points: 20,
+      dueAt: '2026-11-28T23:59:00',
+      description: [
+        'Given a string s, return true if it is a palindrome, otherwise return false. A palindrome reads the same forward and backward; it is case-insensitive and ignores all non-alphanumeric characters.',
+        'Write Palindrome.java with public static boolean isPalindrome(String s). Run it with javac Palindrome.java && java Palindrome.',
+        'Record your work with the CodeLapse extension, export the bundle, and upload the .codelapse file together with Palindrome.java. You then have one hour to answer four short questions.'
+      ],
+      expectedFiles: ['Palindrome.java']
     }
   ]
 };
@@ -168,12 +198,13 @@ export function displayName(record: { studentId: string; studentName?: string })
   return record.studentName || findStudent(record.studentId)?.name || record.studentId;
 }
 
-export const LANGUAGE_LABELS: Record<Language, string> = { c: 'C', python: 'Python' };
+export const LANGUAGE_LABELS: Record<Language, string> = { c: 'C', python: 'Python', java: 'Java' };
 
 /** Which code files a student may upload for each language. */
 const CODE_FILE_PATTERNS: Record<Language, RegExp> = {
   c: /^(?:[\w.-]+\.(?:c|h)|Makefile|makefile)$/,
-  python: /^[\w.-]+\.py$/
+  python: /^[\w.-]+\.py$/,
+  java: /^[\w.-]+\.java$/
 };
 
 export function isAllowedCodeFile(language: Language, name: string): boolean {
@@ -181,13 +212,17 @@ export function isAllowedCodeFile(language: Language, name: string): boolean {
 }
 
 /** File extensions for the file picker's accept list. */
-export const CODE_FILE_ACCEPT: Record<Language, string> = { c: '.c,.h', python: '.py' };
+export const CODE_FILE_ACCEPT: Record<Language, string> = { c: '.c,.h', python: '.py', java: '.java' };
 
 /** Plain words for what may be uploaded, used in messages. */
-export const CODE_FILE_HELP: Record<Language, { kind: string; upload: string }> = {
-  c: { kind: 'a C source file', upload: 'Upload .c and .h files (or a Makefile).' },
-  python: { kind: 'a Python file', upload: 'Upload your .py files.' }
+export const CODE_FILE_HELP: Record<Language, { kind: string; upload: string; attach: string; extensions: string }> = {
+  c: { kind: 'a C source file', upload: 'Upload .c and .h files (or a Makefile).', attach: 'Attach your code (.c or .h files).', extensions: '.c and .h' },
+  python: { kind: 'a Python file', upload: 'Upload your .py files.', attach: 'Attach your code (.py files).', extensions: '.py' },
+  java: { kind: 'a Java file', upload: 'Upload your .java files.', attach: 'Attach your code (.java files).', extensions: '.java' }
 };
+
+/** Languages whose code is compiled before it runs, so runs are called builds. */
+export const COMPILED: Record<Language, boolean> = { c: true, python: false, java: true };
 
 /** The assignment the instructor pages show: the one asked for, or the first. */
 export function selectedAssignment(assignmentId: string | string[] | undefined): Assignment {

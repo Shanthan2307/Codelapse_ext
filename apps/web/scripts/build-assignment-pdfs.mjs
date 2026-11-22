@@ -19,7 +19,9 @@ const BRIEFS = [
   { source: 'python.html', pdf: 'assignment-3-python-reverse-a-string.pdf' },
   { source: 'grades.html', pdf: 'assignment-4-python-grade-statistics.pdf' },
   { source: 'wordcount.html', pdf: 'assignment-5-python-word-frequency.pdf' },
-  { source: 'library.html', pdf: 'assignment-6-python-library-checkout.pdf' }
+  { source: 'library.html', pdf: 'assignment-6-python-library-checkout.pdf' },
+  { source: 'palindrome-py.html', pdf: 'assignment-7-python-valid-palindrome.pdf' },
+  { source: 'palindrome-java.html', pdf: 'assignment-7-java-valid-palindrome.pdf' }
 ];
 
 const CHROME_CANDIDATES = [

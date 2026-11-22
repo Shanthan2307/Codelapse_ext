@@ -77,7 +77,7 @@ export interface AuthorshipInput {
   sessions: Session[];
   /** The submitted code, under the paths it has in the recording. */
   submitted: { path: string; content: string }[];
-  language: 'c' | 'python';
+  language: 'c' | 'python' | 'java';
 }
 
 export interface AuthorshipOptions {
@@ -466,7 +466,7 @@ interface StyleTell {
  * Habits common in code from chat assistants and uncommon in beginners' code.
  * Each is weak on its own.
  */
-export function styleTells(files: { path: string; content: string }[], language: 'c' | 'python'): StyleTell[] {
+export function styleTells(files: { path: string; content: string }[], language: 'c' | 'python' | 'java'): StyleTell[] {
   const code = files.map((f) => f.content).join('\n');
   const tells: StyleTell[] = [];
   const add = (label: string, strong = false) => tells.push({ label, strong });
@@ -502,6 +502,12 @@ export function styleTells(files: { path: string; content: string }[], language:
     const hinted = (code.match(/^\s*def\s+\w+\s*\([^)]*:\s*\w[^)]*\)\s*->/gm) ?? []).length;
     if (defs >= 2 && hinted === defs) add('type hints on every function');
     if (/^from typing import|^import typing/m.test(code)) add('imports from typing');
+  } else if (language === 'java') {
+    if (/@(param|return|throws)\b/.test(code)) add('Javadoc @param / @return comments');
+    const methods = (code.match(/^\s*(public|private|protected)\s+(static\s+)?[\w<>\[\]]+\s+\w+\s*\(/gm) ?? []).length;
+    const javadocs = (code.match(/\*\/\s*\n\s*(public|private|protected)\s/g) ?? []).length;
+    if (methods >= 2 && javadocs >= methods) add('a Javadoc comment on every method');
+    if (/\bfinal\s+\w+\s+\w+\s*=/.test(code) && /\bfinal\b[^\n]*\bfinal\b/s.test(code)) add('final on local variables throughout');
   } else {
     if (/#include\s*<stdbool\.h>/.test(code)) add('#include <stdbool.h>');
     if (/\bEXIT_(SUCCESS|FAILURE)\b/.test(code)) add('EXIT_SUCCESS / EXIT_FAILURE');

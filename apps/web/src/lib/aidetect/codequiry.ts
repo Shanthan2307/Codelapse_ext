@@ -17,7 +17,7 @@ const BASE_URL = 'https://codequiry.com/api/v1';
 const REQUEST_TIMEOUT_MS = 20_000;
 
 /** Codequiry's language ids (GET /languages). */
-const LANGUAGE_IDS: Record<Language, number> = { c: 16, python: 14 };
+const LANGUAGE_IDS: Record<Language, number> = { c: 16, python: 14, java: 13 };
 
 /** check.status_id values. */
 const STATUS_FAILED = 3;

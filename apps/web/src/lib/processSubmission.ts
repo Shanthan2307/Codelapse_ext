@@ -128,7 +128,7 @@ function checkCodeFiles<T extends { name: string }>(files: T[], sizeOf: (file: T
   const help = CODE_FILE_HELP[language];
   const named = files.filter((f) => f.name && sizeOf(f) > 0);
   if (named.length === 0) {
-    throw new SubmissionError(language === 'c' ? 'Attach your code (.c or .h files).' : 'Attach your code (.py files).');
+    throw new SubmissionError(help.attach);
   }
   if (named.length > MAX_CODE_FILES) {
     throw new SubmissionError(`Upload at most ${MAX_CODE_FILES} code files.`);

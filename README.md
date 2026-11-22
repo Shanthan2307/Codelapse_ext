@@ -10,7 +10,7 @@ CodeLapse is being tried with a small group of student testers. Students install
 
 ### For students
 
-The assignment comes in two languages, **C** and **Python**: use the one your instructor gives you. Each has a detailed PDF brief (examples, hints and a checklist) on its assignment page. You need VS Code 1.93 or newer, plus a C compiler (`gcc --version`) or Python 3.10+ (`python3 --version`). The full guide, with troubleshooting, is [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
+Assignments come in **C**, **Python** and **Java** (the Valid Palindrome DSA problem is in Python or Java): use the one your instructor gives you. Each has a PDF brief on its assignment page. You need VS Code 1.93 or newer, plus a C compiler (`gcc --version`), Python 3.10+ (`python3 --version`) or a JDK (`javac -version`). The full guide, with troubleshooting, is [docs/TESTER_GUIDE.md](docs/TESTER_GUIDE.md).
 
 1. **Install the extension.** Download `codelapse-0.1.0.vsix` from the [pilot release](https://github.com/Shanthan2307/Codelapse_ext/releases/tag/v0.1.0-pilot) (under **Assets**). In VS Code, open **Extensions**, click **`···`**, choose **Install from VSIX…** and pick the file. A short walkthrough opens.
 2. **Choose your assignment folder.** Create an empty folder, open it in VS Code, and click **CodeLapse: Choose folder** in the status bar. Only this folder is recorded.
