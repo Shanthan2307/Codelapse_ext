@@ -30,7 +30,8 @@ export function CourseShell({ active, crumbs, children }: CourseShellProps) {
           <span className="global-nav-icon" aria-hidden="true">▤</span>
           Courses
         </Link>
-        <Link href="/instructor" className="global-nav-item">
+        {/* No prefetch: loading /instructor in the background makes the browser ask students for the instructor password. */}
+        <Link href="/instructor" prefetch={false} className="global-nav-item">
           <span className="global-nav-icon" aria-hidden="true">◎</span>
           Instructor
         </Link>
@@ -63,7 +64,7 @@ export function CourseShell({ active, crumbs, children }: CourseShellProps) {
             <span className="disabled" aria-disabled="true" title="Grades are not part of this demo">
               Grades
             </span>
-            <Link href="/instructor" className={active === 'instructor' ? 'active' : undefined}>
+            <Link href="/instructor" prefetch={false} className={active === 'instructor' ? 'active' : undefined}>
               Instructor view
             </Link>
           </nav>
