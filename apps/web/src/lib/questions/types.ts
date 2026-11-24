@@ -1,5 +1,6 @@
 import type { SubmissionRecord } from '../types';
 import type { Language } from '../course';
+import type { AnswerConversation } from '../voice/types';
 
 export type QuestionType = 'process' | 'code';
 
@@ -84,7 +85,15 @@ export interface StudentQuestion {
 
 export interface AnswerSet {
   submittedAt: number;
+  /**
+   * Each answer's text. In a voice check it is everything the student said
+   * about that question, in order.
+   */
   answers: { questionId: string; text: string }[];
+  /** Written (the form) or voice (a conversation with the tutor). Written when absent. */
+  mode?: 'written' | 'voice';
+  /** Voice checks only: the whole conversation about each question, including the tutor's hints. */
+  conversations?: AnswerConversation[];
 }
 
 export interface QuestionContext {

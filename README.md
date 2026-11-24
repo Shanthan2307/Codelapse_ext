@@ -207,6 +207,15 @@ After an upload, the server asks a language model (see [Choosing the AI](#choosi
 - **Prompt injection:** the student's code and the recording go into clearly marked sections that the prompt says are material, never instructions. Text in the code that addresses an AI or grader is listed for the instructor, and the model can note it too.
 - **Shared record:** each submission's `questions.json` holds the questions plus, for the instructor and the future answer evaluator only, why each was asked and what a strong answer might mention. It also keeps every prompt and reply, for research and for training a local model later. Students never see these parts.
 
+### Voice check
+
+Instead of typing, a student can answer the questions in a spoken conversation with an AI tutor. When it is set up, the submission page offers it first, with **Answer in writing instead** beside it. There is no camera: the page shows the code each question is about and an animation (a pulsing orb while the tutor speaks, a wave while the student talks). Students can tap to talk or let the page detect when they stop, pause, ask for a question again, switch to typing, or end early.
+
+- **What the tutor may do:** ask the question, rephrase it, ask a follow-up, or give a hint that points at the code, up to two of each per question and six student turns. It never gives the answer or dictates code, asks nothing personal, and redirects anything off topic. The server, not the model, moves to the next question, reads every question word for word, and checks each reply before it is spoken: no code, no personal questions, at most 55 words, and no phrase copied from the strong-answer notes. A reply that fails is asked for once more, then replaced with a neutral line.
+- **Models:** the tutor is `deepseek-ai/DeepSeek-V4.1-Flash` on Featherless (`CODELAPSE_VOICE_MODEL`), which replied in about one to two seconds in testing. Its voice is Kokoro on Featherless (`CODELAPSE_TTS_MODEL`, `CODELAPSE_TTS_VOICE`), with the browser's own voice if that fails. Featherless has no speech recognition, so the student's speech goes to Whisper at Groq: set `GROQ_API_KEY`. For OpenAI's Whisper set `CODELAPSE_STT_PROVIDER=openai`; for any other OpenAI-compatible server set `CODELAPSE_STT_PROVIDER=custom` with `CODELAPSE_STT_BASE_URL`, `CODELAPSE_STT_API_KEY` and `CODELAPSE_STT_MODEL`. Recordings are transcribed and not stored.
+- **Turning it off:** without a Featherless key and a speech-recognition key the voice check is not offered. `CODELAPSE_VOICE=off` hides it.
+- **What is saved:** each submission's `voice.json` keeps the conversation, every tutor prompt and reply, and the transcription timings. The answers become each question's student turns, and the full conversation goes to the reviewer and the instructor page. On Supabase, run `apps/web/supabase/schema.sql` again to allow the new `voice` record.
+
 ### Answer review
 
 When a student submits their answers, a second request to the same model reviews them for the instructor. It reads each answer next to the question, the question writer's reasons and hints from `questions.json` (as hypotheses, not an answer key), the code or recording evidence the question is about, and the full code. For each answer it gives:
@@ -216,7 +225,7 @@ When a student submits their answers, a second request to the same model reviews
 - short quotes from the answer that support the scores, which the server checks appear word for word
 - a short explanation and any specific concerns, such as an answer naming a different build error from the one in the recording
 
-It is told to judge understanding, not writing, and not to speculate about AI use or copying. Students never see the review. It is stored in each submission's `evaluation.json`, with every prompt and reply. The evaluator goes through its own `EvaluatorModel` interface (`apps/web/src/lib/evaluation/model.ts`), so it can be swapped the same way as the question writer.
+For a voice check the reviewer also reads the conversation and gives more credit to what the student worked out before a hint than after, and ignores misheard code words. It is told to judge understanding, not writing, and not to speculate about AI use or copying. Students never see the review. It is stored in each submission's `evaluation.json`, with every prompt and reply. The evaluator goes through its own `EvaluatorModel` interface (`apps/web/src/lib/evaluation/model.ts`), so it can be swapped the same way as the question writer.
 
 ### Comparing students
 

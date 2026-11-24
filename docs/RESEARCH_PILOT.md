@@ -191,6 +191,7 @@ The site picks its storage from `CODELAPSE_STORAGE`: `supabase` on Vercel, unset
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY` | from step 1 |
 | `CODELAPSE_INSTRUCTOR_PASSWORD` | the instructor password (e.g. the one in `apps/web/.env.local`) |
 | `CODELAPSE_AI_PROVIDER` and its key (`FEATHERLESS_API_KEY`, `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`) | as for `npm run demo` |
+| `GROQ_API_KEY` (or another `CODELAPSE_STT_*` setting) | for the voice check; see **Voice check** in the README |
 
    Do not set `CODELAPSE_RESEARCH_SALT` there: the salt lives in Supabase's `settings` table, where the research views use it too.
 4. Give testers `https://<your-project>.vercel.app/courses/cs101/assignments/<id>`, where `<id>` is `a3-reverse` (C), `a3-reverse-py`, `a4-grades-py`, `a5-wordcount-py` (basic Python, one file) or `a6-library-py` (medium Python, two files: `library.py` and `main.py`). The instructor view is `/instructor`.
@@ -217,6 +218,7 @@ For a SQLite file of everything, run `npm run research:db -- --from supabase`. T
 - **Pseudonymisation:** exports use participant codes made from a salted hash of each student id. The salt is `CODELAPSE_RESEARCH_SALT` if set, otherwise a random value saved in `research-salt.txt` in the data folder on the first export. Anyone with that salt and the class list can recompute the codes, so keep the file private and don't share it with the exports. Exports never contain names, student ids or code; answer text only when asked for.
 - **Deleting:** `npm run demo:reset` moves the data into `apps/web/data-archive-<date-time>`. Delete that folder yourself when the data is no longer needed under your consent terms.
 - **Data sent to the AI provider:** to write questions and review answers, the site sends each student's code, the decision moments from their recording (short code excerpts and build output) and their answers to the configured provider (Featherless by default; see **Choosing the AI** in the README). Names are not sent. Mention the provider in your consent form.
+- **Voice check:** the student's speech is sent to the speech-recognition provider (Groq by default) to be turned into text, and the tutor's lines are spoken by Featherless. The audio is not stored; the text is. Name both providers in your consent form.
 - **Instructor password:** the instructor pages and the export are behind the instructor password that `npm run demo` prints. Students have no sign-in, so run the site only on a trusted network, and stop it after the session.
 
 ## Known limitations
