@@ -8,6 +8,9 @@ import { studentCodeCheck } from '@/lib/codecheck/progress';
 import { CodeCheckPanel } from '@/components/CodeCheckPanel';
 import { studentView } from '@/lib/questions/answers';
 import { QuestionsForm, QuestionsState } from '@/components/QuestionsForm';
+import { getVoiceSession } from '@/lib/voice/run';
+import { publicView } from '@/lib/voice/session';
+import { voiceAvailable } from '@/lib/voice/speech';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,8 +32,11 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
     questions: set?.status === 'ready' ? studentView(set) : [],
     answered: answers !== null,
     answers: answers?.answers ?? [],
-    answeredAt: answers?.submittedAt
+    answeredAt: answers?.submittedAt,
+    answerMode: answers?.mode ?? 'written'
   };
+  const voiceSession = await getVoiceSession(id);
+  const voice = { available: voiceAvailable(), session: voiceSession ? publicView(voiceSession.session) : null };
 
   const codeCheck = studentCodeCheck(await getCodeCheck(id), await getHintProgress(id));
 
@@ -50,7 +56,7 @@ export default async function SubmissionPage({ params }: { params: Promise<{ id:
 
       <h1>Your submission</h1>
 
-      <QuestionsForm submissionId={submission.id} initial={questions} />
+      <QuestionsForm submissionId={submission.id} initial={questions} voice={voice} />
 
       <CodeCheckPanel submissionId={submission.id} initial={codeCheck} />
 

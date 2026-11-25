@@ -19,6 +19,7 @@ import { externalDetectorEnabled, refreshExternalAiCheck } from '@/lib/aidetect/
 import { emptyFeedback, getFeedback } from '@/lib/research/feedback';
 import type { AnswerEvaluation, EvaluationSet } from '@/lib/evaluation/types';
 import type { FileCheck, Moment } from '@/lib/types';
+import type { AnswerConversation } from '@/lib/voice/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -321,6 +322,7 @@ function QuestionsSection({
 }) {
   const status = set?.status ?? 'pending';
   const answerById = new Map((answers?.answers ?? []).map((a) => [a.questionId, a.text]));
+  const conversationById = new Map((answers?.conversations ?? []).map((c) => [c.questionId, c]));
   const notAnswered = closed ? 'Not answered' : 'Not answered yet';
   const reviewById = new Map(
     (evaluation?.status === 'ready' ? evaluation.evaluations : []).map((e) => [e.questionId, e])
@@ -334,7 +336,7 @@ function QuestionsSection({
       <p className="hint">
         {set?.model ? `Written by ${set.model} (prompt ${set.promptVersion}). ` : ''}
         {answers
-          ? `Answers received ${formatDateTime(answers.submittedAt)}.`
+          ? `Answers received ${formatDateTime(answers.submittedAt)}${answers.mode === 'voice' ? ', in a voice conversation with the tutor' : ''}.`
           : closed
             ? `Answers closed ${formatDateTime(closesAt)} without a reply.`
             : `Answers close ${formatDateTime(closesAt)}.`}
@@ -391,6 +393,7 @@ function QuestionsSection({
               moment={q.momentId ? momentsById.get(q.momentId) : undefined}
               submissionId={submissionId}
               answer={answerById.get(q.id)}
+              conversation={conversationById.get(q.id)}
               review={reviewById.get(q.id)}
               notAnswered={notAnswered}
             />
@@ -405,6 +408,7 @@ function InstructorQuestion({
   question,
   moment,
   answer,
+  conversation,
   review,
   notAnswered,
   submissionId
@@ -413,6 +417,7 @@ function InstructorQuestion({
   moment: Moment | undefined;
   submissionId: string;
   answer: string | undefined;
+  conversation: AnswerConversation | undefined;
   review: AnswerEvaluation | undefined;
   notAnswered: string;
 }) {
@@ -454,12 +459,13 @@ function InstructorQuestion({
           </div>
         )}
       </dl>
-      <p className="answer-label">Student&apos;s answer</p>
+      <p className="answer-label">{conversation ? 'What the student said' : <>Student&apos;s answer</>}</p>
       {answer ? (
         <HighlightedAnswer text={answer} quotes={review?.evidenceQuotes ?? []} />
       ) : (
         <p className="muted">{notAnswered}</p>
       )}
+      {conversation && <VoiceConversation conversation={conversation} />}
       {answer && review && <AnswerEvaluationView evaluation={review} />}
     </li>
   );
@@ -602,5 +608,36 @@ function SummaryStrip({
         <a href="#moments">Moments</a>
       </nav>
     </div>
+  );
+}
+
+const TURN_KIND_LABELS: Record<string, string> = {
+  hint: 'hint',
+  clarify: 'rephrased the question',
+  follow_up: 'asked to say more',
+  next: 'moved on'
+};
+
+/** The spoken conversation about one question, with the tutor's hints marked. */
+function VoiceConversation({ conversation }: { conversation: AnswerConversation }) {
+  const counts = [
+    conversation.hints > 0 ? `${conversation.hints} ${conversation.hints === 1 ? 'hint' : 'hints'}` : 'no hints',
+    conversation.followUps > 0 ? `${conversation.followUps} follow-up${conversation.followUps === 1 ? '' : 's'}` : null,
+    conversation.clarifications > 0 ? `rephrased ${conversation.clarifications}×` : null
+  ].filter(Boolean);
+  return (
+    <details className="voice-transcript-instructor">
+      <summary>
+        Voice conversation <span className="muted">({counts.join(', ')})</span>
+      </summary>
+      <ol className="voice-conversation">
+        {conversation.turns.map((t, i) => (
+          <li key={i} className={t.role === 'tutor' ? 'voice-turn-tutor' : 'voice-turn-student'}>
+            <span className="voice-turn-who">{t.role === 'tutor' ? 'Tutor' : 'Student'}</span> {t.text}
+            {t.role === 'tutor' && t.kind && TURN_KIND_LABELS[t.kind] && <span className="voice-turn-kind">({TURN_KIND_LABELS[t.kind]})</span>}
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }

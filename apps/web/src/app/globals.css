@@ -2226,3 +2226,228 @@ pre.compare-code:not(:has(.compare-line)) {
   border-color: var(--c-warn);
   background: var(--c-warn-soft);
 }
+
+/* ---------- Voice check ---------- */
+.button-danger-text {
+  color: var(--c-error);
+}
+
+.button-danger-text:hover {
+  color: var(--c-error);
+  border-color: var(--c-error);
+}
+
+.voice-intro-head {
+  display: flex;
+  gap: var(--s-4);
+  align-items: flex-start;
+}
+
+.voice-intro-head h2 {
+  margin: 0 0 var(--s-1);
+}
+
+.voice-intro-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-pill);
+  background: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+
+.voice-intro-list {
+  margin: var(--s-4) 0;
+  padding-left: var(--s-5);
+  line-height: 1.6;
+}
+
+.voice-intro-list li + li {
+  margin-top: var(--s-2);
+}
+
+.voice-check {
+  padding: 0;
+  overflow: hidden;
+}
+
+.voice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--c-border);
+}
+
+.voice-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.voice-chips {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.voice-chip {
+  font-size: var(--t-xs);
+  padding: 3px 10px;
+  border-radius: var(--r-pill);
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-border);
+  color: var(--c-muted);
+}
+
+.voice-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+}
+
+.voice-code {
+  padding: var(--s-4);
+  border-right: 1px solid var(--c-border);
+  min-width: 0;
+}
+
+.voice-code-label {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--c-muted);
+}
+
+.voice-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--s-4);
+  text-align: center;
+  min-width: 0;
+}
+
+.voice-visual {
+  max-width: 100%;
+}
+
+.voice-visual-orb {
+  cursor: pointer;
+}
+
+.voice-state {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--c-muted);
+}
+
+.voice-caption {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-md);
+  line-height: 1.6;
+  min-height: 3.2em;
+}
+
+.voice-heard {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--c-muted);
+}
+
+.voice-notice {
+  margin: 0 0 var(--s-2);
+  font-size: var(--t-sm);
+  color: var(--c-warn);
+}
+
+.voice-type {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-end;
+  width: 100%;
+  margin-bottom: var(--s-3);
+}
+
+.voice-type textarea {
+  flex: 1;
+}
+
+.voice-controls {
+  display: flex;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: var(--s-2);
+}
+
+.voice-transcript {
+  border-top: 1px solid var(--c-border);
+  padding: var(--s-3) var(--s-4);
+}
+
+.voice-transcript summary {
+  cursor: pointer;
+  color: var(--c-muted);
+  font-size: var(--t-sm);
+}
+
+.voice-transcript ol,
+.voice-conversation {
+  list-style: none;
+  margin: var(--s-3) 0 0;
+  padding: 0;
+}
+
+.voice-transcript li,
+.voice-conversation li {
+  padding: var(--s-2) 0;
+  border-bottom: 1px solid var(--c-border);
+  font-size: var(--t-sm);
+  line-height: 1.55;
+}
+
+.voice-turn-who {
+  display: inline-block;
+  min-width: 64px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.voice-turn-tutor .voice-turn-who {
+  color: var(--c-accent);
+}
+
+.voice-turn-kind {
+  font-size: var(--t-xs);
+  color: var(--c-subtle);
+  margin-left: var(--s-1);
+}
+
+@media (max-width: 760px) {
+  .voice-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .voice-code {
+    border-right: none;
+    border-bottom: 1px solid var(--c-border);
+    order: 2;
+  }
+}
+
+.voice-transcript-instructor {
+  margin: var(--s-3) 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface-2);
+}
+
+.voice-transcript-instructor summary {
+  cursor: pointer;
+  font-size: var(--t-sm);
+  font-weight: 500;
+}

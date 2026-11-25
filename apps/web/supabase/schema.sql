@@ -26,7 +26,7 @@ create index if not exists submissions_assignment_idx on public.submissions (ass
 -- (the optional external AI-code detector).
 create table if not exists public.submission_docs (
   submission_id text not null references public.submissions (id) on delete cascade,
-  kind          text not null check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection')),
+  kind          text not null check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection', 'voice')),
   data          jsonb not null,
   -- Bumped on every update, so the site can update hint progress without overwriting a parallel change.
   version       integer not null default 1,
@@ -34,10 +34,10 @@ create table if not exists public.submission_docs (
   primary key (submission_id, kind)
 );
 
--- Databases made before ai_detection existed: widen the allowed kinds.
+-- Databases made before ai_detection and voice existed: widen the allowed kinds.
 alter table public.submission_docs drop constraint if exists submission_docs_kind_check;
 alter table public.submission_docs add constraint submission_docs_kind_check
-  check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection'));
+  check (kind in ('questions', 'answers', 'evaluation', 'code_check', 'hint_progress', 'feedback', 'ai_detection', 'voice'));
 
 create table if not exists public.settings (
   key   text primary key,

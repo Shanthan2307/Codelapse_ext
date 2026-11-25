@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { StudentQuestion } from '@/lib/questions/types';
+import type { VoicePublic } from '@/lib/voice/types';
 import { formatDateTime } from './format';
 import { CodeExcerpts } from './CodeExcerpts';
+import { VoiceCheck } from './VoiceCheck';
 
 export type QuestionsStatus = 'pending' | 'ready' | 'failed';
 
@@ -14,6 +16,14 @@ export interface QuestionsState {
   answered: boolean;
   answers: { questionId: string; text: string }[];
   answeredAt?: number;
+  /** How the answers were given, once they are. */
+  answerMode?: 'written' | 'voice';
+}
+
+/** Whether the voice check is offered, and any conversation already started. */
+export interface VoiceOption {
+  available: boolean;
+  session: VoicePublic | null;
 }
 
 const MAX_ANSWER_CHARS = 3000;
@@ -26,8 +36,18 @@ function timeLeft(ms: number): string {
 }
 
 /** The student's four questions: waits for them, counts down the hour, and sends the answers once. */
-export function QuestionsForm({ submissionId, initial }: { submissionId: string; initial: QuestionsState }) {
+export function QuestionsForm({
+  submissionId,
+  initial,
+  voice = { available: false, session: null }
+}: {
+  submissionId: string;
+  initial: QuestionsState;
+  voice?: VoiceOption;
+}) {
   const [state, setState] = useState<QuestionsState>(initial);
+  // The voice check is the default when the site offers it; writing stays one click away.
+  const [mode, setMode] = useState<'voice' | 'written'>(voice.available ? 'voice' : 'written');
   const [now, setNow] = useState<number | null>(null);
   const draftKey = `codelapse-answers-${submissionId}`;
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -159,6 +179,7 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
 
   if (state.answered) {
     const byId = new Map(state.answers.map((a) => [a.questionId, a.text]));
+    const spoken = state.answerMode === 'voice';
     return (
       <>
       {steps}
@@ -172,7 +193,7 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
             <li key={q.id} className="question">
               <p className="question-text">{q.text}</p>
               <CodeExcerpts excerpts={q.excerpts} />
-              <p className="answer-label">Your answer</p>
+              <p className="answer-label">{spoken ? 'What you said' : 'Your answer'}</p>
               <p className="answer-readonly">{byId.get(q.id) ?? ''}</p>
             </li>
           ))}
@@ -198,6 +219,24 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
     );
   }
 
+  if (mode === 'voice' && voice.available) {
+    return (
+      <>
+        {steps}
+        <VoiceCheck
+          submissionId={submissionId}
+          questions={state.questions}
+          closesAt={state.closesAt}
+          initialSession={voice.session}
+          onUseWriting={() => setMode('written')}
+          onFinished={(result) =>
+            setState((s) => ({ ...s, answered: true, answers: result.answers, answeredAt: result.submittedAt, answerMode: 'voice' }))
+          }
+        />
+      </>
+    );
+  }
+
   const remaining = now === null ? null : state.closesAt - now;
   return (
     <>
@@ -213,6 +252,14 @@ export function QuestionsForm({ submissionId, initial }: { submissionId: string;
         Answer in your own words, in a few sentences each. Answers close at {formatDateTime(state.closesAt)}. Your
         drafts are kept in this browser until you submit.
       </p>
+      {voice.available && (
+        <p className="hint">
+          Prefer to talk it through?{' '}
+          <button type="button" className="button-link" onClick={() => setMode('voice')}>
+            Answer by voice instead
+          </button>
+        </p>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
